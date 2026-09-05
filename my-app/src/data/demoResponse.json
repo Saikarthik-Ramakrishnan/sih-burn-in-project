@@ -1,0 +1,54 @@
+{
+  "batch_id": "DEMO-BATCH-001",
+  "components": [
+    {
+      "component_id": "MLCC-001",
+      "current_leakage": 0.42,
+      "leakage_limit": 1,
+      "forecast": 0.58,
+      "prediction_interval": { "lower": 0.49, "upper": 0.7, "unit": "uA" },
+      "anomaly_flag": false,
+      "recommendation": "continue_monitoring",
+      "reasons": ["stable leakage trend", "forecast remains below limit"],
+      "scoring_status": "scored",
+      "early_readings": [
+        { "hour": 0, "leakage": 0.39, "unit": "uA" },
+        { "hour": 12, "leakage": 0.41, "unit": "uA" },
+        { "hour": 24, "leakage": 0.42, "unit": "uA" }
+      ],
+      "forecast_horizon": 72
+    },
+    {
+      "component_id": "MLCC-002",
+      "current_leakage": 1.24,
+      "leakage_limit": 1,
+      "forecast": 1.68,
+      "prediction_interval": { "lower": 1.32, "upper": 2.05, "unit": "uA" },
+      "anomaly_flag": true,
+      "recommendation": "inspect",
+      "reasons": ["current leakage exceeds limit", "forecast interval remains elevated"],
+      "scoring_status": "scored",
+      "early_readings": [
+        { "hour": 0, "leakage": 0.8, "unit": "uA" },
+        { "hour": 12, "leakage": 0.98, "unit": "uA" },
+        { "hour": 24, "leakage": 1.24, "unit": "uA" }
+      ],
+      "forecast_horizon": 72
+    },
+    {
+      "component_id": "MLCC-003",
+      "current_leakage": 0.37,
+      "leakage_limit": 1,
+      "forecast": null,
+      "prediction_interval": { "lower": null, "upper": null, "unit": "uA" },
+      "anomaly_flag": null,
+      "recommendation": null,
+      "reasons": ["insufficient early readings"],
+      "scoring_status": "unscored",
+      "early_readings": [
+        { "hour": 0, "leakage": 0.36, "unit": "uA" },
+        { "hour": 12, "leakage": 0.37, "unit": "uA" }
+      ]
+    }
+  ]
+}
