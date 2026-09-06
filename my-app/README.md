@@ -1,16 +1,11 @@
-# React + Vite
+# Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React + Vite front end for the screening results. It polls `/api/v1/health/ready`, uploads a CSV to `/api/v1/screen`, and renders each part's measured values, batch comparison, forecast with its interval, explanation and recommendation.
 
-Currently, two official plugins are available:
+```bash
+cd my-app
+npm install
+npm run dev        # http://localhost:5173, expects the backend on :8000
+```
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+Which response fields to bind and how to display them: [docs/dashboardAdapterFieldDictionary.md](docs/dashboardAdapterFieldDictionary.md). Build a production bundle with `npm run build`; the backend serves `my-app/dist` when it exists.
