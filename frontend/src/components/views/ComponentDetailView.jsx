@@ -87,14 +87,14 @@ export default function ComponentDetailView({
               disabled={currentIndex <= 0}
               className="btn-secondary p-2 disabled:opacity-30 flex items-center justify-center cursor-pointer"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-4 h-4" strokeWidth={1.5} />
             </button>
             <button
               onClick={handleNext}
               disabled={currentIndex >= records.length - 1}
               className="btn-secondary p-2 disabled:opacity-30 flex items-center justify-center cursor-pointer"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-4 h-4" strokeWidth={1.5} />
             </button>
           </div>
 
@@ -115,7 +115,7 @@ export default function ComponentDetailView({
             onClick={exportEvidenceCard}
             className="btn-secondary flex items-center gap-2 px-3.5 py-2 text-xs font-mono font-medium"
           >
-            <Download className="w-3.5 h-3.5 text-orange-400" />
+            <Download className="w-3.5 h-3.5 text-orange-400" strokeWidth={1.5} />
             <span>Export Evidence</span>
           </button>
         </div>
@@ -129,7 +129,7 @@ export default function ComponentDetailView({
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
                 <h3 className="text-xs font-mono uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                  <Activity className="w-3.5 h-3.5 text-orange-400" />
+                  <Activity className="w-3.5 h-3.5 text-orange-400" strokeWidth={1.5} />
                   Burn-In Trajectory &amp; 168h Forecast
                 </h3>
                 <p className="text-[11px] text-slate-400">
@@ -146,7 +146,7 @@ export default function ComponentDetailView({
                     : 'btn-primary'
                 }`}
               >
-                {showOutcome ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                {showOutcome ? <EyeOff className="w-3.5 h-3.5" strokeWidth={1.5} /> : <Eye className="w-3.5 h-3.5" strokeWidth={1.5} />}
                 <span>{showOutcome ? 'Hide Recorded 168h' : 'Reveal 168h Outcome'}</span>
               </button>
             </div>
@@ -158,7 +158,7 @@ export default function ComponentDetailView({
             {showOutcome && (
               <div className="mt-4 p-3 rounded-lg bg-orange-500/[0.04] border border-orange-500/20 text-xs font-mono text-slate-300 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-orange-400 flex-shrink-0" />
+                  <CheckCircle className="w-4 h-4 text-orange-400 flex-shrink-0" strokeWidth={1.5} />
                   <span>
                     Observed 168h leakage: <strong className="text-white">{record.observed_168h} µA</strong> (Forecast: {record.forecast.predicted_final_value} µA, Δ: {Math.abs(record.observed_168h - record.forecast.predicted_final_value).toFixed(4)} µA).
                   </span>
@@ -209,7 +209,7 @@ export default function ComponentDetailView({
           {/* Recommendation Reasons Card */}
           <SquircleCard className="p-4 space-y-2">
             <h4 className="text-xs font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-              <Info className="w-3.5 h-3.5 text-orange-400" />
+              <Info className="w-3.5 h-3.5 text-orange-400" strokeWidth={1.5} />
               Recommendation Rationale
             </h4>
             <div className="space-y-1.5 text-xs">
@@ -226,7 +226,7 @@ export default function ComponentDetailView({
           <SquircleCard className="p-4 space-y-2">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-orange-400" />
+                <Sparkles className="w-3.5 h-3.5 text-orange-400" strokeWidth={1.5} />
                 TreeSHAP Vectors
               </h4>
               <span className="text-[10px] font-mono text-slate-500">
@@ -258,7 +258,7 @@ export default function ComponentDetailView({
           {/* Test Context & Hardware Location */}
           <SquircleCard className="p-4 space-y-2 font-mono text-xs">
             <h4 className="text-xs uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-              <Cpu className="w-3.5 h-3.5 text-orange-400" />
+              <Cpu className="w-3.5 h-3.5 text-orange-400" strokeWidth={1.5} />
               Hardware Context
             </h4>
 

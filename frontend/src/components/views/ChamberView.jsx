@@ -99,7 +99,7 @@ export default function ChamberView({ dataset }) {
         <SquircleCard className="p-4 space-y-1.5">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-[10px] uppercase">Chamber Temp</span>
-            <Thermometer className="w-3.5 h-3.5 text-orange-400" />
+            <Thermometer className="w-3.5 h-3.5 text-orange-400" strokeWidth={1.5} />
           </div>
           <div className="text-xl font-medium text-white">
             {sampleContext.temperature_c || 125.0} °C
@@ -112,7 +112,7 @@ export default function ChamberView({ dataset }) {
         <SquircleCard className="p-4 space-y-1.5">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-[10px] uppercase">Stress Voltage</span>
-            <Zap className="w-3.5 h-3.5 text-orange-400" />
+            <Zap className="w-3.5 h-3.5 text-orange-400" strokeWidth={1.5} />
           </div>
           <div className="text-xl font-medium text-white">
             {sampleContext.applied_voltage_v || 45.7} V
@@ -125,7 +125,7 @@ export default function ChamberView({ dataset }) {
         <SquircleCard className="p-4 space-y-1.5">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-[10px] uppercase">Prior Storage RH</span>
-            <Droplets className="w-3.5 h-3.5 text-orange-400" />
+            <Droplets className="w-3.5 h-3.5 text-orange-400" strokeWidth={1.5} />
           </div>
           <div className="text-xl font-medium text-white">
             {sampleContext.prior_storage_humidity_pct || 55.4} %RH
@@ -138,7 +138,7 @@ export default function ChamberView({ dataset }) {
         <SquircleCard className="p-4 space-y-1.5">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-[10px] uppercase">Tester Hardware</span>
-            <Server className="w-3.5 h-3.5 text-orange-400" />
+            <Server className="w-3.5 h-3.5 text-orange-400" strokeWidth={1.5} />
           </div>
           <div className="text-xl font-medium text-white">
             {sampleContext.tester_id || 'TESTER_03'}
@@ -153,7 +153,7 @@ export default function ChamberView({ dataset }) {
       <SquircleCard className="p-5 space-y-3.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Activity className="w-3.5 h-3.5 text-orange-400" />
+            <Activity className="w-3.5 h-3.5 text-orange-400" strokeWidth={1.5} />
             <h3 className="text-xs font-mono uppercase tracking-wider text-slate-300">
               Chamber Event Log
             </h3>
@@ -163,7 +163,7 @@ export default function ChamberView({ dataset }) {
             onClick={handleExportLogs}
             className="btn-secondary flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono"
           >
-            <Download className="w-3.5 h-3.5 text-slate-400" />
+            <Download className="w-3.5 h-3.5 text-slate-400" strokeWidth={1.5} />
             <span>Export CSV</span>
           </button>
         </div>

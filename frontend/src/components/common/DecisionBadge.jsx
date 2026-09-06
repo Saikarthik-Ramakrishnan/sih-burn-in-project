@@ -35,7 +35,7 @@ export default function DecisionBadge({ decision, size = 'md', showDescription =
         `}
       >
         <span className={`w-1.5 h-1.5 rounded-full ${config.dotClass}`} />
-        {IconComponent && <IconComponent className={size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5'} />}
+        {IconComponent && <IconComponent className={size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5'} strokeWidth={1.5} />}
         <span>{config.label}</span>
       </span>
       {showDescription && (

@@ -72,7 +72,7 @@ export default function ExportView({ dataset }) {
     <div className="space-y-6 pb-12 max-w-5xl mx-auto">
       <div className="mb-2">
         <h2 className="text-xl font-display font-bold text-white tracking-tight flex items-center gap-2">
-          <FileSpreadsheet className="w-5 h-5 text-orange-400" />
+          <FileSpreadsheet className="w-5 h-5 text-orange-400" strokeWidth={1.5} />
           Audit &amp; Data Export Hub
         </h2>
         <p className="text-xs text-slate-400">
@@ -85,7 +85,7 @@ export default function ExportView({ dataset }) {
         <SquircleCard elevated className="p-5 flex flex-col justify-between space-y-4">
           <div>
             <div className="w-9 h-9 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mb-3">
-              <FileSpreadsheet className="w-4 h-4 text-orange-400" />
+              <FileSpreadsheet className="w-4 h-4 text-orange-400" strokeWidth={1.5} />
             </div>
             <h3 className="text-sm font-display font-semibold text-white mb-1">
               Full Screening CSV Report
@@ -99,7 +99,7 @@ export default function ExportView({ dataset }) {
             onClick={handleExportFullCsv}
             className="btn-primary w-full py-2 flex items-center justify-center gap-2 text-xs font-mono tracking-wide"
           >
-            <Download className="w-3.5 h-3.5" />
+            <Download className="w-3.5 h-3.5" strokeWidth={1.5} />
             <span>Download Full CSV</span>
           </button>
         </SquircleCard>
@@ -108,7 +108,7 @@ export default function ExportView({ dataset }) {
         <SquircleCard elevated className="p-5 flex flex-col justify-between space-y-4">
           <div>
             <div className="w-9 h-9 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mb-3">
-              <FileText className="w-4 h-4 text-orange-400" />
+              <FileText className="w-4 h-4 text-orange-400" strokeWidth={1.5} />
             </div>
             <h3 className="text-sm font-display font-semibold text-white mb-1">
               Flagged Items Audit Report
@@ -122,7 +122,7 @@ export default function ExportView({ dataset }) {
             onClick={handleExportFlaggedOnly}
             className="btn-secondary w-full py-2 flex items-center justify-center gap-2 text-xs font-mono tracking-wide"
           >
-            <Download className="w-3.5 h-3.5" />
+            <Download className="w-3.5 h-3.5" strokeWidth={1.5} />
             <span>Download Flagged Only</span>
           </button>
         </SquircleCard>
@@ -131,7 +131,7 @@ export default function ExportView({ dataset }) {
         <SquircleCard elevated className="p-5 flex flex-col justify-between space-y-4">
           <div>
             <div className="w-9 h-9 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mb-3">
-              <FileCode className="w-4 h-4 text-orange-400" />
+              <FileCode className="w-4 h-4 text-orange-400" strokeWidth={1.5} />
             </div>
             <h3 className="text-sm font-display font-semibold text-white mb-1">
               Full API JSON Envelope
@@ -145,7 +145,7 @@ export default function ExportView({ dataset }) {
             onClick={handleExportJson}
             className="btn-secondary w-full py-2 flex items-center justify-center gap-2 text-xs font-mono tracking-wide"
           >
-            <Download className="w-3.5 h-3.5" />
+            <Download className="w-3.5 h-3.5" strokeWidth={1.5} />
             <span>Download Raw JSON</span>
           </button>
         </SquircleCard>

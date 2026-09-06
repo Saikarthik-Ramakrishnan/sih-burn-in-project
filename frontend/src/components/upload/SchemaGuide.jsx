@@ -12,10 +12,10 @@ export default function SchemaGuide() {
         className="w-full p-3 flex items-center justify-between text-slate-300 hover:text-white transition-colors cursor-pointer"
       >
         <span className="flex items-center gap-2">
-          <HelpCircle className="w-4 h-4 text-orange-400" />
+          <HelpCircle className="w-4 h-4 text-orange-400" strokeWidth={1.5} />
           <span>CSV Column &amp; Format Specifications</span>
         </span>
-        {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        {isOpen ? <ChevronUp className="w-4 h-4" strokeWidth={1.5} /> : <ChevronDown className="w-4 h-4" strokeWidth={1.5} />}
       </button>
 
       {isOpen && (

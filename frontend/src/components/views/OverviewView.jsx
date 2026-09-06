@@ -71,17 +71,17 @@ export default function OverviewView({
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
             <div className="flex items-center gap-1.5 text-slate-400">
-              <Layers className="w-3.5 h-3.5 text-orange-400" />
+              <Layers className="w-3.5 h-3.5 text-orange-400" strokeWidth={1.5} />
               <span>FILE: <strong className="text-white font-normal">{filename}</strong></span>
             </div>
             <span className="text-white/10 hidden sm:inline">/</span>
             <div className="flex items-center gap-1.5 text-slate-400">
-              <Clock className="w-3.5 h-3.5 text-orange-400" />
+              <Clock className="w-3.5 h-3.5 text-orange-400" strokeWidth={1.5} />
               <span>CUTOFF: <strong className="text-white font-normal">24.0 h</strong></span>
             </div>
             <span className="text-white/10 hidden sm:inline">/</span>
             <div className="flex items-center gap-1.5 text-slate-400">
-              <TrendingUp className="w-3.5 h-3.5 text-orange-400" />
+              <TrendingUp className="w-3.5 h-3.5 text-orange-400" strokeWidth={1.5} />
               <span>HORIZON: <strong className="text-white font-normal">168.0 h</strong></span>
             </div>
           </div>
@@ -111,7 +111,7 @@ export default function OverviewView({
                   <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400">
                     {card.title}
                   </span>
-                  <Icon className="w-4 h-4 text-slate-500 group-hover:text-orange-400 transition-colors" />
+                  <Icon className="w-4 h-4 text-slate-500 group-hover:text-orange-400 transition-colors" strokeWidth={1.5} />
                 </div>
 
                 <div className="flex items-baseline gap-2 mb-2">
@@ -137,7 +137,7 @@ export default function OverviewView({
 
               <div className="mt-3 pt-2.5 border-t border-white/[0.04] flex items-center justify-between text-[10px] font-mono text-slate-500 group-hover:text-orange-400 transition-colors">
                 <span>FILTER COMPONENTS</span>
-                <ArrowRight className="w-3 h-3 transform group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="w-3 h-3 transform group-hover:translate-x-1 transition-transform" strokeWidth={1.5} />
               </div>
             </SquircleCard>
           );
@@ -150,7 +150,7 @@ export default function OverviewView({
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-orange-400" />
+                <Sparkles className="w-4 h-4 text-orange-400" strokeWidth={1.5} />
               </div>
               <div>
                 <h3 className="text-sm font-display font-semibold text-white flex items-center gap-2">
@@ -170,7 +170,7 @@ export default function OverviewView({
               className="btn-primary flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-mono"
             >
               <span>View Unusual Parts</span>
-              <ArrowRight className="w-3 h-3" />
+              <ArrowRight className="w-3 h-3" strokeWidth={1.5} />
             </button>
           </div>
 
@@ -227,7 +227,7 @@ export default function OverviewView({
               </div>
 
               <div className="text-[11px] text-slate-400 flex items-start gap-1.5 pt-1">
-                <Info className="w-3.5 h-3.5 text-orange-400 flex-shrink-0 mt-0.5" />
+                <Info className="w-3.5 h-3.5 text-orange-400 flex-shrink-0 mt-0.5" strokeWidth={1.5} />
                 <span>
                   <strong>Evidence:</strong> {sampleUnusual.recommendation_reasons.join(' · ')}
                 </span>
@@ -240,7 +240,7 @@ export default function OverviewView({
         <SquircleCard className="p-5 flex flex-col justify-between space-y-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <SlidersHorizontal className="w-3.5 h-3.5 text-orange-400" />
+              <SlidersHorizontal className="w-3.5 h-3.5 text-orange-400" strokeWidth={1.5} />
               <h3 className="text-xs font-mono uppercase tracking-wider text-slate-300">
                 Model Architecture
               </h3>

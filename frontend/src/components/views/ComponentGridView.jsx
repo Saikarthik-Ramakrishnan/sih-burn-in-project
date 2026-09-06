@@ -100,7 +100,7 @@ export default function ComponentGridView({
       <SquircleCard className="p-3.5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         {/* Search Bar */}
         <div className="relative flex-1 max-w-md">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" strokeWidth={1.5} />
           <input
             type="text"
             value={searchTerm}
@@ -131,7 +131,7 @@ export default function ComponentGridView({
                 : 'text-slate-400 hover:text-slate-200 bg-white/[0.03] border border-transparent'
             }`}
           >
-            <Sparkles className="w-3 h-3 text-orange-400" />
+            <Sparkles className="w-3 h-3 text-orange-400" strokeWidth={1.5} />
             <span>Within Limit, Still Unusual ({records.filter(r => r.within_limit_but_unusual).length})</span>
           </button>
 
@@ -168,7 +168,7 @@ export default function ComponentGridView({
                     >
                       <div className="flex items-center gap-1">
                         <span>POS</span>
-                        <ArrowUpDown className="w-3 h-3 text-slate-500" />
+                        <ArrowUpDown className="w-3 h-3 text-slate-500" strokeWidth={1.5} />
                       </div>
                     </th>
                     <th
@@ -177,7 +177,7 @@ export default function ComponentGridView({
                     >
                       <div className="flex items-center gap-1">
                         <span>COMPONENT</span>
-                        <ArrowUpDown className="w-3 h-3 text-slate-500" />
+                        <ArrowUpDown className="w-3 h-3 text-slate-500" strokeWidth={1.5} />
                       </div>
                     </th>
                     <th
@@ -186,7 +186,7 @@ export default function ComponentGridView({
                     >
                       <div className="flex items-center gap-1">
                         <span>24h VALUE</span>
-                        <ArrowUpDown className="w-3 h-3 text-slate-500" />
+                        <ArrowUpDown className="w-3 h-3 text-slate-500" strokeWidth={1.5} />
                       </div>
                     </th>
                     <th
@@ -195,7 +195,7 @@ export default function ComponentGridView({
                     >
                       <div className="flex items-center gap-1">
                         <span>PEER Z</span>
-                        <ArrowUpDown className="w-3 h-3 text-slate-500" />
+                        <ArrowUpDown className="w-3 h-3 text-slate-500" strokeWidth={1.5} />
                       </div>
                     </th>
                     <th
@@ -204,7 +204,7 @@ export default function ComponentGridView({
                     >
                       <div className="flex items-center gap-1">
                         <span>168h FORECAST</span>
-                        <ArrowUpDown className="w-3 h-3 text-slate-500" />
+                        <ArrowUpDown className="w-3 h-3 text-slate-500" strokeWidth={1.5} />
                       </div>
                     </th>
                     <th className="py-3 px-3.5">DECISION</th>
@@ -308,7 +308,7 @@ export default function ComponentGridView({
                             title="Inspect Trajectory & Evidence"
                             className="p-1 rounded text-slate-500 hover:text-orange-400 transition-colors cursor-pointer inline-flex items-center"
                           >
-                            <ChevronRight className="w-4 h-4" />
+                            <ChevronRight className="w-4 h-4" strokeWidth={1.5} />
                           </button>
                         </td>
                       </tr>
@@ -437,7 +437,7 @@ export default function ComponentGridView({
                   onClick={() => onInspectComponent(selectedRecord.component_id)}
                   className="btn-primary w-full py-2 flex items-center justify-center gap-1.5 text-xs font-mono"
                 >
-                  <ExternalLink className="w-3.5 h-3.5" />
+                  <ExternalLink className="w-3.5 h-3.5" strokeWidth={1.5} />
                   <span>Inspect Telemetry</span>
                 </button>
               </div>
