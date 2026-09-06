@@ -68,8 +68,8 @@ export default function ChamberView({ dataset }) {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
-              <span className="text-[10px] font-mono font-medium text-orange-400 uppercase tracking-wider">
+              <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />
+              <span className="text-[10.5px] font-mono font-medium text-orange-400 uppercase tracking-wider">
                 CHAMBER ZONE 01 // HTOL TEST RACK
               </span>
             </div>
