@@ -25,7 +25,15 @@ import {
   ChevronRight,
   Crosshair,
   Zap,
-  Server
+  Play,
+  Pause,
+  ZoomIn,
+  ZoomOut,
+  Move,
+  Compass,
+  Eye,
+  EyeOff,
+  Sliders
 } from 'lucide-react';
 import { formatPercent, formatZ } from '../../lib/utils';
 
@@ -79,11 +87,28 @@ export default function TopologyView({
   const [hoveredNodeId, setHoveredNodeId] = useState(null);
   const [selectedHubId, setSelectedHubId] = useState(null);
 
+  // New controls
+  const [edgeMode, setEdgeMode] = useState('all'); // 'all' | 'threats_only' | 'selected' | 'hidden'
+  const [nodeSizing, setNodeSizing] = useState('risk'); // 'risk' | 'uniform'
+  const [showLabels, setShowLabels] = useState('hover'); // 'hover' | 'all'
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isPhysicsActive, setIsPhysicsActive] = useState(false);
+
   // Canvas Pan & Zoom State
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStartRef = useRef({ x: 0, y: 0 });
+  const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
+  const [draggedNodeId, setDraggedNodeId] = useState(null);
+  const [isSmoothTransition, setIsSmoothTransition] = useState(true);
+
+  // Drag coordinates ref
+  const dragStartRef = useRef({ clientX: 0, clientY: 0, origX: 0, origY: 0, panX: 0, panY: 0 });
   const svgRef = useRef(null);
+  const canvasContainerRef = useRef(null);
+
+  // Node position overrides: { [nodeId]: { x, y } }
+  const [nodePositions, setNodePositions] = useState({});
+  const velocitiesRef = useRef({});
+  const animFrameRef = useRef(null);
 
   const records = dataset?.records || [];
 
@@ -95,7 +120,7 @@ export default function TopologyView({
       short: 'LIMIT BREACH',
       desc: 'Projected 168h leakage crosses 0.25 µA spec',
       x: 500,
-      y: 120,
+      y: 110,
       color: '#f97316',
       icon: AlertOctagon
     },
@@ -105,7 +130,7 @@ export default function TopologyView({
       short: 'RAPID DRIFT',
       desc: 'Hourly leakage slope ≥ 0.0025 µA/h',
       x: 230,
-      y: 280,
+      y: 270,
       color: '#fb923c',
       icon: Flame
     },
@@ -115,7 +140,7 @@ export default function TopologyView({
       short: 'BATCH OUTLIER',
       desc: 'Robust Z-score ≥ 2.0σ vs peer median',
       x: 770,
-      y: 280,
+      y: 270,
       color: '#f59e0b',
       icon: TrendingUp
     },
@@ -178,8 +203,8 @@ export default function TopologyView({
     });
   }, [records]);
 
-  // 4. Compute Node Coordinates & Graph Elements based on Active Mode
-  const graphData = useMemo(() => {
+  // 4. Compute Base Graph Data
+  const baseGraphData = useMemo(() => {
     const hubMap = new Map();
     FAILURE_HUBS.forEach(h => hubMap.set(h.id, h));
 
@@ -195,8 +220,8 @@ export default function TopologyView({
           name: h.name,
           short: h.short,
           desc: h.desc,
-          x: h.x,
-          y: h.y,
+          baseX: h.x,
+          baseY: h.y,
           color: h.color,
           icon: h.icon,
           size: 26
@@ -206,19 +231,20 @@ export default function TopologyView({
       // 2. Position Component Nodes based on connected hubs
       componentsClassification.forEach((comp, idx) => {
         const connectedHubs = comp.activeHubIds.map(hid => hubMap.get(hid)).filter(Boolean);
+        const avgX = connectedHubs.reduce((acc, h) => acc + h.x, 0) / (connectedHubs.length || 1);
+        const avgY = connectedHubs.reduce((acc, h) => acc + h.y, 0) / (connectedHubs.length || 1);
 
-        // Centroid of connected hubs
-        const avgX = connectedHubs.reduce((acc, h) => acc + h.x, 0) / connectedHubs.length;
-        const avgY = connectedHubs.reduce((acc, h) => acc + h.y, 0) / connectedHubs.length;
-
-        // Radial offset so nodes around same hub or centroid distribute cleanly
         const isNominal = comp.activeHubIds.includes('HUB_NOMINAL');
         const ring = Math.floor(idx % 3);
-        const radius = isNominal ? (60 + ring * 25) : (comp.isCompound ? 30 + ring * 14 : 50 + ring * 20);
-        const angle = (idx * 2.39996); // golden ratio angle distribution
+        const radius = isNominal ? (60 + ring * 26) : (comp.isCompound ? 32 + ring * 15 : 52 + ring * 22);
+        const angle = (idx * 2.39996);
 
         const x = Math.max(70, Math.min(930, avgX + Math.cos(angle) * radius));
-        const y = Math.max(70, Math.min(580, avgY + Math.sin(angle) * radius));
+        const y = Math.max(70, Math.min(570, avgY + Math.sin(angle) * radius));
+
+        const baseSize = nodeSizing === 'risk'
+          ? (comp.recommendation === 'ENGINEER_REVIEW' ? 13 : (comp.recommendation === 'RETEST' ? 11 : 9))
+          : 9.5;
 
         nodes.push({
           type: 'component',
@@ -229,29 +255,28 @@ export default function TopologyView({
           theme: comp.theme,
           isCompound: comp.isCompound,
           activeHubIds: comp.activeHubIds,
-          x,
-          y,
-          size: comp.recommendation === 'ENGINEER_REVIEW' ? 12 : (comp.recommendation === 'RETEST' ? 10.5 : 9)
+          baseX: x,
+          baseY: y,
+          size: baseSize
         });
 
-        // Add Edges from component to each connected hub
         comp.activeHubIds.forEach(hid => {
           edges.push({
             id: `${comp.id}->${hid}`,
             source: comp.id,
             target: hid,
-            sourceX: x,
-            sourceY: y,
-            targetX: hubMap.get(hid)?.x || x,
-            targetY: hubMap.get(hid)?.y || y,
+            baseSourceX: x,
+            baseSourceY: y,
+            baseTargetX: hubMap.get(hid)?.x || x,
+            baseTargetY: hubMap.get(hid)?.y || y,
             color: comp.theme.base,
             isCompound: comp.isCompound,
-            recommendation: comp.recommendation
+            recommendation: comp.recommendation,
+            isThreat: hid === 'HUB_LIMIT' || hid === 'HUB_DRIFT' || hid === 'HUB_OUTLIER'
           });
         });
       });
     } else if (activeMode === 'affinity') {
-      // MODE 2: Lot vs Hardware Channel Affinity
       const batchMap = new Map();
       BATCH_HUBS.forEach(b => {
         batchMap.set(b.batch_id, b);
@@ -261,15 +286,14 @@ export default function TopologyView({
           name: b.name,
           short: b.batch_id,
           desc: `Production Lot Batch ${b.batch_id}`,
-          x: b.x,
-          y: b.y,
+          baseX: b.x,
+          baseY: b.y,
           color: b.color,
           icon: Layers,
           size: 24
         });
       });
 
-      // Group components by batch
       const batches = ['MLCC_B018', 'MLCC_B019', 'MLCC_B020', 'MLCC_B021'];
       batches.forEach(bId => {
         const batchHub = batchMap.get(bId);
@@ -285,6 +309,10 @@ export default function TopologyView({
           const x = batchHub.x + Math.cos(angle) * ringRadius;
           const y = batchHub.y + Math.sin(angle) * ringRadius;
 
+          const baseSize = nodeSizing === 'risk'
+            ? (isFlagged ? 12 : 8.5)
+            : 9.5;
+
           nodes.push({
             type: 'component',
             id: comp.id,
@@ -294,27 +322,28 @@ export default function TopologyView({
             theme: comp.theme,
             isCompound: comp.isCompound,
             activeHubIds: [batchHub.id],
-            x,
-            y,
-            size: isFlagged ? 11 : 8.5
+            baseX: x,
+            baseY: y,
+            size: baseSize
           });
 
           edges.push({
             id: `${comp.id}->${batchHub.id}`,
             source: comp.id,
             target: batchHub.id,
-            sourceX: x,
-            sourceY: y,
-            targetX: batchHub.x,
-            targetY: batchHub.y,
+            baseSourceX: x,
+            baseSourceY: y,
+            baseTargetX: batchHub.x,
+            baseTargetY: batchHub.y,
             color: comp.theme.base,
             isCompound: comp.isCompound,
-            recommendation: comp.recommendation
+            recommendation: comp.recommendation,
+            isThreat: isFlagged
           });
         });
       });
     } else {
-      // MODE 3: Drift Trajectory Similarity (2D Phase Space)
+      // MODE 3: Drift Trajectory Phase Space
       const values = records.map(r => r.initial_value || 0.02);
       const slopes = records.map(r => r.slope_per_hour || 0);
 
@@ -329,7 +358,11 @@ export default function TopologyView({
         const normY = ((r.slope_per_hour || 0) - minY) / (maxY - minY || 1);
 
         const x = 160 + normX * 680;
-        const y = 520 - normY * 380; // inverted Y axis
+        const y = 520 - normY * 380;
+
+        const baseSize = nodeSizing === 'risk'
+          ? (comp.recommendation === 'ENGINEER_REVIEW' ? 13 : 9)
+          : 9.5;
 
         nodes.push({
           type: 'component',
@@ -340,13 +373,12 @@ export default function TopologyView({
           theme: comp.theme,
           isCompound: comp.isCompound,
           activeHubIds: [],
-          x,
-          y,
-          size: comp.recommendation === 'ENGINEER_REVIEW' ? 12 : 9
+          baseX: x,
+          baseY: y,
+          size: baseSize
         });
       });
 
-      // Connect 2 nearest neighbors to illustrate trajectory affinity
       for (let i = 0; i < nodes.length; i++) {
         const a = nodes[i];
         let closest = null;
@@ -354,8 +386,8 @@ export default function TopologyView({
         for (let j = 0; j < nodes.length; j++) {
           if (i === j) continue;
           const b = nodes[j];
-          const dist = Math.hypot(a.x - b.x, a.y - b.y);
-          if (dist < minDist && dist < 85) {
+          const dist = Math.hypot(a.baseX - b.baseX, a.baseY - b.baseY);
+          if (dist < minDist && dist < 90) {
             minDist = dist;
             closest = b;
           }
@@ -365,42 +397,196 @@ export default function TopologyView({
             id: `sim-${a.id}-${closest.id}`,
             source: a.id,
             target: closest.id,
-            sourceX: a.x,
-            sourceY: a.y,
-            targetX: closest.x,
-            targetY: closest.y,
+            baseSourceX: a.baseX,
+            baseSourceY: a.baseY,
+            baseTargetX: closest.baseX,
+            baseTargetY: closest.baseY,
             color: a.theme.base,
             isCompound: a.isCompound,
-            recommendation: a.recommendation
+            recommendation: a.recommendation,
+            isThreat: a.recommendation !== 'ACCEPT' || closest.recommendation !== 'ACCEPT'
           });
         }
       }
     }
 
     return { nodes, edges };
-  }, [activeMode, FAILURE_HUBS, BATCH_HUBS, componentsClassification, records]);
+  }, [activeMode, FAILURE_HUBS, BATCH_HUBS, componentsClassification, records, nodeSizing]);
+
+  // Reset node positions whenever activeMode changes
+  useEffect(() => {
+    setNodePositions({});
+    velocitiesRef.current = {};
+  }, [activeMode]);
+
+  // Helper to get active position of a node
+  const getNodePos = useCallback((node) => {
+    if (!node) return { x: 500, y: 320 };
+    const override = nodePositions[node.id];
+    if (override) return override;
+    return { x: node.baseX, y: node.baseY };
+  }, [nodePositions]);
+
+  // Dynamic Graph Nodes & Edges with active positions
+  const currentNodes = useMemo(() => {
+    return baseGraphData.nodes.map(n => {
+      const pos = getNodePos(n);
+      return {
+        ...n,
+        x: pos.x,
+        y: pos.y
+      };
+    });
+  }, [baseGraphData.nodes, getNodePos]);
+
+  const nodeMap = useMemo(() => {
+    const map = new Map();
+    currentNodes.forEach(n => map.set(n.id, n));
+    return map;
+  }, [currentNodes]);
+
+  const currentEdges = useMemo(() => {
+    return baseGraphData.edges.map(e => {
+      const srcNode = nodeMap.get(e.source);
+      const tgtNode = nodeMap.get(e.target);
+      return {
+        ...e,
+        sourceX: srcNode ? srcNode.x : e.baseSourceX,
+        sourceY: srcNode ? srcNode.y : e.baseSourceY,
+        targetX: tgtNode ? tgtNode.x : e.baseTargetX,
+        targetY: tgtNode ? tgtNode.y : e.baseTargetY
+      };
+    });
+  }, [baseGraphData.edges, nodeMap]);
+
+  // Spring Physics Simulation Loop
+  useEffect(() => {
+    if (!isPhysicsActive) {
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      return;
+    }
+
+    let running = true;
+
+    const simulateStep = () => {
+      if (!running) return;
+
+      setNodePositions(prev => {
+        const next = { ...prev };
+        const v = velocitiesRef.current;
+
+        // Initialize positions and velocities
+        currentNodes.forEach(node => {
+          if (!next[node.id]) next[node.id] = { x: node.baseX, y: node.baseY };
+          if (!v[node.id]) v[node.id] = { vx: 0, vy: 0 };
+        });
+
+        // 1. Spring forces along edges
+        currentEdges.forEach(edge => {
+          const sPos = next[edge.source];
+          const tPos = next[edge.target];
+          if (!sPos || !tPos) return;
+
+          const dx = tPos.x - sPos.x;
+          const dy = tPos.y - sPos.y;
+          const dist = Math.hypot(dx, dy) || 1;
+          const restDist = edge.isCompound ? 55 : 85;
+          const force = (dist - restDist) * 0.025;
+
+          const fx = (dx / dist) * force;
+          const fy = (dy / dist) * force;
+
+          if (edge.source !== draggedNodeId && !edge.source.startsWith('HUB_') && !edge.source.startsWith('BATCH_')) {
+            v[edge.source].vx += fx;
+            v[edge.source].vy += fy;
+          }
+          if (edge.target !== draggedNodeId && !edge.target.startsWith('HUB_') && !edge.target.startsWith('BATCH_')) {
+            v[edge.target].vx -= fx;
+            v[edge.target].vy -= fy;
+          }
+        });
+
+        // 2. Node repulsion
+        for (let i = 0; i < currentNodes.length; i++) {
+          const a = currentNodes[i];
+          const aPos = next[a.id];
+          if (!aPos) continue;
+
+          for (let j = i + 1; j < currentNodes.length; j++) {
+            const b = currentNodes[j];
+            const bPos = next[b.id];
+            if (!bPos) continue;
+
+            const dx = bPos.x - aPos.x;
+            const dy = bPos.y - aPos.y;
+            const distSq = dx * dx + dy * dy || 1;
+
+            if (distSq < 10000) { // Within 100px
+              const dist = Math.sqrt(distSq);
+              const rep = 40 / (distSq + 10);
+              const rx = (dx / dist) * rep;
+              const ry = (dy / dist) * rep;
+
+              if (a.id !== draggedNodeId && a.type !== 'hub') {
+                v[a.id].vx -= rx;
+                v[a.id].vy -= ry;
+              }
+              if (b.id !== draggedNodeId && b.type !== 'hub') {
+                v[b.id].vx += rx;
+                v[b.id].vy += ry;
+              }
+            }
+          }
+        }
+
+        // 3. Center gravity & boundary clamping
+        currentNodes.forEach(node => {
+          if (node.id === draggedNodeId || node.type === 'hub') return;
+          const pos = next[node.id];
+          if (!pos) return;
+
+          // Pull to base position gently
+          const pullX = (node.baseX - pos.x) * 0.015;
+          const pullY = (node.baseY - pos.y) * 0.015;
+          v[node.id].vx = (v[node.id].vx + pullX) * 0.85;
+          v[node.id].vy = (v[node.id].vy + pullY) * 0.85;
+
+          pos.x = Math.max(50, Math.min(950, pos.x + v[node.id].vx));
+          pos.y = Math.max(50, Math.min(590, pos.y + v[node.id].vy));
+        });
+
+        return next;
+      });
+
+      animFrameRef.current = requestAnimationFrame(simulateStep);
+    };
+
+    animFrameRef.current = requestAnimationFrame(simulateStep);
+
+    return () => {
+      running = false;
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    };
+  }, [isPhysicsActive, currentNodes, currentEdges, draggedNodeId]);
 
   // Filtered nodes logic
   const filteredNodeIds = useMemo(() => {
     const ids = new Set();
-    graphData.nodes.forEach(n => {
+    currentNodes.forEach(n => {
       if (n.type === 'hub') {
         ids.add(n.id);
         return;
       }
-      // Filter by disposition
+      if (selectedHubId && !n.activeHubIds.includes(selectedHubId)) return;
       if (filterDisposition !== 'ALL' && n.recommendation !== filterDisposition) return;
-      // Filter by batch
       if (filterBatch !== 'ALL' && n.batch_id !== filterBatch) return;
-      // Compound only
       if (showCompoundOnly && !n.isCompound) return;
-      // Search term
       if (searchTerm && !n.id.toLowerCase().includes(searchTerm.toLowerCase())) return;
 
       ids.add(n.id);
     });
     return ids;
-  }, [graphData.nodes, filterDisposition, filterBatch, showCompoundOnly, searchTerm]);
+  }, [currentNodes, selectedHubId, filterDisposition, filterBatch, showCompoundOnly, searchTerm]);
 
   // Selected item reference
   const selectedRecord = useMemo(() => {
@@ -411,50 +597,139 @@ export default function TopologyView({
     return componentsClassification.find(c => c.id === selectedComponentId);
   }, [componentsClassification, selectedComponentId]);
 
-  // Handlers for Pan & Zoom
-  const handleMouseDown = (e) => {
-    if (e.target.tagName === 'circle' || e.target.tagName === 'path' || e.target.closest('button')) return;
-    setIsDragging(true);
-    dragStartRef.current = { x: e.clientX - transform.x, y: e.clientY - transform.y };
+  // Canvas Mouse & Drag Handlers
+  const handleCanvasMouseDown = (e) => {
+    // If clicked on node or button, don't drag canvas
+    if (e.target.closest('.interactive-node') || e.target.closest('button') || e.target.closest('input')) return;
+    setIsSmoothTransition(false);
+    setIsDraggingCanvas(true);
+    dragStartRef.current = {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      panX: transform.x,
+      panY: transform.y
+    };
+  };
+
+  const handleNodeMouseDown = (e, node) => {
+    e.stopPropagation();
+    setIsSmoothTransition(false);
+    setDraggedNodeId(node.id);
+    setSelectedComponentId(node.id);
+    if (node.type === 'hub') {
+      setSelectedHubId(node.id);
+    }
+
+    const currentPos = getNodePos(node);
+    dragStartRef.current = {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      origX: currentPos.x,
+      origY: currentPos.y
+    };
   };
 
   const handleMouseMove = (e) => {
-    if (!isDragging) return;
-    setTransform(prev => ({
-      ...prev,
-      x: e.clientX - dragStartRef.current.x,
-      y: e.clientY - dragStartRef.current.y
-    }));
+    if (draggedNodeId) {
+      const dx = (e.clientX - dragStartRef.current.clientX) / transform.scale;
+      const dy = (e.clientY - dragStartRef.current.clientY) / transform.scale;
+      setNodePositions(prev => ({
+        ...prev,
+        [draggedNodeId]: {
+          x: Math.max(30, Math.min(970, dragStartRef.current.origX + dx)),
+          y: Math.max(30, Math.min(610, dragStartRef.current.origY + dy))
+        }
+      }));
+      return;
+    }
+
+    if (isDraggingCanvas) {
+      const dx = e.clientX - dragStartRef.current.clientX;
+      const dy = e.clientY - dragStartRef.current.clientY;
+      setTransform(prev => ({
+        ...prev,
+        x: dragStartRef.current.panX + dx,
+        y: dragStartRef.current.panY + dy
+      }));
+    }
   };
 
-  const handleMouseUp = () => setIsDragging(false);
+  const handleMouseUp = () => {
+    setIsDraggingCanvas(false);
+    setDraggedNodeId(null);
+    setIsSmoothTransition(true);
+  };
 
   const handleWheel = (e) => {
     e.preventDefault();
-    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+    setIsSmoothTransition(false);
+    const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
     setTransform(prev => ({
       ...prev,
-      scale: Math.max(0.5, Math.min(2.8, prev.scale * zoomFactor))
+      scale: Math.max(0.4, Math.min(3.2, prev.scale * zoomFactor))
     }));
   };
 
-  const resetView = () => setTransform({ x: 0, y: 0, scale: 1 });
-  const zoomIn = () => setTransform(prev => ({ ...prev, scale: Math.min(2.8, prev.scale * 1.2) }));
-  const zoomOut = () => setTransform(prev => ({ ...prev, scale: Math.max(0.5, prev.scale * 0.8) }));
+  // Smooth Camera Operations
+  const resetView = () => {
+    setIsSmoothTransition(true);
+    setTransform({ x: 0, y: 0, scale: 1 });
+  };
+
+  const zoomIn = () => {
+    setIsSmoothTransition(true);
+    setTransform(prev => ({ ...prev, scale: Math.min(3.2, prev.scale * 1.25) }));
+  };
+
+  const zoomOut = () => {
+    setIsSmoothTransition(true);
+    setTransform(prev => ({ ...prev, scale: Math.max(0.4, prev.scale * 0.8) }));
+  };
+
+  const resetNodeLayout = () => {
+    setIsSmoothTransition(true);
+    setNodePositions({});
+    velocitiesRef.current = {};
+  };
 
   // Center on Selected Component
   const centerSelected = useCallback(() => {
-    const targetNode = graphData.nodes.find(n => n.id === selectedComponentId);
+    const targetNode = currentNodes.find(n => n.id === selectedComponentId);
     if (targetNode) {
+      setIsSmoothTransition(true);
       setTransform({
-        x: 500 - targetNode.x * 1.3,
-        y: 320 - targetNode.y * 1.3,
-        scale: 1.3
+        x: 500 - targetNode.x * 1.4,
+        y: 320 - targetNode.y * 1.4,
+        scale: 1.4
       });
     }
-  }, [graphData.nodes, selectedComponentId]);
+  }, [currentNodes, selectedComponentId]);
 
-  // Metric summaries for HUD top bar
+  // Search input auto-jump
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    if (!searchTerm.trim()) return;
+    const match = currentNodes.find(n => n.id.toLowerCase().includes(searchTerm.toLowerCase()));
+    if (match) {
+      setSelectedComponentId(match.id);
+      centerSelected();
+    }
+  };
+
+  // Minimap Navigation: clicking or dragging on minimap
+  const handleMinimapClick = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = (e.clientX - rect.left) / rect.width * 1000;
+    const clickY = (e.clientY - rect.top) / rect.height * 640;
+    setIsSmoothTransition(true);
+    setTransform(prev => ({
+      ...prev,
+      x: 500 - clickX * prev.scale,
+      y: 320 - clickY * prev.scale
+    }));
+  };
+
+  // Metric summaries for HUD
   const metrics = useMemo(() => {
     const compoundCount = componentsClassification.filter(c => c.isCompound).length;
     const b018Anomalies = componentsClassification.filter(c => c.batch_id === 'MLCC_B018' && c.recommendation !== 'ACCEPT').length;
@@ -464,13 +739,18 @@ export default function TopologyView({
     return {
       compoundCount,
       b018Rate,
-      activeEdges: graphData.edges.length,
+      activeEdges: currentEdges.length,
       visibleNodes: filteredNodeIds.size
     };
-  }, [componentsClassification, graphData.edges.length, filteredNodeIds]);
+  }, [componentsClassification, currentEdges.length, filteredNodeIds]);
+
+  const hoveredNode = useMemo(() => {
+    if (!hoveredNodeId) return null;
+    return currentNodes.find(n => n.id === hoveredNodeId);
+  }, [hoveredNodeId, currentNodes]);
 
   return (
-    <div className="space-y-5 pb-12">
+    <div className={`space-y-5 pb-12 ${isFullscreen ? 'fixed inset-0 z-50 bg-[#08090e] p-6 overflow-y-auto' : ''}`}>
       {/* 1. View Header & Context Banner */}
       <SquircleCard elevated className="p-5">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
@@ -486,7 +766,7 @@ export default function TopologyView({
               Fault Topology &amp; Failure Cluster Map
             </h2>
             <p className="text-[12.5px] text-slate-400">
-              Interactive relationship network mapping failure modes, lot defect clustering, and tester channel affinities across all 64 screened MLCC components.
+              Interactive relationship network mapping failure modes, lot defect clustering, and tester channel affinities. Drag nodes freely or activate spring dynamics.
             </p>
           </div>
 
@@ -545,17 +825,17 @@ export default function TopologyView({
             </button>
           </div>
 
-          {/* Quick Search Bar */}
-          <div className="relative min-w-[200px]">
+          {/* Search Form */}
+          <form onSubmit={handleSearchSubmit} className="relative min-w-[220px]">
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" strokeWidth={1.5} />
             <input
               type="text"
-              placeholder="Filter by ID (e.g. C000147)..."
+              placeholder="Search & Center (e.g. C000147)..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-black/30 border border-white/[0.08] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-orange-500/50 font-mono"
             />
-          </div>
+          </form>
         </div>
 
         {/* Secondary Filter Pills */}
@@ -606,6 +886,64 @@ export default function TopologyView({
             </button>
           </div>
         </div>
+
+        {/* Extended Visual Controls Strip */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/[0.04] text-xs font-mono">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] text-slate-500 flex items-center gap-1">
+              <SlidersHorizontal className="w-3 h-3 text-slate-500" strokeWidth={1.5} />
+              EDGES:
+            </span>
+            {[
+              { id: 'all', label: 'All Links' },
+              { id: 'threats_only', label: 'Threats Only' },
+              { id: 'selected', label: 'Focus Selection' },
+              { id: 'hidden', label: 'Hide' }
+            ].map(em => (
+              <button
+                key={em.id}
+                onClick={() => setEdgeMode(em.id)}
+                className={`px-2 py-0.5 rounded text-[10.5px] transition-all cursor-pointer ${
+                  edgeMode === em.id
+                    ? 'bg-white/15 text-orange-300 border border-orange-500/30 font-medium'
+                    : 'bg-white/[0.02] text-slate-400 hover:text-white border border-white/[0.04]'
+                }`}
+              >
+                {em.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] text-slate-500">NODE SIZE:</span>
+            <button
+              onClick={() => setNodeSizing(nodeSizing === 'risk' ? 'uniform' : 'risk')}
+              className="px-2 py-0.5 rounded text-[10.5px] bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 text-slate-300 cursor-pointer"
+            >
+              {nodeSizing === 'risk' ? 'Weighted by Risk' : 'Uniform 9px'}
+            </button>
+
+            <span className="text-slate-600">•</span>
+
+            <span className="text-[11px] text-slate-500">LABELS:</span>
+            <button
+              onClick={() => setShowLabels(showLabels === 'hover' ? 'all' : 'hover')}
+              className="px-2 py-0.5 rounded text-[10.5px] bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 text-slate-300 cursor-pointer"
+            >
+              {showLabels === 'hover' ? 'Hover / Focus Only' : 'Show All IDs'}
+            </button>
+
+            {selectedHubId && (
+              <button
+                onClick={() => setSelectedHubId(null)}
+                className="ml-2 px-2 py-0.5 rounded text-[10.5px] bg-orange-500/20 text-orange-300 border border-orange-500/30 flex items-center gap-1 cursor-pointer"
+              >
+                <span>Clear Hub Filter</span>
+                <span className="text-orange-400">✕</span>
+              </button>
+            )}
+          </div>
+        </div>
       </SquircleCard>
 
       {/* 3. Main Topology Canvas + Side HUD Layout */}
@@ -613,38 +951,89 @@ export default function TopologyView({
         {/* Left: Interactive Canvas Viewport (8 cols) */}
         <div className="lg:col-span-8 space-y-3">
           <SquircleCard elevated className="relative overflow-hidden p-0 bg-[#06070b] border-white/[0.08]">
-            {/* On-Canvas Float Control Bar */}
-            <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 bg-[#0b0c13]/90 backdrop-blur-md p-1.5 rounded-lg border border-white/[0.08] text-slate-400">
+            {/* On-Canvas Multi-Control Floating Island */}
+            <div className="absolute top-3 left-3 z-30 flex items-center gap-1.5 bg-[#0b0c13]/90 backdrop-blur-md p-1.5 rounded-xl border border-white/[0.1] text-slate-300 shadow-xl shadow-black/40">
               <button
                 onClick={zoomIn}
-                title="Zoom In"
-                className="p-1.5 rounded hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+                title="Zoom In (+)"
+                className="p-1.5 rounded-lg hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
               >
-                <Maximize2 className="w-3.5 h-3.5" strokeWidth={1.5} />
+                <ZoomIn className="w-4 h-4" strokeWidth={1.5} />
               </button>
               <button
                 onClick={zoomOut}
-                title="Zoom Out"
-                className="p-1.5 rounded hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+                title="Zoom Out (-)"
+                className="p-1.5 rounded-lg hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
               >
-                <Minimize2 className="w-3.5 h-3.5" strokeWidth={1.5} />
+                <ZoomOut className="w-4 h-4" strokeWidth={1.5} />
               </button>
+              <span className="px-1.5 text-[11px] font-mono text-slate-400 font-medium">
+                {Math.round(transform.scale * 100)}%
+              </span>
+              <span className="w-px h-4 bg-white/10 mx-0.5" />
               <button
                 onClick={resetView}
-                title="Reset Camera"
-                className="p-1.5 rounded hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+                title="Reset Camera View"
+                className="p-1.5 rounded-lg hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.5} />
               </button>
-              <span className="w-px h-3.5 bg-white/10 mx-0.5" />
               <button
                 onClick={centerSelected}
                 title="Center on Selected Node"
-                className="flex items-center gap-1 px-2 py-1 rounded hover:bg-orange-500/10 hover:text-orange-300 text-[11px] font-mono transition-colors cursor-pointer"
+                className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-orange-500/15 hover:text-orange-300 text-[11px] font-mono transition-colors cursor-pointer text-orange-400"
               >
-                <Crosshair className="w-3.5 h-3.5 text-orange-400" strokeWidth={1.5} />
+                <Crosshair className="w-3.5 h-3.5" strokeWidth={1.5} />
                 <span>Focus</span>
               </button>
+              <span className="w-px h-4 bg-white/10 mx-0.5" />
+              {/* Physics Simulation Toggle */}
+              <button
+                onClick={() => setIsPhysicsActive(!isPhysicsActive)}
+                title={isPhysicsActive ? "Pause Spring Simulation" : "Start Dynamic Spring Simulation"}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all cursor-pointer ${
+                  isPhysicsActive
+                    ? 'bg-orange-500 text-black font-semibold shadow-[0_0_12px_rgba(249,115,22,0.4)]'
+                    : 'hover:bg-white/10 text-slate-300'
+                }`}
+              >
+                {isPhysicsActive ? (
+                  <>
+                    <Pause className="w-3.5 h-3.5" strokeWidth={1.5} />
+                    <span>Physics ON</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3.5 h-3.5 text-orange-400" strokeWidth={1.5} />
+                    <span>Physics</span>
+                  </>
+                )}
+              </button>
+              {/* Reset layout */}
+              {Object.keys(nodePositions).length > 0 && (
+                <button
+                  onClick={resetNodeLayout}
+                  title="Reset Draggable Node Positions"
+                  className="px-2 py-1 rounded-lg hover:bg-white/10 text-[11px] font-mono text-slate-400 hover:text-white cursor-pointer"
+                >
+                  Reset Nodes
+                </button>
+              )}
+              <span className="w-px h-4 bg-white/10 mx-0.5" />
+              {/* Fullscreen Theater Mode */}
+              <button
+                onClick={() => setIsFullscreen(!isFullscreen)}
+                title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Theater View"}
+                className="p-1.5 rounded-lg hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+              >
+                {isFullscreen ? <Minimize2 className="w-4 h-4 text-orange-400" strokeWidth={1.5} /> : <Maximize2 className="w-4 h-4" strokeWidth={1.5} />}
+              </button>
+            </div>
+
+            {/* Interaction Hint Badge */}
+            <div className="absolute top-3 right-3 z-20 hidden md:flex items-center gap-1.5 bg-[#0b0c13]/85 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/[0.08] text-[10.5px] font-mono text-slate-400">
+              <Move className="w-3 h-3 text-orange-400" strokeWidth={1.5} />
+              <span>Drag canvas to pan • Drag any node to reposition</span>
             </div>
 
             {/* Canvas Legend Overlay */}
@@ -667,12 +1056,48 @@ export default function TopologyView({
               </div>
             </div>
 
+            {/* Interactive Mini-Radar Map (Bottom-Right) */}
+            <div
+              onClick={handleMinimapClick}
+              title="Radar Minimap • Click to pan"
+              className="absolute bottom-3 right-3 z-20 w-36 h-24 bg-[#090b10]/90 backdrop-blur-md rounded-xl border border-white/15 p-1 cursor-crosshair overflow-hidden shadow-2xl hidden md:block"
+            >
+              <svg viewBox="0 0 1000 640" className="w-full h-full">
+                {/* Mini radar grid */}
+                <rect width="1000" height="640" fill="transparent" />
+                <circle cx="500" cy="320" r="280" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="4" />
+                {/* Mini nodes */}
+                {currentNodes.map(n => (
+                  <circle
+                    key={`mini-${n.id}`}
+                    cx={n.x}
+                    cy={n.y}
+                    r={n.type === 'hub' ? 14 : 7}
+                    fill={n.type === 'hub' ? '#ffffff' : (THEME_COLORS[n.recommendation]?.base || '#94a3b8')}
+                    opacity={n.id === selectedComponentId ? 1 : 0.6}
+                  />
+                ))}
+                {/* Viewport Frame Indicator */}
+                <rect
+                  x={Math.max(0, -transform.x / transform.scale)}
+                  y={Math.max(0, -transform.y / transform.scale)}
+                  width={1000 / transform.scale}
+                  height={640 / transform.scale}
+                  fill="rgba(249, 115, 22, 0.08)"
+                  stroke="#f97316"
+                  strokeWidth="6"
+                  rx="8"
+                />
+              </svg>
+            </div>
+
             {/* SVG Interactive Canvas */}
             <div
-              className={`w-full h-[580px] overflow-hidden select-none ${
-                isDragging ? 'cursor-grabbing' : 'cursor-grab'
+              ref={canvasContainerRef}
+              className={`w-full ${isFullscreen ? 'h-[75vh]' : 'h-[600px]'} overflow-hidden select-none ${
+                isDraggingCanvas ? 'cursor-grabbing' : (draggedNodeId ? 'cursor-move' : 'cursor-grab')
               }`}
-              onMouseDown={handleMouseDown}
+              onMouseDown={handleCanvasMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
@@ -709,8 +1134,13 @@ export default function TopologyView({
                   </filter>
                 </defs>
 
-                {/* Transformed Content Group */}
-                <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}>
+                {/* Transformed Content Group with Smooth Transition */}
+                <g
+                  transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}
+                  style={{
+                    transition: isSmoothTransition ? 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)' : 'none'
+                  }}
+                >
                   {/* Subtle Background Radar Concentric Rings */}
                   <g opacity="0.12" stroke="#ffffff" fill="none">
                     <circle cx="500" cy="320" r="140" strokeWidth="1" strokeDasharray="3 6" />
@@ -721,56 +1151,66 @@ export default function TopologyView({
                   </g>
 
                   {/* 1. Edges Layer */}
-                  <g className="edges-layer">
-                    {graphData.edges.map(edge => {
-                      const isSourceVisible = filteredNodeIds.has(edge.source);
-                      const isTargetVisible = filteredNodeIds.has(edge.target);
-                      if (!isSourceVisible || !isTargetVisible) return null;
+                  {edgeMode !== 'hidden' && (
+                    <g className="edges-layer">
+                      {currentEdges.map(edge => {
+                        const isSourceVisible = filteredNodeIds.has(edge.source);
+                        const isTargetVisible = filteredNodeIds.has(edge.target);
+                        if (!isSourceVisible || !isTargetVisible) return null;
 
-                      const isConnectedToHover = hoveredNodeId && (edge.source === hoveredNodeId || edge.target === hoveredNodeId);
-                      const isConnectedToSelected = selectedComponentId && (edge.source === selectedComponentId || edge.target === selectedComponentId);
-                      const isHighlighted = isConnectedToHover || isConnectedToSelected;
+                        if (edgeMode === 'threats_only' && !edge.isThreat) return null;
 
-                      return (
-                        <line
-                          key={edge.id}
-                          x1={edge.sourceX}
-                          y1={edge.sourceY}
-                          x2={edge.targetX}
-                          y2={edge.targetY}
-                          stroke={isHighlighted ? '#f97316' : edge.color}
-                          strokeWidth={isHighlighted ? 2.5 : (edge.isCompound ? 1.2 : 0.7)}
-                          strokeOpacity={isHighlighted ? 0.9 : (hoveredNodeId ? 0.08 : (edge.isCompound ? 0.45 : 0.22))}
-                          strokeDasharray={isHighlighted ? '5 5' : (edge.isCompound ? '3 3' : 'none')}
-                          className={isHighlighted ? 'animate-pulse' : ''}
-                        />
-                      );
-                    })}
-                  </g>
+                        const isConnectedToHover = hoveredNodeId && (edge.source === hoveredNodeId || edge.target === hoveredNodeId);
+                        const isConnectedToSelected = selectedComponentId && (edge.source === selectedComponentId || edge.target === selectedComponentId);
+                        const isHighlighted = isConnectedToHover || isConnectedToSelected;
+
+                        if (edgeMode === 'selected' && !isHighlighted) return null;
+
+                        return (
+                          <line
+                            key={edge.id}
+                            x1={edge.sourceX}
+                            y1={edge.sourceY}
+                            x2={edge.targetX}
+                            y2={edge.targetY}
+                            stroke={isHighlighted ? '#f97316' : edge.color}
+                            strokeWidth={isHighlighted ? 2.5 : (edge.isCompound ? 1.2 : 0.7)}
+                            strokeOpacity={isHighlighted ? 0.95 : (hoveredNodeId ? 0.08 : (edge.isCompound ? 0.45 : 0.22))}
+                            strokeDasharray={isHighlighted ? '5 5' : (edge.isCompound ? '3 3' : 'none')}
+                            className={isHighlighted ? 'animate-pulse' : ''}
+                          />
+                        );
+                      })}
+                    </g>
+                  )}
 
                   {/* 2. Hub Nodes Layer */}
                   <g className="hubs-layer">
-                    {graphData.nodes.filter(n => n.type === 'hub').map(hub => {
+                    {currentNodes.filter(n => n.type === 'hub').map(hub => {
                       const isSelected = selectedHubId === hub.id;
                       const Icon = hub.icon || Network;
+                      const isHovered = hoveredNodeId === hub.id;
 
                       return (
                         <g
                           key={hub.id}
                           transform={`translate(${hub.x}, ${hub.y})`}
-                          onClick={() => setSelectedHubId(hub.id)}
+                          onMouseDown={(e) => handleNodeMouseDown(e, hub)}
+                          onClick={() => setSelectedHubId(selectedHubId === hub.id ? null : hub.id)}
                           onMouseEnter={() => setHoveredNodeId(hub.id)}
                           onMouseLeave={() => setHoveredNodeId(null)}
-                          className="cursor-pointer group"
+                          className="interactive-node cursor-move group"
                         >
                           {/* Radial Hub Glow */}
                           <circle
-                            r="36"
+                            r="38"
                             fill="none"
                             stroke={hub.color}
                             strokeWidth="1.5"
-                            strokeOpacity={isSelected ? 0.8 : 0.25}
+                            strokeOpacity={isSelected || isHovered ? 0.9 : 0.25}
                             strokeDasharray="4 4"
+                            className={isHovered ? 'animate-spin' : ''}
+                            style={{ animationDuration: '8s' }}
                           />
 
                           {/* Hub Base Body */}
@@ -786,18 +1226,17 @@ export default function TopologyView({
                             className="transition-transform duration-200 group-hover:scale-105"
                           />
 
-                          {/* Icon representation */}
                           <circle cx="0" cy="0" r="10" fill={hub.color} fillOpacity="0.15" />
                           <circle cx="0" cy="0" r="3.5" fill={hub.color} />
 
                           {/* Hub Label */}
                           <text
-                            y="38"
+                            y="40"
                             fill="#ffffff"
                             fontSize="11"
                             fontWeight="600"
                             textAnchor="middle"
-                            className="font-mono tracking-wider"
+                            className="font-mono tracking-wider pointer-events-none"
                           >
                             {hub.short}
                           </text>
@@ -808,47 +1247,59 @@ export default function TopologyView({
 
                   {/* 3. Component Nodes Layer */}
                   <g className="components-layer">
-                    {graphData.nodes.filter(n => n.type === 'component').map(node => {
+                    {currentNodes.filter(n => n.type === 'component').map(node => {
                       const isVisible = filteredNodeIds.has(node.id);
                       if (!isVisible) return null;
 
                       const isSelected = node.id === selectedComponentId;
                       const isHovered = node.id === hoveredNodeId;
+                      const isBeingDragged = node.id === draggedNodeId;
                       const isMuted = hoveredNodeId && hoveredNodeId !== node.id && !node.activeHubIds.includes(hoveredNodeId);
 
                       return (
                         <g
                           key={node.id}
                           transform={`translate(${node.x}, ${node.y})`}
+                          onMouseDown={(e) => handleNodeMouseDown(e, node)}
                           onClick={() => {
                             setSelectedComponentId(node.id);
                             setSelectedHubId(null);
                           }}
                           onMouseEnter={() => setHoveredNodeId(node.id)}
                           onMouseLeave={() => setHoveredNodeId(null)}
-                          opacity={isMuted ? 0.2 : 1}
-                          className="cursor-pointer transition-opacity duration-150"
+                          opacity={isMuted ? 0.15 : 1}
+                          className="interactive-node cursor-move transition-opacity duration-150"
                         >
                           {/* Pulsing Selection Halo */}
                           {isSelected && (
                             <circle
-                              r={node.size + 10}
+                              r={node.size + 11}
                               fill="none"
                               stroke="#f97316"
-                              strokeWidth="1.5"
+                              strokeWidth="1.8"
                               strokeDasharray="3 3"
                               className="animate-spin"
                               style={{ animationDuration: '6s' }}
                             />
                           )}
 
+                          {/* Drag elevation halo */}
+                          {isBeingDragged && (
+                            <circle
+                              r={node.size + 16}
+                              fill="rgba(249, 115, 22, 0.2)"
+                              stroke="#f97316"
+                              strokeWidth="1.5"
+                            />
+                          )}
+
                           {/* Hover Expansion Halo */}
                           {isHovered && !isSelected && (
                             <circle
-                              r={node.size + 6}
+                              r={node.size + 7}
                               fill="none"
                               stroke={node.theme.border}
-                              strokeWidth="1.2"
+                              strokeWidth="1.5"
                               strokeOpacity="0.8"
                             />
                           )}
@@ -856,11 +1307,11 @@ export default function TopologyView({
                           {/* Multi-Threat Halo for Compound Outliers */}
                           {node.isCompound && (
                             <circle
-                              r={node.size + 4}
+                              r={node.size + 4.5}
                               fill={node.theme.glow}
                               stroke={node.theme.border}
                               strokeWidth="0.8"
-                              strokeOpacity="0.4"
+                              strokeOpacity="0.5"
                             />
                           )}
 
@@ -869,7 +1320,7 @@ export default function TopologyView({
                             r={node.size}
                             fill={node.theme.base}
                             stroke={isSelected ? '#ffffff' : node.theme.border}
-                            strokeWidth={isSelected ? 2 : 1.2}
+                            strokeWidth={isSelected ? 2.2 : 1.2}
                             filter="url(#softGlow)"
                           />
 
@@ -879,15 +1330,15 @@ export default function TopologyView({
                             fill={node.recommendation === 'ACCEPT' ? '#1e293b' : '#08090e'}
                           />
 
-                          {/* Node Hover Tooltip / Floating Tag */}
-                          {(isHovered || isSelected) && (
+                          {/* Node Hover Tooltip or Constant Label */}
+                          {(showLabels === 'all' || isHovered || isSelected) && (
                             <g transform="translate(0, -18)" className="pointer-events-none">
                               <rect
-                                x="-45"
+                                x="-46"
                                 y="-16"
-                                width="90"
+                                width="92"
                                 height="20"
-                                rx="4"
+                                rx="5"
                                 fill="#0f111a"
                                 stroke={node.theme.border}
                                 strokeWidth="1"
@@ -896,7 +1347,7 @@ export default function TopologyView({
                                 x="0"
                                 y="-3"
                                 fill="#ffffff"
-                                fontSize="10.5"
+                                fontSize="10"
                                 fontWeight="600"
                                 textAnchor="middle"
                                 className="font-mono"

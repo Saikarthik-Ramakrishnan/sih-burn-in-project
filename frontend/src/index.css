@@ -137,3 +137,93 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(249, 115, 22, 0.4);
 }
+
+/* ==========================================================================
+   BUTTON GLARE ANIMATION
+   Universal glare sweep effect triggered on hover in small recurring intervals
+   ========================================================================== */
+button,
+.btn-primary,
+.btn-secondary,
+.btn-thermal-primary,
+.btn-thermal-secondary,
+.btn-thermal-amber,
+.btn-thermal-purple {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Ensure button content remains crisp above glare */
+button > *,
+.btn-primary > *,
+.btn-secondary > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Glare pseudo-element */
+button::after,
+.btn-primary::after,
+.btn-secondary::after,
+.btn-thermal-primary::after,
+.btn-thermal-secondary::after,
+.btn-thermal-amber::after,
+.btn-thermal-purple::after {
+  content: '';
+  position: absolute;
+  top: -60%;
+  left: -80%;
+  width: 45%;
+  height: 220%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 25%,
+    rgba(255, 255, 255, 0.4) 50%,
+    rgba(255, 255, 255, 0.08) 75%,
+    transparent 100%
+  );
+  transform: rotate(25deg) translateX(-150%);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 2;
+}
+
+/* Run glare sweep animation on hover with recurring small interval */
+button:hover:not(:disabled)::after,
+.btn-primary:hover:not(:disabled)::after,
+.btn-secondary:hover:not(:disabled)::after,
+.btn-thermal-primary:hover:not(:disabled)::after,
+.btn-thermal-secondary:hover:not(:disabled)::after,
+.btn-thermal-amber:hover:not(:disabled)::after,
+.btn-thermal-purple:hover:not(:disabled)::after {
+  animation: button-glare-sweep 2.2s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+
+/* Disabled buttons do not animate */
+button:disabled::after,
+.btn-primary:disabled::after,
+.btn-secondary:disabled::after,
+.btn-thermal-primary:disabled::after {
+  display: none !important;
+  animation: none !important;
+}
+
+@keyframes button-glare-sweep {
+  0% {
+    transform: rotate(25deg) translateX(-160%);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  32% {
+    transform: rotate(25deg) translateX(380%);
+    opacity: 0.9;
+  }
+  33%, 100% {
+    transform: rotate(25deg) translateX(380%);
+    opacity: 0;
+  }
+}
+
