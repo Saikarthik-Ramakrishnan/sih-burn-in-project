@@ -6,7 +6,7 @@ The pilot targets X7R ceramic capacitors, measuring leakage current in µA. All 
 
 Stack: Python 3.12 core (numpy, pandas, scikit-learn, XGBoost), FastAPI backend, React + Vite dashboard.
 
-## About the Project
+## System Overveiw
 
 Input: a long-format CSV with one row per component per checkpoint (identity columns, `hours`, `measurement_value`, `upper_limit`, `profile_id`).
 
@@ -43,6 +43,9 @@ Start here and work deeper:
 | [Datasets](outputs/mlcc_v1/README.md) | The synthetic data, its splits and column meanings |
 | [Forecasting experiment](outputs/claude_forecast_v2/README.md) | Why v1 lost to persistence and how v2 was chosen |
 | [Dashboard](my-app/README.md) | React + Vite front end and its field dictionary |
+
+Start with the documentation for an overview of the system, then follow the Quick Start to run it.
+
 
 ## Validation
 
