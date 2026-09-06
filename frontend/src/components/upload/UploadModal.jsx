@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import SquircleCard from '../common/SquircleCard';
 import SchemaGuide from './SchemaGuide';
+import LeakageLensLogo from '../common/LeakageLensLogo';
 import {
   X,
   UploadCloud,
   FileSpreadsheet,
   AlertCircle,
   CheckCircle2,
-  Cpu,
   Loader2,
   RefreshCcw
 } from 'lucide-react';
@@ -57,13 +57,18 @@ export default function UploadModal({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400">
-              <UploadCloud className="w-5 h-5" strokeWidth={1.5} />
+            <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(249,115,22,0.15)]">
+              <LeakageLensLogo className="w-6 h-6" showGlow />
             </div>
             <div>
-              <h2 className="text-base font-display font-bold text-white">
-                Screen Electronic Components
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-display font-bold text-white">
+                  Screen Electronic Components
+                </h2>
+                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-300 border border-orange-500/25">
+                  LEAKAGE LENS
+                </span>
+              </div>
               <p className="text-xs text-slate-400">
                 Upload 0 h and 24 h burn-in readings for inference and final 168 h forecasting.
               </p>

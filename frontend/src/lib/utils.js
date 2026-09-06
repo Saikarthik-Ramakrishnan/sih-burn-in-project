@@ -27,7 +27,7 @@ export function formatZ(zScore, precision = 2) {
 
 export const DECISION_CONFIG = {
   ACCEPT: {
-    label: 'ACCEPT',
+    label: 'ACCEPT (GOOD)',
     badgeClass: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/35 backdrop-blur-md font-semibold',
     dotClass: 'bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.7)]',
     cardBorder: 'hover:border-emerald-500/40',
@@ -57,7 +57,7 @@ export const DECISION_CONFIG = {
     description: 'Significant peer anomaly (score ≥ 0.8) or projected limit breach.'
   },
   ENGINEER_REVIEW: {
-    label: 'ENGINEER REVIEW',
+    label: 'REVIEW (ERROR)',
     badgeClass: 'bg-rose-500/20 text-rose-300 border-rose-500/50 backdrop-blur-md font-bold',
     dotClass: 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]',
     cardBorder: 'hover:border-rose-500/60',

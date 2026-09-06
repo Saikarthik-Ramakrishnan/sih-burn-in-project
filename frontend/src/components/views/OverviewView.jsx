@@ -1,6 +1,7 @@
 import React from 'react';
 import SquircleCard from '../common/SquircleCard';
 import DecisionBadge from '../common/DecisionBadge';
+import LeakageLensLogo from '../common/LeakageLensLogo';
 import {
   CheckCircle2,
   AlertTriangle,
@@ -86,6 +87,11 @@ export default function OverviewView({
       <SquircleCard className="px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-orange-500/10 border border-orange-500/25 text-orange-300 shadow-[0_0_12px_rgba(249,115,22,0.1)]">
+              <LeakageLensLogo className="w-3.5 h-3.5" showGlow />
+              <span className="font-semibold text-[10.5px] tracking-wide">LEAKAGE LENS</span>
+            </div>
+            <span className="text-white/10 hidden sm:inline">/</span>
             <div className="flex items-center gap-1.5 text-slate-400">
               <Layers className="w-3.5 h-3.5 text-orange-400" strokeWidth={1.5} />
               <span>FILE: <strong className="text-white font-normal">{filename}</strong></span>

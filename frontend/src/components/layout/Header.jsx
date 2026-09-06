@@ -1,5 +1,6 @@
 import React from 'react';
-import { Cpu, UploadCloud, RefreshCcw, ShieldCheck, Database } from 'lucide-react';
+import { UploadCloud, RefreshCcw, ShieldCheck, Database } from 'lucide-react';
+import LeakageLensLogo from '../common/LeakageLensLogo';
 
 export default function Header({
   backendReady,
@@ -16,20 +17,25 @@ export default function Header({
     <header className="sticky top-0 z-40 w-full bg-[#08090d]/80 backdrop-blur-xl border-b border-white/[0.06] px-6 py-2.5">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
         {/* Context Identification */}
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-sm font-semibold tracking-tight text-white flex items-center gap-2">
-              Burn-In Sentinel
-              <span className="text-[10px] font-mono font-medium px-1.5 py-0.2 rounded bg-orange-500/10 text-orange-300 border border-orange-500/20">
-                SIH26170
-              </span>
-            </h1>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/25 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(249,115,22,0.15)]">
+            <LeakageLensLogo className="w-5 h-5" showGlow animated />
           </div>
-          <p className="text-[11px] text-slate-400 flex items-center gap-1.5">
-            <span>Early Anomaly &amp; 168h Forecast</span>
-            <span className="text-slate-600">•</span>
-            <span className="text-slate-300 font-mono">MLCC X7R</span>
-          </p>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm font-semibold tracking-tight text-white flex items-center gap-2">
+                Leakage Lens
+                <span className="text-[10px] font-mono font-medium px-1.5 py-0.2 rounded bg-orange-500/10 text-orange-300 border border-orange-500/20">
+                  SIH26170
+                </span>
+              </h1>
+            </div>
+            <p className="text-[11px] text-slate-400 flex items-center gap-1.5">
+              <span>Early Anomaly &amp; 168h Forecast</span>
+              <span className="text-slate-600">•</span>
+              <span className="text-slate-300 font-mono">MLCC X7R</span>
+            </p>
+          </div>
         </div>
 
         {/* Telemetry Status Badges & Controls */}

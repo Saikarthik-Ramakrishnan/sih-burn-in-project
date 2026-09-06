@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import SquircleCard from '../common/SquircleCard';
 import DecisionBadge from '../common/DecisionBadge';
+import LeakageLensLogo from '../common/LeakageLensLogo';
 import {
   Network,
   Activity,
@@ -46,7 +47,9 @@ const THEME_COLORS = {
     border: '#f87171',
     halo: 'rgba(239, 68, 68, 0.45)',
     glow: 'rgba(239, 68, 68, 0.25)',
-    label: 'Critical Review (Error)',
+    label: 'REVIEW (ERROR)',
+    badgeClass: 'bg-rose-500/20 text-rose-300 border-rose-500/50 backdrop-blur-md font-bold',
+    dotClass: 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]',
     priority: 1
   },
   RETEST: {
@@ -54,7 +57,9 @@ const THEME_COLORS = {
     border: '#fb923c',
     halo: 'rgba(249, 115, 22, 0.4)',
     glow: 'rgba(249, 115, 22, 0.2)',
-    label: 'Retest Required',
+    label: 'RETEST',
+    badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-500/35 backdrop-blur-md font-medium',
+    dotClass: 'bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.6)]',
     priority: 2
   },
   MONITOR: {
@@ -62,7 +67,9 @@ const THEME_COLORS = {
     border: '#fde047',
     halo: 'rgba(234, 179, 8, 0.35)',
     glow: 'rgba(234, 179, 8, 0.15)',
-    label: 'Watchlist Drift',
+    label: 'MONITOR',
+    badgeClass: 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30 backdrop-blur-md font-medium',
+    dotClass: 'bg-yellow-400 shadow-[0_0_6px_rgba(234,179,8,0.5)]',
     priority: 3
   },
   ACCEPT: {
@@ -70,7 +77,9 @@ const THEME_COLORS = {
     border: '#34d399',
     halo: 'rgba(16, 185, 129, 0.45)',
     glow: 'rgba(16, 185, 129, 0.25)',
-    label: 'Nominal Spec (Good)',
+    label: 'ACCEPT (GOOD)',
+    badgeClass: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/35 backdrop-blur-md font-semibold',
+    dotClass: 'bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.7)]',
     priority: 4
   }
 };
@@ -842,9 +851,18 @@ export default function TopologyView({
     const b018Total = componentsClassification.filter(c => c.batch_id === 'MLCC_B018').length;
     const b018Rate = b018Total > 0 ? ((b018Anomalies / b018Total) * 100).toFixed(0) : '0';
 
+    const reviewCount = componentsClassification.filter(c => c.recommendation === 'ENGINEER_REVIEW').length;
+    const retestCount = componentsClassification.filter(c => c.recommendation === 'RETEST').length;
+    const monitorCount = componentsClassification.filter(c => c.recommendation === 'MONITOR').length;
+    const acceptCount = componentsClassification.filter(c => c.recommendation === 'ACCEPT').length;
+
     return {
       compoundCount,
       b018Rate,
+      reviewCount,
+      retestCount,
+      monitorCount,
+      acceptCount,
       activeEdges: currentEdges.length,
       visibleNodes: filteredNodeIds.size
     };
@@ -857,9 +875,9 @@ export default function TopologyView({
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+              <LeakageLensLogo className="w-4 h-4" showGlow />
               <span className="text-[10.5px] font-mono font-medium text-orange-400 uppercase tracking-wider">
-                NEURAL FAULT TOPOLOGY // MULTI-FACTOR CORRELATION
+                LEAKAGE LENS // NEURAL FAULT TOPOLOGY
               </span>
             </div>
             <h2 className="text-lg font-semibold text-white tracking-tight flex items-center gap-2">
@@ -873,22 +891,81 @@ export default function TopologyView({
 
           {/* Top Quick Stats Pill Row */}
           <div className="flex flex-wrap items-center gap-2.5 font-mono text-xs">
-            <div className="px-3 py-1.5 rounded-lg bg-white/[0.02] border border-white/[0.05] text-right">
+            <button
+              onClick={() => setFilterDisposition('ALL')}
+              className={`px-3 py-1.5 rounded-lg border text-right transition-all cursor-pointer ${
+                filterDisposition === 'ALL'
+                  ? 'bg-white/10 border-white/25 text-white shadow-sm'
+                  : 'bg-white/[0.02] border-white/[0.05] text-slate-400 hover:text-white'
+              }`}
+            >
               <span className="text-[10px] text-slate-500 uppercase block">ACTIVE NODES</span>
               <span className="text-sm font-medium text-white">{metrics.visibleNodes} Active</span>
-            </div>
-            <div className="px-3 py-1.5 rounded-lg bg-rose-500/[0.08] border border-rose-500/25 text-right">
-              <span className="text-[10px] text-rose-400 uppercase block">CRITICAL ERRORS</span>
-              <span className="text-sm font-medium text-rose-400">
-                {componentsClassification.filter(c => c.recommendation === 'ENGINEER_REVIEW').length} Parts
+            </button>
+            <button
+              onClick={() => setFilterDisposition(filterDisposition === 'ENGINEER_REVIEW' ? 'ALL' : 'ENGINEER_REVIEW')}
+              className={`px-3 py-1.5 rounded-lg border text-right transition-all cursor-pointer ${
+                filterDisposition === 'ENGINEER_REVIEW'
+                  ? 'bg-rose-500/25 border-rose-500/60 ring-1 ring-rose-500/40 text-rose-300 shadow-[0_0_12px_rgba(244,63,94,0.3)]'
+                  : 'bg-rose-500/[0.08] border-rose-500/25 text-rose-400 hover:bg-rose-500/15'
+              }`}
+            >
+              <div className="flex items-center justify-end gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.8)] animate-pulse" />
+                <span className="text-[10px] text-rose-400 uppercase font-semibold">REVIEW (ERROR)</span>
+              </div>
+              <span className="text-sm font-bold text-rose-300">
+                {metrics.reviewCount} Parts
               </span>
-            </div>
-            <div className="px-3 py-1.5 rounded-lg bg-emerald-500/[0.08] border border-emerald-500/25 text-right">
-              <span className="text-[10px] text-emerald-400 uppercase block">NOMINAL GOOD</span>
-              <span className="text-sm font-medium text-emerald-400">
-                {componentsClassification.filter(c => c.recommendation === 'ACCEPT').length} Parts
+            </button>
+            <button
+              onClick={() => setFilterDisposition(filterDisposition === 'RETEST' ? 'ALL' : 'RETEST')}
+              className={`px-3 py-1.5 rounded-lg border text-right transition-all cursor-pointer ${
+                filterDisposition === 'RETEST'
+                  ? 'bg-amber-500/25 border-amber-500/60 ring-1 ring-amber-500/40 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.25)]'
+                  : 'bg-amber-500/[0.08] border-amber-500/25 text-amber-400 hover:bg-amber-500/15'
+              }`}
+            >
+              <div className="flex items-center justify-end gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.6)]" />
+                <span className="text-[10px] text-amber-400 uppercase font-semibold">RETEST</span>
+              </div>
+              <span className="text-sm font-medium text-amber-300">
+                {metrics.retestCount} Parts
               </span>
-            </div>
+            </button>
+            <button
+              onClick={() => setFilterDisposition(filterDisposition === 'MONITOR' ? 'ALL' : 'MONITOR')}
+              className={`px-3 py-1.5 rounded-lg border text-right transition-all cursor-pointer ${
+                filterDisposition === 'MONITOR'
+                  ? 'bg-yellow-500/25 border-yellow-500/60 ring-1 ring-yellow-500/40 text-yellow-300 shadow-[0_0_10px_rgba(234,179,8,0.2)]'
+                  : 'bg-yellow-500/[0.08] border-yellow-500/25 text-yellow-400 hover:bg-yellow-500/15'
+              }`}
+            >
+              <div className="flex items-center justify-end gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(234,179,8,0.5)]" />
+                <span className="text-[10px] text-yellow-400 uppercase font-semibold">MONITOR</span>
+              </div>
+              <span className="text-sm font-medium text-yellow-300">
+                {metrics.monitorCount} Parts
+              </span>
+            </button>
+            <button
+              onClick={() => setFilterDisposition(filterDisposition === 'ACCEPT' ? 'ALL' : 'ACCEPT')}
+              className={`px-3 py-1.5 rounded-lg border text-right transition-all cursor-pointer ${
+                filterDisposition === 'ACCEPT'
+                  ? 'bg-emerald-500/25 border-emerald-500/60 ring-1 ring-emerald-500/40 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                  : 'bg-emerald-500/[0.08] border-emerald-500/25 text-emerald-400 hover:bg-emerald-500/15'
+              }`}
+            >
+              <div className="flex items-center justify-end gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.7)]" />
+                <span className="text-[10px] text-emerald-400 uppercase font-semibold">ACCEPT (GOOD)</span>
+              </div>
+              <span className="text-sm font-bold text-emerald-300">
+                {metrics.acceptCount} Parts
+              </span>
+            </button>
           </div>
         </div>
       </SquircleCard>
@@ -946,31 +1023,36 @@ export default function TopologyView({
         {/* Secondary Filter Pills */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/[0.04] text-xs font-mono">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] text-slate-500">DISPOSITION:</span>
+            <span className="text-[11px] text-slate-500 uppercase flex items-center gap-1">
+              <Filter className="w-3 h-3 text-slate-500" strokeWidth={1.5} />
+              DISPOSITION:
+            </span>
             {[
-              { id: 'ALL', label: 'ALL' },
-              { id: 'ENGINEER_REVIEW', label: 'REVIEW (ERROR)' },
-              { id: 'RETEST', label: 'RETEST' },
-              { id: 'MONITOR', label: 'MONITOR' },
-              { id: 'ACCEPT', label: 'ACCEPT (GOOD)' }
+              { id: 'ALL', label: 'ALL', count: records.length, dotClass: 'bg-slate-400' },
+              { id: 'ENGINEER_REVIEW', label: 'REVIEW (ERROR)', count: metrics.reviewCount, dotClass: 'bg-rose-500 shadow-[0_0_6px_#ef4444]' },
+              { id: 'RETEST', label: 'RETEST', count: metrics.retestCount, dotClass: 'bg-amber-400' },
+              { id: 'MONITOR', label: 'MONITOR', count: metrics.monitorCount, dotClass: 'bg-yellow-400' },
+              { id: 'ACCEPT', label: 'ACCEPT (GOOD)', count: metrics.acceptCount, dotClass: 'bg-emerald-400 shadow-[0_0_6px_#10b981]' }
             ].map(disp => {
               let activeStyle = 'bg-orange-500/20 text-orange-300 border-orange-500/40 font-medium';
-              if (disp.id === 'ENGINEER_REVIEW') activeStyle = 'bg-rose-500/20 text-rose-300 border-rose-500/50 font-bold';
-              else if (disp.id === 'ACCEPT') activeStyle = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 font-bold';
-              else if (disp.id === 'RETEST') activeStyle = 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-medium';
-              else if (disp.id === 'MONITOR') activeStyle = 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40 font-medium';
+              if (disp.id === 'ENGINEER_REVIEW') activeStyle = 'bg-rose-500/20 text-rose-300 border-rose-500/50 font-bold shadow-[0_0_10px_rgba(244,63,94,0.25)]';
+              else if (disp.id === 'ACCEPT') activeStyle = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 font-bold shadow-[0_0_10px_rgba(16,185,129,0.25)]';
+              else if (disp.id === 'RETEST') activeStyle = 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-medium shadow-[0_0_8px_rgba(245,158,11,0.2)]';
+              else if (disp.id === 'MONITOR') activeStyle = 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40 font-medium shadow-[0_0_8px_rgba(234,179,8,0.15)]';
 
               return (
                 <button
                   key={disp.id}
                   onClick={() => setFilterDisposition(disp.id)}
-                  className={`px-2.5 py-1 rounded-md text-[11px] transition-all cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] transition-all cursor-pointer ${
                     filterDisposition === disp.id
                       ? activeStyle
                       : 'bg-white/[0.02] text-slate-400 hover:text-white border border-white/[0.04]'
                   }`}
                 >
-                  {disp.label}
+                  <span className={`w-1.5 h-1.5 rounded-full ${disp.dotClass}`} />
+                  <span>{disp.label}</span>
+                  <span className="opacity-70 text-[10px]">({disp.count})</span>
                 </button>
               );
             })}
@@ -1313,24 +1395,47 @@ export default function TopologyView({
               <span>Fluid rubber-band dragging • Drag canvas to pan</span>
             </div>
 
-            {/* Canvas Legend Overlay with Red for Error and Green for Good */}
-            <div className="absolute bottom-3 left-3 z-20 hidden sm:flex items-center gap-3 bg-[#0b0c13]/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/[0.08] text-[11px] font-mono">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_#ef4444]" />
-                <span className="text-rose-300 font-medium">Review (Error)</span>
+            {/* Quick Hover Inspection Badge Card */}
+            {hoveredNodeId && componentsClassification.find(c => c.id === hoveredNodeId) && (
+              <div className="absolute top-12 right-3 z-30 flex items-center gap-2.5 bg-[#0b0c13]/95 backdrop-blur-md px-3 py-2 rounded-xl border border-white/15 shadow-2xl font-mono text-xs animate-in fade-in zoom-in-95 duration-100 pointer-events-none">
+                {(() => {
+                  const comp = componentsClassification.find(c => c.id === hoveredNodeId);
+                  const r = comp?.record;
+                  return (
+                    <>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-white tracking-wide text-xs">{comp.id}</span>
+                        <span className="text-[10px] text-slate-400">Batch {comp.batch_id} • 24h: {r?.latest_value} µA</span>
+                      </div>
+                      <DecisionBadge decision={comp.recommendation} size="sm" />
+                    </>
+                  );
+                })()}
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
-                <span className="text-orange-300">Retest</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-                <span className="text-yellow-300">Monitor</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" />
-                <span className="text-emerald-300 font-medium">Accept (Good)</span>
-              </div>
+            )}
+
+            {/* Canvas Legend Overlay with standard dashboard tags */}
+            <div className="absolute bottom-3 left-3 z-20 hidden sm:flex items-center gap-1.5 bg-[#0b0c13]/90 backdrop-blur-md p-1.5 rounded-xl border border-white/[0.08] text-[11px] font-mono">
+              {[
+                { id: 'ENGINEER_REVIEW', label: 'REVIEW (ERROR)', dotClass: 'bg-rose-500 shadow-[0_0_8px_#ef4444]', textClass: 'text-rose-300', activeClass: 'bg-rose-500/20 border-rose-500/50 text-rose-300 font-bold shadow-[0_0_10px_rgba(244,63,94,0.25)]' },
+                { id: 'RETEST', label: 'RETEST', dotClass: 'bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.6)]', textClass: 'text-amber-300', activeClass: 'bg-amber-500/20 border-amber-500/40 text-amber-300 font-medium shadow-[0_0_8px_rgba(245,158,11,0.2)]' },
+                { id: 'MONITOR', label: 'MONITOR', dotClass: 'bg-yellow-400 shadow-[0_0_6px_rgba(234,179,8,0.5)]', textClass: 'text-yellow-300', activeClass: 'bg-yellow-500/20 border-yellow-500/40 text-yellow-300 font-medium shadow-[0_0_8px_rgba(234,179,8,0.15)]' },
+                { id: 'ACCEPT', label: 'ACCEPT (GOOD)', dotClass: 'bg-emerald-400 shadow-[0_0_8px_#10b981]', textClass: 'text-emerald-300', activeClass: 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 font-bold shadow-[0_0_10px_rgba(16,185,129,0.25)]' }
+              ].map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => setFilterDisposition(filterDisposition === item.id ? 'ALL' : item.id)}
+                  title={`Filter graph by ${item.label}`}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                    filterDisposition === item.id
+                      ? `${item.activeClass} ring-1 ring-white/10`
+                      : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${item.dotClass}`} />
+                  <span className={filterDisposition === item.id ? item.textClass : ''}>{item.label}</span>
+                </button>
+              ))}
             </div>
 
             {/* Interactive Mini-Radar Map (Bottom-Right) */}
@@ -1612,27 +1717,45 @@ export default function TopologyView({
 
                           {/* Node Hover Tooltip or Constant Label */}
                           {(showLabels === 'all' || isHovered || isSelected) && (
-                            <g transform="translate(0, -18)" className="pointer-events-none">
+                            <g transform="translate(0, -22)" className="pointer-events-none select-none">
                               <rect
-                                x="-46"
-                                y="-16"
-                                width="92"
-                                height="20"
-                                rx="5"
-                                fill="#0f111a"
+                                x="-54"
+                                y="-17"
+                                width="108"
+                                height="22"
+                                rx="6"
+                                fill="#0c0e17"
                                 stroke={node.theme.border}
-                                strokeWidth="1"
+                                strokeWidth={isSelected ? 1.6 : 1}
+                                filter="url(#softGlow)"
+                              />
+                              <circle
+                                cx="-42"
+                                cy="-6"
+                                r="2.8"
+                                fill={node.theme.base}
                               />
                               <text
-                                x="0"
-                                y="-3"
+                                x="-33"
+                                y="-2.5"
                                 fill="#ffffff"
-                                fontSize="10"
+                                fontSize="9.5"
                                 fontWeight="600"
-                                textAnchor="middle"
+                                textAnchor="start"
                                 className="font-mono"
                               >
                                 {node.id.replace('MLCC_', '')}
+                              </text>
+                              <text
+                                x="46"
+                                y="-2.5"
+                                fill={node.theme.base}
+                                fontSize="8"
+                                fontWeight="700"
+                                textAnchor="end"
+                                className="font-mono uppercase"
+                              >
+                                {node.recommendation === 'ENGINEER_REVIEW' ? 'ERROR' : (node.recommendation === 'ACCEPT' ? 'GOOD' : node.recommendation)}
                               </text>
                             </g>
                           )}
@@ -1688,13 +1811,34 @@ export default function TopologyView({
                   const hub = FAILURE_HUBS.find(h => h.id === hId);
                   if (!hub) return null;
                   const Icon = hub.icon || Activity;
+                  const isNominal = hId === 'HUB_NOMINAL';
+                  const isCritical = hId === 'HUB_LIMIT';
+
                   return (
                     <div
                       key={hId}
-                      className="p-2 rounded bg-white/[0.02] border border-white/[0.04] flex items-center gap-2 text-xs font-mono"
+                      className={`p-2 rounded-lg border flex items-center justify-between gap-2 text-xs font-mono ${
+                        isCritical
+                          ? 'bg-rose-500/[0.08] border-rose-500/30 text-rose-300'
+                          : isNominal
+                          ? 'bg-emerald-500/[0.08] border-emerald-500/30 text-emerald-300'
+                          : 'bg-white/[0.02] border-white/[0.06] text-slate-200'
+                      }`}
                     >
-                      <Icon className="w-3.5 h-3.5 text-orange-400 shrink-0" strokeWidth={1.5} />
-                      <span className="text-slate-200">{hub.name}</span>
+                      <div className="flex items-center gap-2">
+                        <Icon className="w-3.5 h-3.5 shrink-0" style={{ color: hub.color }} strokeWidth={1.5} />
+                        <span>{hub.name}</span>
+                      </div>
+                      <span
+                        className="text-[10px] px-2 py-0.5 rounded border font-mono font-medium uppercase"
+                        style={{
+                          borderColor: `${hub.color}40`,
+                          backgroundColor: `${hub.color}15`,
+                          color: hub.color
+                        }}
+                      >
+                        {hub.short}
+                      </span>
                     </div>
                   );
                 })}

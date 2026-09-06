@@ -9,6 +9,7 @@ import ComponentDetailView from './components/views/ComponentDetailView';
 import ChamberView from './components/views/ChamberView';
 import ExportView from './components/views/ExportView';
 import UploadModal from './components/upload/UploadModal';
+import OnboardingFlow from './components/onboarding/OnboardingFlow';
 import DEMO_DATASET from './lib/demoData';
 import { checkHealth, downloadSampleCsv, screenUpload } from './lib/api';
 import { enrichResponse } from './lib/enrich';
@@ -189,6 +190,16 @@ export default function App() {
         onClose={() => setIsUploadOpen(false)}
         onUploadSuccess={handleUploadSuccess}
         onLoadSample={handleReloadDemo}
+      />
+
+      {/* First-Run Onboarding Flow & Technical Glossary */}
+      <OnboardingFlow
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onReloadDemo={handleReloadDemo}
+        onOpenUpload={() => setIsUploadOpen(true)}
+        dataset={dataset}
+        backendReady={backendReady}
       />
     </div>
   );
