@@ -1,0 +1,8 @@
+{
+  "completed": true,
+  "production_unchanged": true,
+  "claude_source_changes_during_run": [],
+  "candidate_public_inference_equivalence": "passed",
+  "training_runs": 0,
+  "production_promoted": false
+}

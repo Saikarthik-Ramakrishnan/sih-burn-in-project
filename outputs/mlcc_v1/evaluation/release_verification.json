@@ -1,0 +1,46 @@
+{
+  "data_source": "synthetic",
+  "dataset_checksums_verified": 19,
+  "counts": {
+    "train": {
+      "components": 7200,
+      "batches": 36,
+      "readings": 72000,
+      "early_readings": 14400
+    },
+    "calibration": {
+      "components": 2400,
+      "batches": 12,
+      "readings": 24000,
+      "early_readings": 4800
+    },
+    "test": {
+      "components": 2400,
+      "batches": 12,
+      "readings": 24000,
+      "early_readings": 4800
+    }
+  },
+  "whole_batch_and_device_disjointness": true,
+  "derived_insulation_resistance_checked": true,
+  "future_reading_mutation_invariance": true,
+  "record_reordering_invariance": true,
+  "loaded_bundle_seconds": 1.0231292080134153,
+  "demo_scoring_seconds": 2.522852791007608,
+  "demo_summary": {
+    "component_count": 800,
+    "scored_count": 800,
+    "unscored_count": 0,
+    "recommendations": {
+      "ACCEPT": 721,
+      "ENGINEER_REVIEW": 20,
+      "RETEST": 32,
+      "MONITOR": 27
+    },
+    "within_limit_but_anomalous": 75
+  },
+  "demo_later_measurements": 4800,
+  "demo_forecast_model": "xgboost",
+  "validation_winner": "persistence",
+  "timing_scope": "Single local run with this environment; not a performance guarantee"
+}

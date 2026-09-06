@@ -1,0 +1,305 @@
+{
+  "prototype_version": "mlcc-pilot-1.1",
+  "bundle_id": "b5553f6f7032092e-s26170",
+  "family": "MLCC_X7R",
+  "measurement": "leakage_ua",
+  "unit": "uA",
+  "supported_profiles": [
+    "SIM_X7R_100N_50V",
+    "SIM_X7R_10N_50V",
+    "SIM_X7R_1U_25V",
+    "SIM_X7R_4U7_16V"
+  ],
+  "as_of_hour": 24.0,
+  "target_hour": 168.0,
+  "feature_columns": [
+    "percent_change",
+    "delta_fraction_of_limit",
+    "slope_fraction_per_hour",
+    "acceleration_fraction_per_hour2",
+    "variability_fraction_of_limit",
+    "limit_fraction",
+    "distance_fraction_to_upper_limit",
+    "current_batch_robust_z",
+    "slope_batch_robust_z",
+    "initial_fraction_of_limit",
+    "temperature_c",
+    "measurement_temperature_c",
+    "voltage_stress_ratio",
+    "measurement_voltage_v",
+    "prior_storage_humidity_pct",
+    "initial_capacitance_fraction",
+    "current_capacitance_fraction",
+    "capacitance_change_fraction",
+    "initial_dissipation_factor_pct",
+    "current_dissipation_factor_pct",
+    "dissipation_factor_change_pct"
+  ],
+  "selected_model": "xgboost_v2",
+  "seed": 26170,
+  "alpha": 0.1,
+  "training_data": "synthetic",
+  "target": "observed final_value / per-component upper_limit",
+  "target_clipping": "Nonnegative predictions only; no upper clipping",
+  "selection": {
+    "rule": "Lowest normalized MAE on internal heldout training batches; calibration and test are not used for selection",
+    "validation_mae_normalized": {
+      "persistence": 0.1795196556549091,
+      "linear_extrapolation": 0.24479946715842893,
+      "ridge": 0.2471702596509216,
+      "hist_gradient_boosting": 0.2222735424999301,
+      "xgboost": 0.2182574541086695,
+      "xgboost_v2": 0.1638865636907845
+    },
+    "fit_batch_ids": [
+      "MLCC_B003",
+      "MLCC_B005",
+      "MLCC_B007",
+      "MLCC_B010",
+      "MLCC_B011",
+      "MLCC_B012",
+      "MLCC_B013",
+      "MLCC_B014",
+      "MLCC_B021",
+      "MLCC_B022",
+      "MLCC_B024",
+      "MLCC_B025",
+      "MLCC_B028",
+      "MLCC_B036",
+      "MLCC_B041",
+      "MLCC_B042",
+      "MLCC_B043",
+      "MLCC_B044",
+      "MLCC_B046",
+      "MLCC_B047",
+      "MLCC_B049",
+      "MLCC_B050",
+      "MLCC_B051",
+      "MLCC_B053",
+      "MLCC_B054",
+      "MLCC_B057",
+      "MLCC_B058"
+    ],
+    "validation_batch_ids": [
+      "MLCC_B008",
+      "MLCC_B009",
+      "MLCC_B015",
+      "MLCC_B016",
+      "MLCC_B027",
+      "MLCC_B033",
+      "MLCC_B037",
+      "MLCC_B039",
+      "MLCC_B045"
+    ]
+  },
+  "split_summary": {
+    "train": {
+      "components": 7200,
+      "batch_ids": [
+        "MLCC_B003",
+        "MLCC_B005",
+        "MLCC_B007",
+        "MLCC_B008",
+        "MLCC_B009",
+        "MLCC_B010",
+        "MLCC_B011",
+        "MLCC_B012",
+        "MLCC_B013",
+        "MLCC_B014",
+        "MLCC_B015",
+        "MLCC_B016",
+        "MLCC_B021",
+        "MLCC_B022",
+        "MLCC_B024",
+        "MLCC_B025",
+        "MLCC_B027",
+        "MLCC_B028",
+        "MLCC_B033",
+        "MLCC_B036",
+        "MLCC_B037",
+        "MLCC_B039",
+        "MLCC_B041",
+        "MLCC_B042",
+        "MLCC_B043",
+        "MLCC_B044",
+        "MLCC_B045",
+        "MLCC_B046",
+        "MLCC_B047",
+        "MLCC_B049",
+        "MLCC_B050",
+        "MLCC_B051",
+        "MLCC_B053",
+        "MLCC_B054",
+        "MLCC_B057",
+        "MLCC_B058"
+      ]
+    },
+    "calibration": {
+      "components": 2400,
+      "batch_ids": [
+        "MLCC_B001",
+        "MLCC_B004",
+        "MLCC_B006",
+        "MLCC_B019",
+        "MLCC_B020",
+        "MLCC_B034",
+        "MLCC_B038",
+        "MLCC_B040",
+        "MLCC_B048",
+        "MLCC_B052",
+        "MLCC_B055",
+        "MLCC_B056"
+      ]
+    },
+    "test": {
+      "components": 2400,
+      "batch_ids": [
+        "MLCC_B002",
+        "MLCC_B017",
+        "MLCC_B018",
+        "MLCC_B023",
+        "MLCC_B026",
+        "MLCC_B029",
+        "MLCC_B030",
+        "MLCC_B031",
+        "MLCC_B032",
+        "MLCC_B035",
+        "MLCC_B059",
+        "MLCC_B060"
+      ]
+    }
+  },
+  "dataset_sha256": {
+    "train_early.csv": "b407d150ff393cbd9171978038b5ab856aa344d24a0e6e1040592c25721e2cc4",
+    "train_labels.csv": "81cdc6bcd225df34c7c1e9e9b75c922585eabdf7fdfa0ac78eb6455d0c34d6d1",
+    "calibration_early.csv": "4125e5fe1690cc94e487ef31226159c55bd774c58a79314a3636b5787d52bc1a",
+    "calibration_labels.csv": "7e8e92edacc1c614faa83f287d72717e3d41d4eb40ccb745d2fac6cd0b0f233a",
+    "test_early.csv": "d08f1814ea1cace10637abb4f4718fb384ea401983b65b1510c56c9ef09f3bd4",
+    "test_labels.csv": "138886e0a67befe226e3c3b5162612d5cf6e82523ef09eb8b702a086ff5f90b5"
+  },
+  "interval": {
+    "method": "Split-conformal absolute normalized residual; ceil((n+1)*(1-alpha)) order statistic",
+    "radii_normalized": {
+      "persistence": 0.6474367170857144,
+      "linear_extrapolation": 0.5998077686373078,
+      "ridge": 0.4914596714672988,
+      "hist_gradient_boosting": 0.466078527917826,
+      "xgboost": 0.4385577782669393,
+      "xgboost_v2": 0.5337742507655242
+    },
+    "stratified": {
+      "model": "xgboost_v2",
+      "method": "stratified_asymmetric_split_conformal_signed_residual",
+      "stratum_feature": "slope_batch_robust_z",
+      "edges": [
+        2.0,
+        5.0
+      ],
+      "min_stratum_components": 20,
+      "margins": {
+        "0": {
+          "lower_two_sided": -0.026501316723200385,
+          "upper_two_sided": 0.9176102156610937,
+          "lower": -0.019108240884224498,
+          "upper": 0.4206941753192627,
+          "calibration_components": 2207,
+          "pooled_fallback": false
+        },
+        "1": {
+          "lower_two_sided": -0.4863596059538847,
+          "upper_two_sided": 0.9912708089961557,
+          "lower": -0.3562619756183958,
+          "upper": 0.6562890546851472,
+          "calibration_components": 87,
+          "pooled_fallback": false
+        },
+        "2": {
+          "lower_two_sided": -1.266007684856079,
+          "upper_two_sided": 1.285848445749294,
+          "lower": -1.015494092909069,
+          "upper": 0.8380910320083008,
+          "calibration_components": 106,
+          "pooled_fallback": false
+        }
+      },
+      "reported_interval": "prediction_lower/prediction_upper are the one-sided (1-alpha) bounds of each stratum (a two-sided 1-2*alpha interval); the two-sided (1-alpha) bounds are reported as prediction_lower_two_sided/prediction_upper_two_sided",
+      "note": "Signed-residual (observed - forecast) quantiles per slope-z stratum on the calibration batches; lower bounds clipped at zero; used only when xgboost_v2 is the active forecast"
+    },
+    "limitation": "Device dependence within batches limits exchangeability; nominal coverage is not a guarantee. Synthetic empirical coverage is not real-world validation."
+  },
+  "forecast_v2": {
+    "model": "xgboost_v2",
+    "features": [
+      "percent_change",
+      "delta_fraction_of_limit",
+      "slope_fraction_per_hour",
+      "acceleration_fraction_per_hour2",
+      "variability_fraction_of_limit",
+      "limit_fraction",
+      "distance_fraction_to_upper_limit",
+      "current_batch_robust_z",
+      "slope_batch_robust_z",
+      "initial_fraction_of_limit"
+    ],
+    "objective": "reg:absoluteerror",
+    "target": "observed final_value / upper_limit with base_margin = 24 h value / upper_limit (correction over persistence)",
+    "params": {
+      "n_estimators": 350,
+      "max_depth": 3,
+      "learning_rate": 0.04,
+      "min_child_weight": 12,
+      "subsample": 0.9,
+      "colsample_bytree": 0.9,
+      "reg_lambda": 10.0,
+      "objective": "reg:absoluteerror",
+      "tree_method": "hist",
+      "base_score": 0.0
+    },
+    "artifact": "xgboost_v2.ubj",
+    "provenance": "Claude forecasting v2 (training-only whole-batch experiment, 2026-09-06); see docs/CLAUDE_FORECAST_V2_HANDOFF.md"
+  },
+  "versions": {
+    "numpy": "2.5.2",
+    "pandas": "3.0.5",
+    "scikit-learn": "1.9.0",
+    "xgboost": "3.4.1",
+    "skops": "0.13.0"
+  },
+  "anomaly": {
+    "contamination": 0.1,
+    "robust_threshold": 3.5,
+    "score_semantics": "Ranking score; not a failure probability",
+    "fit_scope": "Training batches only; batch peer statistics recomputed from the uploaded 0/24 readings"
+  },
+  "training_condition_ranges": {
+    "temperature_c": [
+      119.96397385,
+      125.426571893
+    ],
+    "measurement_temperature_c": [
+      23.1153220526,
+      26.9530734005
+    ],
+    "voltage_stress_ratio": [
+      0.880188180206,
+      0.9914218024279999
+    ],
+    "measurement_voltage_v": [
+      15.5528961834,
+      49.9990859347
+    ]
+  },
+  "limitations": [
+    "Only exact 0/24-hour MLCC_X7R leakage measurements in uA are supported",
+    "Synthetic scenarios are not physical diagnoses",
+    "Single sparse batches weaken peer comparison",
+    "Missing optional features are median-imputed; accuracy outside the training distribution is not established",
+    "Candidate hyperparameters were fixed before test evaluation"
+  ],
+  "artifact_sha256": {
+    "state.skops": "0af2f22df591d60f7c900cfe5b66467273a073071c479046e366ef160c0cbb05",
+    "xgboost.json": "151681b067f7904c15a1fb2ce7d58572c765cdb1ae2612a182be103f4ae9ed8a",
+    "xgboost_v2.ubj": "7bf6d10c87fd6e7eb39a7c7f4d89df908d3e4395d4d637def1672384c355b9a6",
+    "evaluation.json": "e679e04e908493288142be131d29460d858cd0c8aa7fc5f9a793572c79e7053f"
+  }
+}

@@ -1,0 +1,6 @@
+docs/CLAUDE_FORECAST_V2_HANDOFF.md
+outputs/claude_forecast_v2/
+outputs/mlcc_v2/
+scripts/claude_forecast_v2.py
+src/sih26170/forecast_v2.py
+tests/test_forecast_v2.py

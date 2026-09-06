@@ -1,0 +1,203 @@
+{
+  "grid": {
+    "base_350_d3_lr04_mcw12": {},
+    "n700": {
+      "n_estimators": 700
+    },
+    "n1200_lr02": {
+      "n_estimators": 1200,
+      "learning_rate": 0.02
+    },
+    "d4": {
+      "max_depth": 4
+    },
+    "d5": {
+      "max_depth": 5
+    },
+    "mcw6": {
+      "min_child_weight": 6
+    },
+    "mcw3": {
+      "min_child_weight": 3
+    },
+    "d4_n700": {
+      "max_depth": 4,
+      "n_estimators": 700
+    },
+    "d4_mcw6": {
+      "max_depth": 4,
+      "min_child_weight": 6
+    },
+    "sub07_col07": {
+      "subsample": 0.7,
+      "colsample_bytree": 0.7
+    },
+    "lambda1": {
+      "reg_lambda": 1.0
+    },
+    "d6_n700_lr02": {
+      "max_depth": 6,
+      "n_estimators": 700,
+      "learning_rate": 0.02
+    }
+  },
+  "rule": "Second, predeclared stage: bounded hyperparameter check for xgb_abs_resid_leak on the same\ntraining folds. Recorded here before execution. Selection: pooled OOF MAE, healthy MAE <= 0.02,\nmust beat the base configuration by more than 0.003 (roughly 2 paired SE) to be adopted.",
+  "configs": {
+    "persistence": {
+      "pooled_mae": 0.15919016691536034,
+      "healthy_mae": 0.007839940403118322,
+      "fold_mae": [
+        0.1662081993649733,
+        0.16038478982494317,
+        0.1527157361570409,
+        0.16240866330061013,
+        0.15323086986500373
+      ],
+      "batches_beating_persistence": 0
+    },
+    "tune_base_350_d3_lr04_mcw12": {
+      "pooled_mae": 0.14292315451867502,
+      "healthy_mae": 0.016520319649919405,
+      "fold_mae": [
+        0.14545146875891826,
+        0.14252485702596085,
+        0.14099410382907282,
+        0.1422790222065224,
+        0.1430051330242946
+      ],
+      "batches_beating_persistence": 35
+    },
+    "tune_n700": {
+      "pooled_mae": 0.143098550516047,
+      "healthy_mae": 0.016689472912985042,
+      "fold_mae": [
+        0.14586472858175584,
+        0.14239808286649325,
+        0.14114282554980892,
+        0.14268682562935098,
+        0.1430051216577247
+      ],
+      "batches_beating_persistence": 35
+    },
+    "tune_n1200_lr02": {
+      "pooled_mae": 0.14300556922364233,
+      "healthy_mae": 0.016655162005654336,
+      "fold_mae": [
+        0.1456858431027429,
+        0.14229103674756965,
+        0.1410869804242819,
+        0.14254546907616028,
+        0.14303562049901397
+      ],
+      "batches_beating_persistence": 35
+    },
+    "tune_d4": {
+      "pooled_mae": 0.14323019667946787,
+      "healthy_mae": 0.016884217373622352,
+      "fold_mae": [
+        0.14581199203007733,
+        0.1428611086830719,
+        0.14137694937639553,
+        0.1426417527221096,
+        0.1430903526784552
+      ],
+      "batches_beating_persistence": 35
+    },
+    "tune_d5": {
+      "pooled_mae": 0.14345962698685735,
+      "healthy_mae": 0.01721094259158936,
+      "fold_mae": [
+        0.14602634063862258,
+        0.14315611445483695,
+        0.14168540020719142,
+        0.14295775434101818,
+        0.1431058519137941
+      ],
+      "batches_beating_persistence": 35
+    },
+    "tune_mcw6": {
+      "pooled_mae": 0.14280766928774086,
+      "healthy_mae": 0.016480110083144706,
+      "fold_mae": [
+        0.14537112781983116,
+        0.14249334669831265,
+        0.14085284536677747,
+        0.1422930737217172,
+        0.14266174447033853
+      ],
+      "batches_beating_persistence": 35
+    },
+    "tune_mcw3": {
+      "pooled_mae": 0.14277773493365253,
+      "healthy_mae": 0.016457894000659713,
+      "fold_mae": [
+        0.14526697701068655,
+        0.14268283467656948,
+        0.14067055420621577,
+        0.14228297861908687,
+        0.14262972414469913
+      ],
+      "batches_beating_persistence": 35
+    },
+    "tune_d4_n700": {
+      "pooled_mae": 0.14350180451171474,
+      "healthy_mae": 0.017195834225492583,
+      "fold_mae": [
+        0.14632913315339618,
+        0.1427760136304354,
+        0.1417098348181681,
+        0.14310897564170455,
+        0.14318116122320082
+      ],
+      "batches_beating_persistence": 34
+    },
+    "tune_d4_mcw6": {
+      "pooled_mae": 0.14323556209589614,
+      "healthy_mae": 0.01679549111045995,
+      "fold_mae": [
+        0.1459452021838052,
+        0.14327337061713866,
+        0.14139651142790213,
+        0.1425111214766564,
+        0.14266451333284857
+      ],
+      "batches_beating_persistence": 35
+    },
+    "tune_sub07_col07": {
+      "pooled_mae": 0.14289341010058934,
+      "healthy_mae": 0.016544399635800237,
+      "fold_mae": [
+        0.14579898979951364,
+        0.1422780232928709,
+        0.14072724207699785,
+        0.1423414057574612,
+        0.14290630676197102
+      ],
+      "batches_beating_persistence": 35
+    },
+    "tune_lambda1": {
+      "pooled_mae": 0.1428775719443555,
+      "healthy_mae": 0.01656550141724409,
+      "fold_mae": [
+        0.14535416221533207,
+        0.14233503394595948,
+        0.14107277644754554,
+        0.14230324491063998,
+        0.14296884359216092
+      ],
+      "batches_beating_persistence": 35
+    },
+    "tune_d6_n700_lr02": {
+      "pooled_mae": 0.1436378405966447,
+      "healthy_mae": 0.01749491821167721,
+      "fold_mae": [
+        0.14607459127589192,
+        0.14344129258703017,
+        0.1418434453970443,
+        0.14315647961731698,
+        0.1433252868660476
+      ],
+      "batches_beating_persistence": 35
+    }
+  }
+}

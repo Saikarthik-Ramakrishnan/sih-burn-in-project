@@ -1,0 +1,162 @@
+# Claude forecasting v2 — handoff for integration (SIH26170 MLCC pilot)
+
+Author: Claude (parallel forecasting collaborator). Workspace: the training-only pack (`CLAUDE_FORECASTING_TRAIN_ONLY_PACK.zip`, 7,200 training components in 36 batches). All data are synthetic; every number here is a software-development result on training-batch folds, not final validation and not field accuracy. Codex owns independent evaluation on untouched batches, final interval calibration, model-selection review and release integration.
+
+## 0. Status update, 2026-09-06: integrated into the release bundle
+
+The recommendation below has been carried out in the shared core rather than left as a separate candidate. `src/sih26170/mlcc_prototype.py` now trains and serves the same model as `xgboost_v2` inside the v1 bundle format (`ResidualOverPersistenceXGB`, native `xgboost_v2.ubj`, stratified asymmetric interval margins in the manifest, compatible loading of `mlcc-pilot-1.0` bundles). The retrained bundle `outputs/mlcc_v2/model_bundle` selects `xgboost_v2` on internal validation (0.1639 vs persistence 0.1795) and scores 0.1362 on the untouched test batches; its predictions match Codex's independent evaluation of the `xgb_abs_resid_leak` candidate (`outputs/codex_ml_v2_review/test_predictions.csv`) to 2e-16 on all 2,400 test parts. Ashvitha's backend loads this bundle by default and its full suite passes; see `docs/backend/STATUS.md` section 0 in the backend repository. Section 8 below describes the interval as designed in the training-only experiment; the release bundle reports the one-sided 90 % bounds as `prediction_lower`/`prediction_upper` (an 80 % pair, `upper_bound_nominal_level` 0.9) so the shared MONITOR rule keeps a stated meaning, and the two-sided 90 % pair alongside.
+
+## 1. Recommendation in one paragraph
+
+Switch the XGBoost forecaster from squared error on the raw normalized target to **absolute error on the correction over persistence** (`reg:absoluteerror` with `base_margin` = 24 h value / limit), using the ten leakage-only 0/24 h features that v1 already computes. On five profile-stratified whole-batch folds it reaches pooled out-of-fold normalized MAE **0.1429 versus 0.1592 for persistence** (v1's XGBoost: 0.2100), beats persistence in 5 of 5 folds and 35 of 36 batches (paired per-batch delta −0.016, standard error 0.0017), keeps the healthy majority almost untouched (healthy-part MAE 0.0165 versus 0.0078 for persistence and 0.116 for v1), and raises observed-crossing recall from 0.186 to 0.315 at a false-positive rate of 0.57 % (13 → 38 false alarms out of 6,647). The candidate is saved at `outputs/claude_forecast_v2/candidate/xgb_abs_resid_leak/`. Adding auxiliary or channel-peer features changes MAE by less than 0.0002 (paired per-batch differences of −0.00017 ± 0.00021 and −0.00011 ± 0.00012, far inside the pre-registered 0.001 noise floor), so the simplest feature set is recommended; note that this departs from the letter of the predeclared rule, which picks `xgb_abs_resid_aux` (section 6). Late-onset events (onset after 24 h) remain unpredictable for every configuration; the point forecast cannot fix them and the interval/decision layer must carry that hazard.
+
+## 2. What was delivered
+
+| Path (inside the extracted pack) | Purpose |
+|---|---|
+| `src/sih26170/forecast_v2.py` | New module: training data loading and validation, deterministic whole-batch folds, predeclared configurations, cross-validation runner, metrics, nested-calibration interval experiment, frozen `ForecastCandidate` with `load_forecast_candidate(path).predict(early_readings)` |
+| `scripts/claude_forecast_v2.py` | Runner: `validate`, `predeclare`, `experiment`, `intervals`, `fit-final`, `seed-check`, `prevalence-check`, `all` |
+| `tests/test_forecast_v2.py` | Fast tests on a small synthetic fixture (see section 10 for what they cover) |
+| `outputs/claude_forecast_v2/data_validation.json`, `fold_assignment.csv` | Input hashes, counts, target distribution, fold membership |
+| `outputs/claude_forecast_v2/DIAGNOSTICS.md` | Six diagnostic passes explaining why 0/24 h readings do or do not predict 168 h |
+| `outputs/claude_forecast_v2/PREDECLARED_COMPARISON.{md,json}` | The twelve configurations, selection rule, rationale and disclosures, recorded before execution (digest-checked by the runner) |
+| `outputs/claude_forecast_v2/COMPARISON.md`, `comparison_table.csv`, `comparison_by_profile.csv`, `comparison_by_stratum.csv`, `comparison_by_scenario.csv`, `cv_results.json` | Results |
+| `outputs/claude_forecast_v2/oof_predictions.csv` | 86,400 out-of-fold forecasts keyed by identity, fold, configuration |
+| `outputs/claude_forecast_v2/interval_experiment__*.json` | Nested-calibration interval proposal results |
+| `outputs/claude_forecast_v2/seed_check__xgb_abs_resid_leak.json`, `prevalence_readout.json` | Post-selection robustness read-outs |
+| `outputs/claude_forecast_v2/candidate/xgb_abs_resid_leak/` (recommended) and `candidate/xgb_abs_resid_aux/` (rule-literal winner) | `manifest.json`, `model.ubj`, `model.json`, prediction preview |
+| `outputs/claude_forecast_v2/STATUS.md` | Milestones and remaining limitations |
+
+Shared modules (`features.py`, `mlcc_prototype.py`, `anomaly.py`, `decision.py`, `contracts.py`, data generator, v1 artifacts) were not modified. No core bug was found in them; two behaviours worth knowing are listed in section 9.
+
+## 3. Data validation (step 1)
+
+14,400 early rows, 7,200 components, 36 batches of 200, one profile per batch, 9 batches per profile (limits 0.12, 0.25, 0.7, 1.3 µA). Only 0 h and 24 h hours are present; no missing values; labels join one-to-one on the four identity columns (`component_id`, `batch_id`, `component_family`, `measurement_name`). Target y = observed `final_value` / `upper_limit`: median 0.122, 90th percentile 0.82, 99th 2.21, max 6.85. 553 observed final crossings (y ≥ 1), 419 latent (`is_future_failure`), 116 parts already at or above the limit at 24 h (98 of them tester-channel faults). Input SHA-256 hashes are recorded in `data_validation.json` and match `SNAPSHOT.json`.
+
+## 4. Experiment design (steps 2 to 5)
+
+- **Folds.** Five deterministic profile-stratified whole-batch folds (8/7/7/7/7 batches; every fold holds out every profile; `fold_assignment.csv`). No batch or component is split across fit and validation; imputation medians and models are fitted on each fold's training portion only. Batch-relative features (robust z, humidity rank, channel-peer statistics) are computed within each batch from that batch's own uploaded rows, exactly as at inference.
+- **Predeclared list** (12 configurations, frozen before execution, digest `27702108c22c7315`): persistence; linear extrapolation; the v1 XGBoost configuration replicated; then a ladder that changes one thing at a time (drop aux/condition columns → residual-over-persistence target → absolute-error objective → both), a pseudo-Huber variant (slope 0.05 normalized), two log1p targets with squared error, and the absolute-error residual model with (a) six part-level capacitance/loss-factor features plus a within-batch humidity rank, (b) leave-one-out same-channel peer statistics. XGBoost hyperparameters are v1's for every configuration; there was no tuning.
+- **Selection rule** (predeclared): pooled out-of-fold normalized MAE, ties by fold-mean MAE; eligible only if below persistence pooled and in ≥ 4 of 5 folds, healthy-part MAE ≤ 0.02, and no batch-constant condition columns. Everything else (µA by profile, RMSE, signed error, crossing confusion counts in three strata, scenario MAE) is reported for tradeoffs and did not drive selection.
+- **Disclosures.** A code smoke test ran one absolute-error residual configuration (with raw humidity) before freezing and its result was seen; the diagnostics inspected these same 36 batches' labels; the detection limit for tree models is about 0.01 in paired per-batch MAE. Details in `PREDECLARED_COMPARISON.md`.
+
+## 5. Results (development results on training folds)
+
+Pooled out-of-fold, 7,200 parts. Signed error is prediction minus observed. Crossing = point forecast ≥ limit against observed y ≥ 1.
+
+| configuration | MAE norm | fold MAE (mean ± sd) | folds < pers | batches < pers | paired Δ (SE) | MAE µA | healthy MAE | non-healthy MAE | RMSE | recall | FPR | tp/fn/fp/tn |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| persistence | 0.1592 | 0.1590 ± 0.0059 | – | – | – | 0.0907 | 0.0078 | 0.699 | 0.450 | 0.186 | 0.0020 | 103/450/13/6634 |
+| linear extrapolation | 0.2625 | 0.2616 ± 0.0328 | 0/5 | 0/36 | +0.103 (0.018) | 0.1386 | 0.0721 | 0.942 | – | 0.302 | 0.0104 | 167/386/69/6578 |
+| xgb_v1_replica (sq. error, raw y, all v1 columns) | 0.2100 | 0.2098 ± 0.0061 | 0/5 | 0/36 | +0.051 (0.0033) | 0.1175 | 0.1161 | 0.545 | 0.408 | 0.338 | 0.0113 | 187/366/75/6572 |
+| xgb_sq_norm_leak | 0.2101 | 0.2100 ± 0.0028 | 0/5 | 0/36 | +0.051 | 0.1200 | 0.1161 | 0.545 | – | 0.325 | 0.0102 | 180/373/68/6579 |
+| xgb_sq_resid_leak | 0.2097 | 0.2097 ± 0.0024 | 0/5 | 0/36 | +0.051 | 0.1198 | 0.1158 | 0.545 | – | 0.320 | 0.0110 | 177/376/73/6574 |
+| xgb_sq_log1p_leak | 0.1888 | 0.1887 ± 0.0032 | 0/5 | 1/36 | +0.030 | 0.1072 | 0.0847 | 0.560 | – | 0.288 | 0.0071 | 159/394/47/6600 |
+| xgb_sq_log1p_resid_leak | 0.1881 | 0.1880 ± 0.0023 | 0/5 | 1/36 | +0.029 | 0.1068 | 0.0842 | 0.559 | – | 0.293 | 0.0071 | 162/391/47/6600 |
+| xgb_abs_norm_leak | 0.1446 | 0.1445 ± 0.0018 | 5/5 | 33/36 | −0.0146 (0.0019) | 0.0809 | 0.0174 | 0.598 | 0.418 | 0.306 | 0.0056 | 169/384/37/6610 |
+| xgb_huber_resid_leak | 0.1442 | 0.1440 ± 0.0029 | 5/5 | 36/36 | −0.0150 (0.0017) | 0.0812 | 0.0165 | 0.600 | 0.416 | 0.340 | 0.0084 | 188/365/56/6591 |
+| **xgb_abs_resid_leak (recommended)** | **0.1429** | 0.1429 ± 0.0016 | 5/5 | 35/36 | −0.0163 (0.0017) | 0.0804 | 0.0165 | 0.594 | 0.415 | 0.315 | 0.0057 | 174/379/38/6609 |
+| xgb_abs_resid_aux (rule-literal winner) | 0.1427 | 0.1427 ± 0.0017 | 5/5 | 36/36 | −0.0164 (0.0018) | 0.0804 | 0.0165 | 0.593 | 0.415 | 0.318 | 0.0059 | 176/377/39/6608 |
+| xgb_abs_resid_peer | 0.1428 | 0.1427 ± 0.0018 | 5/5 | 35/36 | −0.0164 (0.0018) | 0.0804 | 0.0164 | 0.594 | 0.415 | 0.316 | 0.0060 | 175/378/40/6607 |
+
+Per-fold MAE for the recommended model: 0.1455, 0.1425, 0.1410, 0.1423, 0.1430 (persistence 0.1662, 0.1604, 0.1527, 0.1624, 0.1532). Training-fold MAE 0.140 versus 0.143 out-of-fold: no sign of over-fitting. Seed spread over five seeds: standard deviation 0.00005. No prediction was clipped at zero for any XGBoost configuration (linear extrapolation clipped 20 %).
+
+**Crossing strata** (recommended model vs persistence): already ≥ limit at 24 h (116 parts, 98 instrument faults): 93 vs 103 flagged of 103 true; **new crossings among parts below the limit at 24 h: 81 of 450 caught vs 0**, with 29 vs 0 false alarms; latent `is_future_failure` excluding tester faults: recall 0.216 (87 of 403, 38 false alarms) vs 0.020 (8 of 403). The v1 model reaches latent recall 0.231 but with 62 false alarms and the healthy inflation.
+
+**MAE in µA by profile** (persistence → recommended): 0.25 µA profile 0.0481 → 0.0433; 0.12 µA 0.0177 → 0.0162; 0.7 µA 0.1037 → 0.0936; 1.3 µA 0.1933 → 0.1686. Improvement in every profile. Normalized MAE is the fair cross-profile metric; µA error is dominated by the 1.3 µA profile.
+
+**Retrospective strata** (labels used only to explain; MAE, signed error): healthy 5,624 parts 0.0078 → 0.0165 (+0.015); defect onset ≤ 24 h 1,029 parts 0.658 → 0.496; defect onset > 24 h 357 parts 0.909 → 0.904 (unchanged, unpredictable); tester fault onset 0/12 h 113 parts 0.192 → 0.229; tester fault onset 72 h 77 parts 1.018 → 0.998 (unpredictable).
+
+**By scenario** (persistence → recommended): gradual drift 0.652 → 0.260, moisture-associated 0.727 → 0.556, accelerating drift 0.795 → 0.767, late abrupt onset 1.017 → 1.012, healthy settling 0.0056 → 0.0095, ordinary noise 0.0162 → 0.0426, intermittent leakage 0.365 → 0.447, tester channel fault 0.385 → 0.411.
+
+## 6. Where the candidate loses or stays uninformative
+
+- **Healthy majority.** Healthy MAE roughly doubles (0.0078 → 0.0165) and ordinary-noise parts 0.016 → 0.043: the median correction is small but not zero for parts that look slightly elevated. This passes the predeclared 0.02 gate but not the stricter 1.5× alternative (0.012) the critic proposed; the cost is 1.7 % of the limit and produces no crossing alarms.
+- **Intermittent leakage and channel faults.** Slightly worse than persistence (0.365 → 0.447; 0.385 → 0.411). Spiky parts are irreducibly poor for any point forecast.
+- **Late-onset events.** 357 late-onset defects and 77 onset-72 h tester faults are unchanged; they hold about 36 % of persistence's error and 28 % of crossings, and no 0/24 h feature separates them from healthy parts (AUC 0.48 to 0.56). Recall ceiling for any 24 h-only forecaster is about 0.42 to 0.52.
+- **Accelerating drift** barely improves (0.795 → 0.767): its only 24 h signature is a failure to settle.
+- **Aux and peer features do not help the forecast** (≤ 0.0002 MAE); the channel-peer statistic is nonetheless a clean instrument-fault discriminator (flags all 113 visible faults with zero false positives) and may be more valuable in Codex's anomaly/decision layer than in the forecaster.
+- **Selection rule, applied literally, picks `xgb_abs_resid_aux`** (0.14275 vs 0.14282 for `xgb_abs_resid_peer` and 0.14292 for the recommended `xgb_abs_resid_leak`). All five absolute-error configurations pass every eligibility clause. The recommendation of the leakage-only model is a disclosed deviation on parsimony grounds under a paired-standard-error tie (aux − leak = −0.00017 ± 0.00021, aux better in 19 of 36 batches; the diagnostics pre-registered that any aux gain under 0.001 is noise). One qualification: the peer model beats the leakage-only model in 25 of 36 batches (sign test p = 0.03) although the mean difference (−0.00011 ± 0.00012) is negligible, so the tie is a tie on magnitude, not on sign. Both `xgb_abs_resid_leak` and `xgb_abs_resid_aux` are saved so Codex can compare them on untouched batches; the rule text was not amended after the fact.
+- **Rare-event tradeoff.** Versus v1, latent recall drops slightly (0.231 → 0.216) while false alarms fall (62 → 38) and healthy inflation disappears. Versus persistence, false alarms rise 13 → 38.
+- **Selection bias.** All of this is on the 36 training batches whose labels the diagnostics inspected. Only Codex's untouched set gives an unbiased estimate; expect some shrinkage.
+- **Prevalence dependence.** With half the defects removed from training, the recommended model's MAE moves 0.1429 → 0.1463 and its healthy bias shrinks (+0.015 → +0.005), while v1's healthy bias remains large (+0.116 → +0.075). Mean-type objectives will look different on the low-prevalence stress set; the median-type candidate should be nearly invariant.
+
+## 7. Were the feature, profile and target definitions preserved?
+
+- **Features:** yes for the recommended candidate. It uses `prepare_early_features` from `mlcc_prototype.py` unchanged and exactly the nine `MODEL_FEATURE_COLUMNS` plus `initial_fraction_of_limit` (v1's own extra). No formula was altered. The two optional v2 feature sets add v2-namespaced columns documented in `forecast_v2.V2_FEATURE_FORMULAS` (`prior_storage_humidity_batch_rank_v2`, `channel_peer_median_current_z_v2`, `channel_peer_elevated_fraction_v2`); they are not in the recommended candidate.
+- **Two properties of the inherited features worth knowing.** `acceleration_fraction_per_hour2` is identically zero with two checkpoints (a constant placeholder in every feature set, imputation median 0). The pair (raw fraction, batch robust z) for level and for slope implicitly encodes the uploaded batch's median and scale of 24 h leakage and slope; this is v1's design, involves no labels or post-24 h data, and whole-batch holdout is the honest test of it (a random forest can identify the training batch from the ten leakage-only features with 30 % accuracy against 2.8 % chance, versus 100 % from v1's full column set because of the condition columns). Both facts are recorded in the candidate manifest.
+- **Deliberately excluded from all new configurations:** `temperature_c`, `measurement_temperature_c`, `voltage_stress_ratio`, `measurement_voltage_v` (one value per batch, i.e. batch identifiers), raw `prior_storage_humidity_pct` (0.72 between-batch variance share), `insulation_resistance_gohm` (exact transform of leakage), batch-level aggregates, all identifiers and labels.
+- **Profiles:** one shared normalized model over the four profiles (the profiles are interchangeable after dividing by the limit). Supported profiles are recorded in the manifest and enforced at predict time (unsupported → status `unavailable`).
+- **Target:** observed `final_value` at 168 h divided by `upper_limit`, as in v1, converted back to µA by multiplying with the part's limit. Predictions are clipped at zero only. `true_final_value` was never used as a target. The residual parameterisation is implemented with XGBoost's `base_margin`, not by changing the label, so the model's output is still the normalized 168 h forecast.
+
+## 8. Prediction-interval proposal (step 6)
+
+Method: nested calibration inside every training fold (eight whole calibration batches, two per profile, with the selection window rotated by fold index so that 31 different batches calibrate across the five folds; model fitted on the remaining 20 to 21 batches; residual quantiles from the calibration batches only; evaluated on the fold's validation batches). Five methods compared at nominal 90 %, on the recommended model's residuals:
+
+| method | coverage (fold mean ± sd, min–max) | per-batch range | healthy | non-healthy | crossers covered | median width (normalized / µA) | share of parts whose upper bound stays below the limit |
+|---|---|---|---|---|---|---|---|
+| symmetric absolute radius (v1 method) | 0.902 ± 0.008 (0.895–0.912) | 0.84–0.965 | 0.997 | 0.562 | 0.29 | 0.611 / 0.289 | 0.931 |
+| asymmetric signed quantiles | 0.897 ± 0.018 (0.874–0.916) | 0.805–0.96 | 0.966 | 0.652 | 0.32 | 0.903 / 0.417 | 0.564 |
+| **stratified asymmetric (slope-z strata < 2 / 2–5 / ≥ 5)** | 0.900 ± 0.028 (0.860–0.926) | 0.84–0.96 | 0.940 | **0.754** | 0.38 | 0.864 / 0.437 | 0.629 |
+| stratified one-sided 90 % upper bound | 0.903 ± 0.008 (0.894–0.911) | 0.845–0.975 | 1.000 | 0.556 | 0.36 | 0.524 / 0.274 (upper margin) | 0.924 |
+| conformalized quantile regression (XGBoost 5 %/95 %) | 0.903 ± 0.008 (0.890–0.910) | 0.845–0.975 | 1.000 | 0.554 | 0.35 | 0.502 / 0.274 | 0.904 |
+
+Persistence residuals give the same picture (stratified asymmetric: non-healthy 0.764 at 0.905 coverage; symmetric radius 0.72 wide with non-healthy 0.547). An earlier run of this experiment used the highest-id batches of every profile as calibration in every fold, which reused 12 batches and understated the spread (coverage sd 0.006 to 0.017); the rotated rule above is the one to quote.
+
+Proposal: report the **stratified asymmetric signed-residual interval** (lower bound clipped at 0) plus the **one-sided 90 % upper bound** and a "may exceed limit" flag when the upper bound reaches the limit. It is the only scheme that lifts coverage of non-healthy parts above 0.75 at the same marginal coverage; the price is a wider median interval (0.86 normalized) and fold-to-fold coverage that ranges 0.86 to 0.93. In the quiet stratum (slope z < 2, about 1,450 calibration parts per fold) the one-sided 90 % upper margin is 0.38 to 0.44 of the limit (mean 0.40; persistence 0.415) because 13 to 15 % of quiet-looking parts are undetectable defects; this floor cannot be removed by any 24 h-only model. The two high-slope strata rest on 58 to 88 calibration parts per fold, so their margins (one-sided means 0.59 and 1.22) are noisy. Limitations to state on the dashboard: parts within a batch are dependent (residual ICC 0.004, design effect 1.75; instrument faults cluster by channel with design effect 7.8), so the nominal level is an average across batches and per-batch coverage ranged 0.84 to 0.96; intervals are not failure probabilities and the anomaly score is not a confidence. **Release calibration on the separate calibration batches remains Codex's task**; the candidate itself returns point forecasts only and does not fabricate bounds.
+
+## 9. Candidate interface (step 7)
+
+```python
+import pandas as pd
+from sih26170.forecast_v2 import load_forecast_candidate
+
+candidate = load_forecast_candidate("outputs/claude_forecast_v2/candidate/xgb_abs_resid_leak")  # once at startup
+early = pd.read_csv("some_upload.csv", dtype={"component_id": str, "batch_id": str,
+                                             "component_family": str, "measurement_name": str})
+predictions = candidate.predict(early)   # one row per complete identity, sorted by identity
+```
+
+Output columns: the four identity columns, `status` (`forecast` or `unavailable`), `predicted_final_value` (µA at 168 h, float64, ≥ 0, no upper clip), `predicted_normalized` (forecast / limit), `unit` (`uA`), `target_hour` (168), `as_of_hour` (24), `upper_limit`, `value_at_24h`, `persistence_final_value`, `profile_id`, `peer_count` (scored components of the same batch in the upload, nullable Int64), `weak_peer_warning` (true when `peer_count` < 8, v1's weak-peer rule), `imputed_feature_count` (optional inputs filled from training medians for that row; always 0 for the recommended candidate), `unavailable_reason`, `candidate_version`, `candidate_name`. Column dtypes are the same whether or not the frame contains unavailable rows; unavailable rows carry `None`/`<NA>`. `candidate.predict_records(early)` returns the same content as JSON-safe dictionaries (nulls instead of NaN) for an API layer. No interval columns are returned.
+
+Semantics (verified case by case by the inference-contract review):
+- **Whole-upload `ValueError`** (inherited from v1's `prepare_early_features`, unchanged): missing required columns, empty upload, blank or missing identity value, a `component_id` appearing in two batches, and any batch whose parts disagree on `profile_id`, `upper_limit`, `part_number`, `nominal_capacitance_nf`, `rated_voltage_v`, `measurement_voltage_v` or `measurement_temperature_c`. A single part with an unknown or NaN `profile_id` inside an otherwise valid batch therefore rejects the whole upload rather than one row; if partial scoring of mixed uploads is wanted, the API layer should split by batch first.
+- **Per-component `unavailable` row with a reason:** missing or duplicated 0 h / 24 h checkpoint (hours must equal 0 and 24 exactly; 23.9 or 24.000000001 count as missing), non-finite, non-numeric or negative reading, `upper_limit` changing between the two checkpoints or non-positive, unsupported `component_family` / `measurement_name`, a `unit` column not saying µA, a supplied `lower_limit`, non-numeric optional values, and a `profile_id` that is missing, non-string or not in the manifest's `supported_profiles`. For this candidate `profile_id` is effectively required (v1 treated it as optional metadata).
+- **Silently accepted:** rows at other hours (ignored even if they carry different limits or NaN), numeric strings for values and hours, identity strings taken verbatim (case and whitespace variants are distinct devices), and any positive `upper_limit` (there is no per-profile limit table; a wrong limit scales the forecast).
+- `predict` never fits, tunes, downloads or reads labels; it applies the manifest's imputation medians to optional columns and always supplies the persistence `base_margin` (the manifest field `target.base_margin_required_at_predict` is true; predicting with the raw booster without the margin gives wrong values).
+- Output order is sorted by identity, so shuffled input gives identical output. Observations at other hours and any label-like columns in the upload are ignored.
+- Batch-relative features are recomputed from the uploaded batch, so a small upload weakens them: between a full 200-part batch and five-part partitions of the same batch, the same part's forecast moved by a median 0.0002 normalized, 90th percentile 0.009, maximum 0.152 (0.106 µA), with no crossing flag flipping; a single-part upload zeroes both robust-z features. `weak_peer_warning` marks rows with fewer than 8 batch peers.
+- Inputs must be passed as float64 exactly as measured. Tree forecasts are piecewise constant: casting `measurement_value` to float32 or exporting it with six significant digits moved one part in a demo-sized upload from 0.52 to 0.46 normalized, and rounding µA values to four decimals changed every forecast slightly (maximum 0.042 normalized, 99th percentile 0.0012). The interval layer, not the point forecast, should absorb this.
+- Mixed-batch uploads give exactly the same rows as separate per-batch uploads; predictions are bit-identical across repeated calls, shuffled input, thread counts and fresh loads.
+- `load_forecast_candidate` verifies SHA-256 of `model.ubj`/`model.json` against the manifest and verifies the manifest against a digest of its behaviour-determining content that is embedded as an attribute inside the model files, so neither file can be edited alone (an emptied `artifact_sha256`, an edited `config.target`, a removed imputation median or an inconsistent feature set all fail at load with `ValueError`, not at first predict). By default it also requires exact versions of numpy, pandas, scikit-learn and xgboost: a mismatch is a hard `ValueError`; `strict_versions=False` loads with a `RuntimeWarning`. The candidate folder holds only `manifest.json`, `model.ubj`, `model.json`; prediction previews are written next to it. The manifest also records a `provenance` block (hyperparameters, feature and interval constants, SHA-256 of the four source files that define the features).
+
+**Contract note for Codex:** `PredictionResult` in `contracts.py` declares `prediction_lower` and `prediction_upper` as floats without defaults; the dataclass does no validation, so constructing it with `None` bounds works but should be made explicit (`Optional`) or the bounds filled from Codex's calibration before the object is built.
+
+**Dependencies:** none beyond `requirements-prototype.lock`. The candidate does not use skops or pickle; it is native XGBoost UBJ/JSON plus a JSON manifest (imputation medians included). The module imports `threadpoolctl`, which is a hard transitive dependency of scikit-learn and is present in both environments but is not named in `pyproject.toml`.
+
+## 10. How Codex should integrate and independently test
+
+1. Copy `src/sih26170/forecast_v2.py`, `scripts/claude_forecast_v2.py`, `tests/test_forecast_v2.py` and `outputs/claude_forecast_v2/candidate/xgb_abs_resid_leak/` into the release workspace. `sih26170/__init__.py` needs no change. Run the full test suite.
+2. Reproduce the training-only experiment if desired. In the release layout the training CSVs live under `outputs/mlcc_v1/`, so pass the data directory explicitly: `python scripts/claude_forecast_v2.py --data-dir outputs/mlcc_v1 --output-dir outputs/claude_forecast_v2 validate`, then `... predeclare` (already recorded; copy `outputs/claude_forecast_v2/PREDECLARED_COMPARISON.json` across or re-record and say so), `... experiment`, `... intervals --config xgb_abs_resid_leak persistence`, `... fit-final --config xgb_abs_resid_leak --force`. About one minute in total. The runner refuses to run `experiment` if the configuration list, hyperparameters or feature constants differ from the predeclaration, and warns if the source files changed.
+3. **Independent evaluation on untouched batches** (Codex's data only): build early features with `prepare_early_features`, call `candidate.predict`, join on the four identity columns, and compute normalized MAE, MAE in µA by profile, crossing confusion in three strata (already ≥ limit at 24 h; new crossings below the limit at 24 h; latent excluding tester faults), healthy-part MAE, and per-batch paired deltas against persistence. `forecast_v2.forecast_metrics(pred_normalized, features, labels_with_y_normalized)` implements exactly the metrics reported here if you want the same definitions. Compare with persistence and the v1 XGBoost on the same batches; treat differences under about 0.01 normalized MAE as ties.
+4. **Calibration** (Codex): fit the stratified asymmetric quantiles and the one-sided upper margin on the calibration batches using `forecast_v2.stratum_index`, `signed_conformal_bounds`, `conformal_radius` (or your own), report empirical coverage per batch and per profile on the test batches, and connect the result to `PredictionResult`. Do not reuse v1's symmetric radius for this model.
+5. **Decision layer:** `recommend_action` compares `predicted_final_value` with the limit; with the new candidate, predicted crossings are rarer and more precise than v1's (precision 0.82 versus 0.71 on training folds). Review whether MONITOR/RETEST semantics should change; nothing in this handoff changes them.
+6. **Stress sets:** the low-prevalence set is expected to favour this candidate over v1 (section 6); the shifted-condition set is expected to be neutral because no condition column is a feature.
+7. Behaviours of the shared code worth a look (not bugs in v1's own scope): `prepare_early_features` raises for the whole upload when `profile_id` is mixed within a batch, so a mixed-profile CSV is rejected rather than partially scored; `tester_channel` is validated nowhere, so the optional peer features (not in the recommended candidate) silently degrade to medians when it is absent or inconsistent.
+
+## 11. Verification performed
+
+Six adversarial checks were run after the experiment, each by an independent reviewer pass with its own code (scripts under `outputs/claude_forecast_v2/scratch/verify_*.py`):
+
+- **Label and future leakage:** eleven adversarial upload variants per candidate (labels added, 48–168 h rows scaled ×100, identifiers and channels relabelled, condition columns overwritten, rows shuffled) give bit-identical forecasts; training reads only the two allowed files; no label reaches a feature matrix.
+- **Fold contamination:** fold hygiene, imputer scope, calibration disjointness and the out-of-fold file all verified; no contamination path.
+- **Metric recomputation:** every reported number recomputed from `oof_predictions.csv` with independent code (324 comparison-table cells, 240 profile cells, 300 stratum cells, 444 rendered table cells) to 1e-9.
+- **Inference contract:** `predict` equals an independent raw-booster recomputation exactly; no fit path is reachable under monkeypatching; forty-plus invalid-input cases classified (section 9). Its major finding, that the manifest was unhashed and unvalidated, was fixed as described in section 9 and re-verified by new tests.
+- **Test audit with mutation testing:** three realistic regressions (imputation medians recomputed from the upload, a baseline dropping the µA conversion, a future-row leak into auxiliary features) survived the original tests; the suite was extended to 38 tests that catch all injected mutants, in about 7 seconds.
+- **Integration:** in a copy of the main project with its own environment, the original 82 tests plus the new ones pass; the candidate loads in 0.05 s and forecasts the 800-part demo upload in 1.8 s with zero unavailable rows.
+
+No blocker was found. After the fixes the experiment was re-run on the revised code and reproduced the original results bit-identically; the refitted candidates have identical tree dumps and predictions (the model file hashes changed only because the manifest digest is now embedded in them).
+
+## 12. Reproduction and environment
+
+Python 3.12.13, numpy 2.5.2, pandas 3.0.5, scikit-learn 1.9.0, xgboost 3.4.1 (from the supplied lock file). Seeds: 26170 throughout; folds are deterministic and label-free. Input hashes: `train_early.csv` b407d150…, `train_labels.csv` 81cdc6bc…. Experiment runtime about 10 seconds after a 15-second feature build.

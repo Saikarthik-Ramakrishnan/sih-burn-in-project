@@ -1,0 +1,87 @@
+{
+  "archive_sha256": "736e96baee1d1b4afb30c55c49678263d697a27635af55253b856cacae0bee78",
+  "model_bundle_id": "b5553f6f7032092e-s26170",
+  "rows": 14400,
+  "components": 7200,
+  "batches": 36,
+  "original_training_data_equivalent": true,
+  "model_features_equivalent": true,
+  "training_provenance_verified": true,
+  "split_overlap": false,
+  "retrained": false,
+  "reason": "Cleaned measurements and model features match the existing trained data within floating-point tolerance.",
+  "feature_checks": [
+    {
+      "teammate_feature": "leakage_0h_ua",
+      "model_feature": "initial_value",
+      "multiply_by": 1,
+      "matches": true,
+      "max_absolute_error": 0.0
+    },
+    {
+      "teammate_feature": "leakage_24h_ua",
+      "model_feature": "current_value",
+      "multiply_by": 1,
+      "matches": true,
+      "max_absolute_error": 0.0
+    },
+    {
+      "teammate_feature": "upper_limit_ua",
+      "model_feature": "upper_limit",
+      "multiply_by": 1,
+      "matches": true,
+      "max_absolute_error": 0.0
+    },
+    {
+      "teammate_feature": "change_0h_to_24h_ua",
+      "model_feature": "delta",
+      "multiply_by": 1,
+      "matches": true,
+      "max_absolute_error": 2.220446049250313e-16
+    },
+    {
+      "teammate_feature": "percent_change_teammate",
+      "model_feature": "percent_change_model",
+      "multiply_by": 0.01,
+      "matches": true,
+      "max_absolute_error": 1.7763568394002505e-15
+    },
+    {
+      "teammate_feature": "slope_ua_per_hour",
+      "model_feature": "slope",
+      "multiply_by": 1,
+      "matches": true,
+      "max_absolute_error": 1.1340754724198376e-16
+    },
+    {
+      "teammate_feature": "fraction_of_limit",
+      "model_feature": "limit_fraction",
+      "multiply_by": 1,
+      "matches": true,
+      "max_absolute_error": 2.220446049250313e-16
+    }
+  ],
+  "robust_z_differences_over_1e_8": 1000,
+  "robust_z_max_difference": 5.052804238782436,
+  "robust_z_policy": "Preserve production MAD scale floor (1% of median, 10% of std, epsilon); teammate robust_z is an EDA reference only.",
+  "teammate_baseline_counts": {
+    "NORMAL": 6899,
+    "CHECK / MONITOR": 185,
+    "ABOVE LIMIT": 116
+  },
+  "production_summary": {
+    "component_count": 7200,
+    "scored_count": 7200,
+    "unscored_count": 0,
+    "recommendations": {
+      "ACCEPT": 6428,
+      "RETEST": 190,
+      "MONITOR": 311,
+      "ENGINEER_REVIEW": 271
+    },
+    "within_limit_but_anomalous": 628
+  },
+  "shuffled_batch_prediction_check": "passed",
+  "interpretation": "Training-set scoring verifies integration only; do not use it to report model accuracy. Existing held-out evaluation remains unchanged.",
+  "package_code_formatting": "Restored from original component metadata (805 -> 0805); no model feature or prediction changed."
+}

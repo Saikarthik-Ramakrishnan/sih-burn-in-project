@@ -1,0 +1,42 @@
+{
+  "source": "/Users/saikarthik26/Downloads/csv data.zip",
+  "csv_sha256": "103e617f469fc4f00c5b4c814a33da73da88f3da26bb417a45826c5ad1698c8b",
+  "rows": 1000,
+  "components": 100,
+  "batches": 1,
+  "missing_by_column": {
+    "component_id": 0,
+    "batch_id": 0,
+    "component_family": 0,
+    "measurement_name": 0,
+    "hours": 0,
+    "measurement_value": 0,
+    "upper_limit": 0,
+    "pattern": 0
+  },
+  "exact_duplicates": 0,
+  "duplicate_checkpoints": 0,
+  "training_performed": false,
+  "scope": "Independent synthetic stress evaluation; not real-world accuracy",
+  "handoff_processed_csvs_supplied": false,
+  "future_and_pattern_leakage_check": "passed",
+  "scoring_summary": {
+    "component_count": 100,
+    "scored_count": 0,
+    "unscored_count": 100,
+    "recommendations": {
+      "RETEST": 100
+    },
+    "within_limit_but_anomalous": 0
+  },
+  "by_pattern": [],
+  "limitations": [
+    "Only one batch: unsuitable for independent train/calibration/test splitting.",
+    "Missing profile_id: production inference returns unscored until actual supported test profile is supplied; no profile was fabricated.",
+    "Optional stress, capacitance and dissipation inputs are absent and imputed.",
+    "Sudden faults after 24h may have no observable early signal.",
+    "Handoff baseline counts and cleaned feature values cannot be verified without its missing CSVs.",
+    "Percent change in the model is a fraction; multiply by 100 for display.",
+    "Correlated features share importance; importance does not establish physical causes."
+  ]
+}

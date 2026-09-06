@@ -1,0 +1,126 @@
+{
+  "recorded_at": "2026-09-05T18:35:57Z",
+  "input_sha256": {
+    "train_early.csv": "b407d150ff393cbd9171978038b5ab856aa344d24a0e6e1040592c25721e2cc4",
+    "train_labels.csv": "81cdc6bcd225df34c7c1e9e9b75c922585eabdf7fdfa0ac78eb6455d0c34d6d1"
+  },
+  "environment": {
+    "python": "3.12.13",
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "versions": {
+      "numpy": "2.5.2",
+      "pandas": "3.0.5",
+      "scikit-learn": "1.9.0",
+      "xgboost": "3.4.1",
+      "scipy": "1.18.1",
+      "threadpoolctl": "3.6.0"
+    }
+  },
+  "early_rows": 14400,
+  "components": 7200,
+  "batches": 36,
+  "components_per_batch": {
+    "min": 200,
+    "max": 200
+  },
+  "hours_present": [
+    0.0,
+    24.0
+  ],
+  "early_rows_per_component": {
+    "2": 7200
+  },
+  "missing_values_early": {},
+  "missing_values_labels": {
+    "anomaly_onset_hour": 5769,
+    "tester_fault_onset_hour": 7010
+  },
+  "nonfinite_feature_values": {},
+  "target": {
+    "definition": "y_normalized = observed final_value at 168 h / per-component upper_limit",
+    "quantiles": {
+      "0.01": 0.05509972532463429,
+      "0.05": 0.06806003128805417,
+      "0.25": 0.0951221439806891,
+      "0.5": 0.12158324965633333,
+      "0.75": 0.18117141396635714,
+      "0.9": 0.8200836983461434,
+      "0.95": 1.2267028493871286,
+      "0.99": 2.2119057992117526,
+      "0.999": 4.031854854767576
+    },
+    "mean": 0.29043006454040216,
+    "std": 0.4607529011031941,
+    "min": 0.03506031943716667,
+    "max": 6.85023096444,
+    "final_value_ua_quantiles": {
+      "0.01": 0.0082331229019905,
+      "0.05": 0.010926709942985,
+      "0.25": 0.02437758200385,
+      "0.5": 0.07116836949300001,
+      "0.75": 0.142523818889,
+      "0.9": 0.32705482049600004,
+      "0.95": 0.7066965085949973,
+      "0.99": 1.680125905397101,
+      "0.999": 3.6923531892634394
+    }
+  },
+  "observed_final_crossing_count": 553,
+  "already_at_or_above_limit_at_24h": 116,
+  "is_future_failure_count": 419,
+  "is_observed_final_exceedance_count": 553,
+  "is_tester_fault_count": 190,
+  "is_defect_count": 1431,
+  "is_healthy_count": 5624,
+  "profiles": {
+    "SIM_X7R_100N_50V": {
+      "components": 1800,
+      "batches": 9,
+      "upper_limit_ua": [
+        0.25
+      ],
+      "observed_final_crossings": 199,
+      "y_median": 0.130849387233
+    },
+    "SIM_X7R_10N_50V": {
+      "components": 1800,
+      "batches": 9,
+      "upper_limit_ua": [
+        0.12
+      ],
+      "observed_final_crossings": 140,
+      "y_median": 0.12154265983416668
+    },
+    "SIM_X7R_1U_25V": {
+      "components": 1800,
+      "batches": 9,
+      "upper_limit_ua": [
+        0.7
+      ],
+      "observed_final_crossings": 109,
+      "y_median": 0.1183191861657143
+    },
+    "SIM_X7R_4U7_16V": {
+      "components": 1800,
+      "batches": 9,
+      "upper_limit_ua": [
+        1.3
+      ],
+      "observed_final_crossings": 105,
+      "y_median": 0.1165674608026923
+    }
+  },
+  "profiles_per_batch": {
+    "1": 36
+  },
+  "scenario_counts": {
+    "healthy_settling": 4428,
+    "ordinary_noise": 1196,
+    "accelerating_drift": 375,
+    "gradual_drift": 347,
+    "late_abrupt_onset": 278,
+    "moisture_associated_history": 227,
+    "intermittent_leakage": 204,
+    "tester_channel_fault": 145
+  }
+}

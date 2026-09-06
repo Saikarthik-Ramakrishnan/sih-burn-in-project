@@ -1,0 +1,638 @@
+{
+  "schema_version": "1.0.0",
+  "request_id": "642b6bc851514ca2afc44bec309b57a1",
+  "generated_at": "2026-09-06T00:09:13.506406Z",
+  "duration_ms": 840.094,
+  "input_source": "upload",
+  "filename": "sih26170_mlcc_synthetic_sample.csv",
+  "profile_id": "mlcc_x7r_leakage_ua",
+  "as_of_hour": 24.0,
+  "target_hour": 168.0,
+  "checkpoint_hours_used": [
+    0.0,
+    24.0
+  ],
+  "model_versions": {
+    "anomaly": "mlcc-pilot-1.1",
+    "forecast": "xgboost_v2",
+    "bundle": "b5553f6f7032092e-s26170"
+  },
+  "model_info": {
+    "prototype_version": "mlcc-pilot-1.1",
+    "bundle_id": "b5553f6f7032092e-s26170",
+    "selected_model": "xgboost_v2",
+    "validation_winner": "xgboost_v2",
+    "forecast_selection": "internal validation winner",
+    "selection_warning": null,
+    "model_training_data": "synthetic",
+    "model_fitted_during_request": false,
+    "supported_family": "MLCC_X7R",
+    "supported_measurement": "leakage_ua",
+    "available_models": [
+      "hist_gradient_boosting",
+      "linear_extrapolation",
+      "persistence",
+      "ridge",
+      "xgboost",
+      "xgboost_v2"
+    ],
+    "limitations": [
+      "Only exact 0/24-hour MLCC_X7R leakage measurements in uA are supported",
+      "Synthetic scenarios are not physical diagnoses",
+      "Single sparse batches weaken peer comparison",
+      "Missing optional features are median-imputed; accuracy outside the training distribution is not established",
+      "Candidate hyperparameters were fixed before test evaluation"
+    ]
+  },
+  "batch_count": 4,
+  "unique_component_count": 240,
+  "measurement_record_count": 240,
+  "scored_record_count": 240,
+  "unscored_record_count": 0,
+  "decision_counts": {
+    "ACCEPT": 210,
+    "MONITOR": 14,
+    "RETEST": 8,
+    "ENGINEER_REVIEW": 8
+  },
+  "capabilities": {
+    "anomaly": true,
+    "forecast": true,
+    "intervals": true,
+    "explanations": true,
+    "peer_statistics": true,
+    "mode": "demo",
+    "limitations": [
+      "Only exact 0/24-hour MLCC_X7R leakage measurements in uA are supported",
+      "Synthetic scenarios are not physical diagnoses",
+      "Single sparse batches weaken peer comparison",
+      "Missing optional features are median-imputed; accuracy outside the training distribution is not established",
+      "Candidate hyperparameters were fixed before test evaluation"
+    ]
+  },
+  "provenance": "synthetic",
+  "records": [
+    {
+      "component_id": "MLCC_C000147",
+      "batch_id": "MLCC_B018",
+      "component_family": "MLCC_X7R",
+      "measurement_name": "leakage_ua",
+      "recommendation": "ENGINEER_REVIEW",
+      "recommendation_basis": "anomaly_and_forecast",
+      "provisional": false,
+      "anomaly": {
+        "status": "available",
+        "score": 0.9999413061028241,
+        "is_anomaly": true,
+        "method": "median_mad+isolation_forest",
+        "model_version": null,
+        "contributing_features": [],
+        "reason_codes": [
+          "Current value is unusually above the batch norm",
+          "Drift is unusually faster than comparable components"
+        ],
+        "score_kind": "ranking score, not failure probability",
+        "model_score": 0.8913074976164841,
+        "robust_deviation_score": 13.24311610725179,
+        "note": "Relative deviation against comparable peers in the same batch. This score is not a probability of physical failure."
+      },
+      "forecast": {
+        "status": "available",
+        "predicted_final_value": 0.907775616645813,
+        "prediction_lower": 0.1969297516094647,
+        "prediction_upper": 1.4944393390516235,
+        "target_hour": 168.0,
+        "interval_nominal_coverage": 0.8,
+        "interval_method": "stratified_asymmetric_split_conformal_signed_residual",
+        "interval_stratum": "slope_z_stratum_2",
+        "upper_bound_nominal_level": 0.9,
+        "prediction_lower_two_sided": 0.02157023724655764,
+        "prediction_upper_two_sided": 1.8078695286703186,
+        "model_version": "xgboost_v2",
+        "predicted_to_cross_limit": true,
+        "explanation": [],
+        "interval_warning": "Each bound is a one-sided 90% calibrated bound (about 10% of comparable synthetic parts end above prediction_upper), so the pair is an 80% interval; the wider 90% two-sided pair is reported separately. Coverage on real components is not established; batch dependence limits the usual guarantee",
+        "prediction_readiness": "ready",
+        "out_of_training_range_features": [],
+        "prediction_readiness_warning": null,
+        "missing_optional_features": [],
+        "xgboost_candidate_final_value": 0.9337062835693358,
+        "xgboost_explanation": {
+          "explains": "Active xgboost_v2 forecast: absolute-error correction over the 24 h value (bias includes the persistence margin); associations, not physical causes",
+          "is_active_forecast": true,
+          "explained_model": "xgboost_v2",
+          "base_value_ua": 0.239859476685524,
+          "top_contributions": [
+            {
+              "feature": "delta_fraction_of_limit",
+              "contribution_ua": 0.335572212934494,
+              "feature_value": 0.13079600842285716
+            },
+            {
+              "feature": "percent_change",
+              "contribution_ua": 0.08163945376873016,
+              "feature_value": 0.6652311951786019
+            },
+            {
+              "feature": "variability_fraction_of_limit",
+              "contribution_ua": 0.07436487078666687,
+              "feature_value": 0.06539800421142858
+            },
+            {
+              "feature": "distance_fraction_to_upper_limit",
+              "contribution_ua": 0.07069054245948792,
+              "feature_value": 0.6725866209985715
+            },
+            {
+              "feature": "slope_fraction_per_hour",
+              "contribution_ua": 0.04178467392921448,
+              "feature_value": 0.005449833684285715
+            }
+          ]
+        },
+        "note": null
+      },
+      "limits": {
+        "direction": "upper",
+        "upper_limit": 0.7,
+        "lower_limit": null,
+        "applicable_limit": 0.7,
+        "headroom": 0.470810634699,
+        "headroom_fraction": 0.6725866209985715,
+        "limit_fraction": 0.3274133790014286
+      },
+      "peers": {
+        "sample_size": 57,
+        "sufficient": true,
+        "status": "available",
+        "median": null,
+        "mad": null,
+        "peer_min": null,
+        "peer_max": null,
+        "current_batch_robust_z": 7.702968334445618,
+        "slope_batch_robust_z": 13.24311610725179,
+        "warning": null,
+        "note": null
+      },
+      "measurement_unit": "uA",
+      "initial_value": 0.137632159405,
+      "latest_value": 0.229189365301,
+      "last_observation_hour": 24.0,
+      "absolute_change": 0.091557205896,
+      "percent_change": 0.6652311951786019,
+      "percent_change_available": true,
+      "slope_per_hour": 0.003814883579,
+      "acceleration": null,
+      "early_trajectory": [
+        {
+          "hour": 0.0,
+          "value": 0.137632159405
+        },
+        {
+          "hour": 24.0,
+          "value": 0.229189365301
+        }
+      ],
+      "part_number": "FICTIONAL-MLCC-03",
+      "test_condition": null,
+      "temperature_c": 121.695789344,
+      "humidity_pct": null,
+      "applied_voltage_v": 22.548566286,
+      "board_position": "83",
+      "data_source": "synthetic",
+      "provenance": "synthetic",
+      "profile_id": "SIM_X7R_1U_25V",
+      "recommendation_reasons": [
+        "Current value is unusually above the batch norm",
+        "Drift is unusually faster than comparable components",
+        "The predicted final value crosses the approved limit",
+        "The prediction range includes a possible limit crossing"
+      ],
+      "data_quality_warning": null,
+      "context": {
+        "part_number": "FICTIONAL-MLCC-03",
+        "nominal_capacitance_nf": 1000.0,
+        "rated_voltage_v": 25.0,
+        "package_code": "1206",
+        "dielectric": "X7R",
+        "applied_voltage_v": 22.548566286,
+        "measurement_voltage_v": 24.9675555413,
+        "temperature_c": 121.695789344,
+        "measurement_temperature_c": 25.8331761278,
+        "prior_storage_humidity_pct": 49.121326946,
+        "tester_id": "TESTER_1",
+        "tester_channel": 4.0,
+        "board_position": 83.0,
+        "data_source": "synthetic",
+        "generator_version": "mlcc-synthetic-1.0.0"
+      }
+    },
+    {
+      "component_id": "MLCC_C001046",
+      "batch_id": "MLCC_B023",
+      "component_family": "MLCC_X7R",
+      "measurement_name": "leakage_ua",
+      "recommendation": "ENGINEER_REVIEW",
+      "recommendation_basis": "anomaly_and_forecast",
+      "provisional": false,
+      "anomaly": {
+        "status": "available",
+        "score": 1.0,
+        "is_anomaly": true,
+        "method": "median_mad+isolation_forest",
+        "model_version": null,
+        "contributing_features": [],
+        "reason_codes": [
+          "Current value is unusually above the batch norm",
+          "Drift is unusually faster than comparable components",
+          "Current value has used at least 80% of the safety limit"
+        ],
+        "score_kind": "ranking score, not failure probability",
+        "model_score": 0.9468069095708568,
+        "robust_deviation_score": 50.92192638703171,
+        "note": "Relative deviation against comparable peers in the same batch. This score is not a probability of physical failure."
+      },
+      "forecast": {
+        "status": "available",
+        "predicted_final_value": 1.3117566466331483,
+        "prediction_lower": 0.0,
+        "prediction_upper": 2.4012749882439395,
+        "target_hour": 168.0,
+        "interval_nominal_coverage": 0.8,
+        "interval_method": "stratified_asymmetric_split_conformal_signed_residual",
+        "interval_stratum": "slope_z_stratum_2",
+        "upper_bound_nominal_level": 0.9,
+        "prediction_lower_two_sided": 0.0,
+        "prediction_upper_two_sided": 2.9833596261072306,
+        "model_version": "xgboost_v2",
+        "predicted_to_cross_limit": true,
+        "explanation": [],
+        "interval_warning": "Each bound is a one-sided 90% calibrated bound (about 10% of comparable synthetic parts end above prediction_upper), so the pair is an 80% interval; the wider 90% two-sided pair is reported separately. Coverage on real components is not established; batch dependence limits the usual guarantee",
+        "prediction_readiness": "ready",
+        "out_of_training_range_features": [],
+        "prediction_readiness_warning": null,
+        "missing_optional_features": [],
+        "xgboost_candidate_final_value": 0.4999830782413483,
+        "xgboost_explanation": {
+          "explains": "Active xgboost_v2 forecast: absolute-error correction over the 24 h value (bias includes the persistence margin); associations, not physical causes",
+          "is_active_forecast": true,
+          "explained_model": "xgboost_v2",
+          "base_value_ua": 1.4066431522369385,
+          "top_contributions": [
+            {
+              "feature": "distance_fraction_to_upper_limit",
+              "contribution_ua": -0.2641522288322449,
+              "feature_value": -0.0667902745153846
+            },
+            {
+              "feature": "delta_fraction_of_limit",
+              "contribution_ua": 0.1691535860300064,
+              "feature_value": 0.9900756019621537
+            },
+            {
+              "feature": "slope_batch_robust_z",
+              "contribution_ua": -0.05158764496445656,
+              "feature_value": 50.92192638703171
+            },
+            {
+              "feature": "variability_fraction_of_limit",
+              "contribution_ua": 0.038131579756736755,
+              "feature_value": 0.49503780098107697
+            },
+            {
+              "feature": "percent_change",
+              "contribution_ua": 0.03680026903748512,
+              "feature_value": 12.905948353949634
+            }
+          ]
+        },
+        "note": null
+      },
+      "limits": {
+        "direction": "upper",
+        "upper_limit": 1.3,
+        "lower_limit": null,
+        "applicable_limit": 1.3,
+        "headroom": -0.08682735686999998,
+        "headroom_fraction": -0.0667902745153846,
+        "limit_fraction": 1.0667902745153846
+      },
+      "peers": {
+        "sample_size": 62,
+        "sufficient": true,
+        "status": "available",
+        "median": null,
+        "mad": null,
+        "peer_min": null,
+        "peer_max": null,
+        "current_batch_robust_z": 23.723716868706344,
+        "slope_batch_robust_z": 50.92192638703171,
+        "warning": null,
+        "note": null
+      },
+      "measurement_unit": "uA",
+      "initial_value": 0.0997290743192,
+      "latest_value": 1.38682735687,
+      "last_observation_hour": 24.0,
+      "absolute_change": 1.2870982825508,
+      "percent_change": 12.905948353949634,
+      "percent_change_available": true,
+      "slope_per_hour": 0.053629095106283324,
+      "acceleration": null,
+      "early_trajectory": [
+        {
+          "hour": 0.0,
+          "value": 0.0997290743192
+        },
+        {
+          "hour": 24.0,
+          "value": 1.38682735687
+        }
+      ],
+      "part_number": "FICTIONAL-MLCC-04",
+      "test_condition": null,
+      "temperature_c": 122.43053183,
+      "humidity_pct": null,
+      "applied_voltage_v": 15.017835888,
+      "board_position": "117",
+      "data_source": "synthetic",
+      "provenance": "synthetic",
+      "profile_id": "SIM_X7R_4U7_16V",
+      "recommendation_reasons": [
+        "Current value is unusually above the batch norm",
+        "Drift is unusually faster than comparable components",
+        "Current value has used at least 80% of the safety limit",
+        "The current measurement has crossed the approved limit"
+      ],
+      "data_quality_warning": null,
+      "context": {
+        "part_number": "FICTIONAL-MLCC-04",
+        "nominal_capacitance_nf": 4700.0,
+        "rated_voltage_v": 16.0,
+        "package_code": "1210",
+        "dielectric": "X7R",
+        "applied_voltage_v": 15.017835888,
+        "measurement_voltage_v": 15.7058373795,
+        "temperature_c": 122.43053183,
+        "measurement_temperature_c": 25.0756692944,
+        "prior_storage_humidity_pct": 34.7063719884,
+        "tester_id": "TESTER_3",
+        "tester_channel": 15.0,
+        "board_position": 117.0,
+        "data_source": "synthetic",
+        "generator_version": "mlcc-synthetic-1.0.0"
+      }
+    },
+    {
+      "component_id": "MLCC_C001733",
+      "batch_id": "MLCC_B002",
+      "component_family": "MLCC_X7R",
+      "measurement_name": "leakage_ua",
+      "recommendation": "ENGINEER_REVIEW",
+      "recommendation_basis": "anomaly_and_forecast",
+      "provisional": false,
+      "anomaly": {
+        "status": "available",
+        "score": 0.9977472317059355,
+        "is_anomaly": true,
+        "method": "median_mad+isolation_forest",
+        "model_version": null,
+        "contributing_features": [],
+        "reason_codes": [
+          "Current value is unusually above the batch norm",
+          "Drift is unusually faster than comparable components"
+        ],
+        "score_kind": "ranking score, not failure probability",
+        "model_score": 0.8698915256370023,
+        "robust_deviation_score": 9.593340156518193,
+        "note": "Relative deviation against comparable peers in the same batch. This score is not a probability of physical failure."
+      },
+      "forecast": {
+        "status": "available",
+        "predicted_final_value": 0.2649940550327301,
+        "prediction_lower": 0.011120531805462852,
+        "prediction_upper": 0.4745168130348053,
+        "target_hour": 168.0,
+        "interval_nominal_coverage": 0.8,
+        "interval_method": "stratified_asymmetric_split_conformal_signed_residual",
+        "interval_stratum": "slope_z_stratum_2",
+        "upper_bound_nominal_level": 0.9,
+        "prediction_lower_two_sided": 0.0,
+        "prediction_upper_two_sided": 0.5864561664700536,
+        "model_version": "xgboost_v2",
+        "predicted_to_cross_limit": true,
+        "explanation": [],
+        "interval_warning": "Each bound is a one-sided 90% calibrated bound (about 10% of comparable synthetic parts end above prediction_upper), so the pair is an 80% interval; the wider 90% two-sided pair is reported separately. Coverage on real components is not established; batch dependence limits the usual guarantee",
+        "prediction_readiness": "ready",
+        "out_of_training_range_features": [],
+        "prediction_readiness_warning": null,
+        "missing_optional_features": [],
+        "xgboost_candidate_final_value": 0.28777214884757996,
+        "xgboost_explanation": {
+          "explains": "Active xgboost_v2 forecast: absolute-error correction over the 24 h value (bias includes the persistence margin); associations, not physical causes",
+          "is_active_forecast": true,
+          "explained_model": "xgboost_v2",
+          "base_value_ua": 0.06963034719228745,
+          "top_contributions": [
+            {
+              "feature": "delta_fraction_of_limit",
+              "contribution_ua": 0.10177718847990036,
+              "feature_value": 0.10132637570599998
+            },
+            {
+              "feature": "percent_change",
+              "contribution_ua": 0.026689568534493446,
+              "feature_value": 0.6256568568341243
+            },
+            {
+              "feature": "distance_fraction_to_upper_limit",
+              "contribution_ua": 0.020953718572854996,
+              "feature_value": 0.7367216300032
+            },
+            {
+              "feature": "variability_fraction_of_limit",
+              "contribution_ua": 0.018067670986056328,
+              "feature_value": 0.05066318785299999
+            },
+            {
+              "feature": "slope_fraction_per_hour",
+              "contribution_ua": 0.011770549230277538,
+              "feature_value": 0.00422193232108333
+            }
+          ]
+        },
+        "note": null
+      },
+      "limits": {
+        "direction": "upper",
+        "upper_limit": 0.25,
+        "lower_limit": null,
+        "applicable_limit": 0.25,
+        "headroom": 0.1841804075008,
+        "headroom_fraction": 0.7367216300032,
+        "limit_fraction": 0.2632783699968
+      },
+      "peers": {
+        "sample_size": 60,
+        "sufficient": true,
+        "status": "available",
+        "median": null,
+        "mad": null,
+        "peer_min": null,
+        "peer_max": null,
+        "current_batch_robust_z": 3.8581368867311876,
+        "slope_batch_robust_z": 9.593340156518193,
+        "warning": null,
+        "note": null
+      },
+      "measurement_unit": "uA",
+      "initial_value": 0.0404879985727,
+      "latest_value": 0.0658195924992,
+      "last_observation_hour": 24.0,
+      "absolute_change": 0.025331593926499994,
+      "percent_change": 0.6256568568341243,
+      "percent_change_available": true,
+      "slope_per_hour": 0.0010554830802708326,
+      "acceleration": null,
+      "early_trajectory": [
+        {
+          "hour": 0.0,
+          "value": 0.0404879985727
+        },
+        {
+          "hour": 24.0,
+          "value": 0.0658195924992
+        }
+      ],
+      "part_number": "FICTIONAL-MLCC-02",
+      "test_condition": null,
+      "temperature_c": 122.757377847,
+      "humidity_pct": null,
+      "applied_voltage_v": 45.6771751333,
+      "board_position": "83",
+      "data_source": "synthetic",
+      "provenance": "synthetic",
+      "profile_id": "SIM_X7R_100N_50V",
+      "recommendation_reasons": [
+        "Current value is unusually above the batch norm",
+        "Drift is unusually faster than comparable components",
+        "The predicted final value crosses the approved limit",
+        "The prediction range includes a possible limit crossing"
+      ],
+      "data_quality_warning": null,
+      "context": {
+        "part_number": "FICTIONAL-MLCC-02",
+        "nominal_capacitance_nf": 100.0,
+        "rated_voltage_v": 50.0,
+        "package_code": "0805",
+        "dielectric": "X7R",
+        "applied_voltage_v": 45.6771751333,
+        "measurement_voltage_v": 49.292016065,
+        "temperature_c": 122.757377847,
+        "measurement_temperature_c": 26.5854332302,
+        "prior_storage_humidity_pct": 58.9281130483,
+        "tester_id": "TESTER_3",
+        "tester_channel": 7.0,
+        "board_position": 83.0,
+        "data_source": "synthetic",
+        "generator_version": "mlcc-synthetic-1.0.0"
+      }
+    }
+  ],
+  "unscored_records": [],
+  "component_summaries": [
+    {
+      "component_id": "MLCC_C000062",
+      "batch_id": "MLCC_B002",
+      "component_family": "MLCC_X7R",
+      "summary_recommendation": "ACCEPT",
+      "scored_measurement_count": 1,
+      "unscored_measurement_count": 0,
+      "partial_coverage": false,
+      "measurement_names": [
+        "leakage_ua"
+      ]
+    },
+    {
+      "component_id": "MLCC_C000090",
+      "batch_id": "MLCC_B002",
+      "component_family": "MLCC_X7R",
+      "summary_recommendation": "ACCEPT",
+      "scored_measurement_count": 1,
+      "unscored_measurement_count": 0,
+      "partial_coverage": false,
+      "measurement_names": [
+        "leakage_ua"
+      ]
+    },
+    {
+      "component_id": "MLCC_C000097",
+      "batch_id": "MLCC_B002",
+      "component_family": "MLCC_X7R",
+      "summary_recommendation": "ACCEPT",
+      "scored_measurement_count": 1,
+      "unscored_measurement_count": 0,
+      "partial_coverage": false,
+      "measurement_names": [
+        "leakage_ua"
+      ]
+    }
+  ],
+  "evaluation": {
+    "available": true,
+    "source_filename": null,
+    "kind": "observed_readings",
+    "target_hour": 168.0,
+    "note": "Evaluation only. These are later OBSERVED measurements. They were excluded from feature building, anomaly scoring, forecasting and peer statistics, and reached the response only after screening.",
+    "outcomes": [
+      {
+        "component_id": "MLCC_C000062",
+        "batch_id": "MLCC_B002",
+        "component_family": "MLCC_X7R",
+        "measurement_name": "leakage_ua",
+        "observed_value": 0.0181822601635,
+        "observed_hour": 168.0,
+        "applicable_limit": 0.25,
+        "crossed_applicable_limit": false
+      },
+      {
+        "component_id": "MLCC_C000090",
+        "batch_id": "MLCC_B002",
+        "component_family": "MLCC_X7R",
+        "measurement_name": "leakage_ua",
+        "observed_value": 0.0194406469978,
+        "observed_hour": 168.0,
+        "applicable_limit": 0.25,
+        "crossed_applicable_limit": false
+      },
+      {
+        "component_id": "MLCC_C000097",
+        "batch_id": "MLCC_B002",
+        "component_family": "MLCC_X7R",
+        "measurement_name": "leakage_ua",
+        "observed_value": 0.143645277654,
+        "observed_hour": 168.0,
+        "applicable_limit": 0.25,
+        "crossed_applicable_limit": false
+      }
+    ]
+  },
+  "warnings": [
+    {
+      "code": "SYNTHETIC_TRAINING_DATA",
+      "message": "These models were trained on synthetic MLCC data. Results demonstrate the pipeline and are not validated hardware screening.",
+      "count": null
+    },
+    {
+      "code": "SYNTHETIC_DATA",
+      "message": "The uploaded file is marked synthetic. This is not measured hardware data.",
+      "count": null
+    },
+    {
+      "code": "FORECAST_EXTRAPOLATES",
+      "message": "Some components have inputs beyond the ranges seen in training. Their forecasts extrapolate and the interval coverage does not transfer.",
+      "count": 61
+    }
+  ],
+  "_note": "Genuine response from a real run of mlcc-pilot-1.1 on the synthetic MLCC sample. records/component_summaries/evaluation.outcomes are truncated to 3 entries for readability; every other field is exactly as returned. Model numbers are not hand-authored."
+}

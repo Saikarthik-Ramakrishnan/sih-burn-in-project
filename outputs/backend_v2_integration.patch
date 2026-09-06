@@ -1,0 +1,2524 @@
+diff --git a/docs/backend/API_CONTRACT.md b/docs/backend/API_CONTRACT.md
+index d906b1d..5689dd7 100644
+--- a/docs/backend/API_CONTRACT.md
++++ b/docs/backend/API_CONTRACT.md
+@@ -4,7 +4,7 @@
+ **OpenAPI:** [`openapi.json`](openapi.json) (live at `/api/v1/openapi.json`, docs at `/api/v1/docs`)
+ **Real sample response:** [`sample_response.json`](sample_response.json) — produced by an actual run of the shipped model, not hand-authored.
+ 
+-Updated 2026-09-05 for the MLCC v1 prototype integration.
++Updated 2026-09-06 for the MLCC v2 forecaster (`xgboost_v2`, bundle `mlcc-pilot-1.1`). All changes are additive; schema version unchanged.
+ 
+ ---
+ 
+@@ -19,11 +19,11 @@ dashboard that misleads a judge.
+ | **Zero baseline has no percentage** | `percent_change: null` + `percent_change_available: false`. Show the absolute change. Never render `0 %` or `∞ %`. |
+ | **`null` never means zero** | Anything not supplied stays `null`. A missing forecast is `null` bounds plus a `status`. |
+ | **The anomaly score is not a probability** | `anomaly.score_kind` says it verbatim: *"ranking score, not failure probability"*. Never label it "% confident". |
+-| **Name the model that actually ran** | Use `model_info.selected_model`. Do **not** print "XGBoost" beside a forecast unless that field says `xgboost`. |
++| **Name the model that actually ran** | Use `model_info.selected_model`. The default is now `xgboost_v2`; print exactly that name. Do **not** print "XGBoost" beside a forecast unless that field says `xgboost` or `xgboost_v2`. |
+ | **The selected model may not be the best one** | When `model_info.selection_warning` is non-null, the chosen model did **not** win internal validation. Show that. Never imply it outperformed the baseline. |
+-| **The XGBoost candidate is a separate number** | `forecast.xgboost_candidate_final_value` is a comparison. Its explanation carries `is_active_forecast`; when `false`, those contributions do **not** explain the displayed forecast. |
++| **The XGBoost candidate is a separate number** | `forecast.xgboost_candidate_final_value` is the v1 XGBoost comparison value. `xgboost_explanation.explained_model` names which tree model the contributions explain (`xgboost_v2` for the default forecast); when `is_active_forecast` is `false`, those contributions do **not** explain the displayed forecast. |
+ | **Explanations are not causes** | Contributions explain model behaviour, not water ingress or cracking. |
+-| **Intervals are nominal** | `interval_nominal_coverage: 0.9` is a target, not achieved field coverage. `interval_warning` carries the artifact's own caveat — display it. |
++| **Intervals are nominal** | For `xgboost_v2`, `interval_nominal_coverage` is `0.8` and `upper_bound_nominal_level` is `0.9`: each bound is a one-sided 90 % bound, so the pair is an 80 % interval; the wider 90 % pair is in `prediction_lower_two_sided`/`prediction_upper_two_sided`. Other models report `0.9` with a symmetric radius. Nominal, not achieved field coverage. `interval_warning` carries the artifact's own caveat — display it. |
+ | **Extrapolation invalidates the interval** | Non-empty `forecast.out_of_training_range_features` means the inputs sit outside the training ranges. On the current sample this is ~25 % of records. |
+ | **Unscored is not a pass** | `unscored_records` were **not** screened. `decision_counts` covers scored records only. `partial_coverage: true` must never render as passed. |
+ | **Peer scores depend on the uploaded batch** | Always show `peers.sample_size` next to `current_batch_robust_z`. |
+@@ -86,7 +86,7 @@ are `planned` with no artifact — render them as unavailable.
+ |---|---|---|---|
+ | `file` | file | yes | Long-format CSV. Content validated; browser MIME not trusted. |
+ | `as_of_hour` | float | no (`24`) | Only `24` is supported. Else `422 UNSUPPORTED_AS_OF_HOUR`. |
+-| `forecast_model` | string | no | One of `persistence`, `linear_extrapolation`, `ridge`, `hist_gradient_boosting`, `xgboost`. Omit to use the artifact's validation winner (`persistence`). |
++| `forecast_model` | string | no | One of `xgboost_v2`, `persistence`, `linear_extrapolation`, `ridge`, `hist_gradient_boosting`, `xgboost`. Omit to use the artifact's validation winner (`xgboost_v2` in the v2 bundle). |
+ | `outcome_file` | file | **no** | Second CSV of observations strictly **after** the cutoff, for the outcome reveal. See below. |
+ 
+ #### The optional `outcome_file`
+@@ -235,9 +235,12 @@ describes the model. They are different things.
+     "predicted_final_value": 0.9337,
+     "prediction_lower": 0.6267, "prediction_upper": 1.2407,
+     "target_hour": 168.0,
+-    "model_version": "xgboost",                    // <- the model that produced it
+-    "interval_nominal_coverage": 0.9,
+-    "interval_method": "split_conformal_absolute_residual",
++    "model_version": "xgboost_v2",                 // <- the model that produced it
++    "interval_nominal_coverage": 0.8,              // one-sided 90 % bounds -> 80 % pair (v2 only)
++    "upper_bound_nominal_level": 0.9,
++    "interval_method": "stratified_asymmetric_split_conformal_signed_residual",
++    "interval_stratum": "slope_z_stratum_2",       // 0: slope z < 2, 1: 2-5, 2: >= 5
++    "prediction_lower_two_sided": 0.0, "prediction_upper_two_sided": 1.8079,   // wider 90 % pair
+     "interval_warning": "Nominal level; coverage on real components is not established…",
+     "predicted_to_cross_limit": true,
+     "prediction_readiness": "ready",               // | optional_inputs_imputed | outside_training_conditions
+@@ -246,8 +249,9 @@ describes the model. They are different things.
+     "missing_optional_features": [],
+     "xgboost_candidate_final_value": 0.9337,
+     "xgboost_explanation": {
+-      "explains": "Unclipped XGBoost candidate forecast; associations, not physical causes",
++      "explains": "Active xgboost_v2 forecast: absolute-error correction over the 24 h value ...",
+       "is_active_forecast": true,
++      "explained_model": "xgboost_v2",
+       "base_value_ua": 0.20293,
+       "top_contributions": [ {"feature":"delta_fraction_of_limit","contribution_ua":0.30716,"feature_value":0.13080} ]
+     }
+diff --git a/docs/backend/INTEGRATION_REQUESTS.md b/docs/backend/INTEGRATION_REQUESTS.md
+index a9e7c5d..fb75dd1 100644
+--- a/docs/backend/INTEGRATION_REQUESTS.md
++++ b/docs/backend/INTEGRATION_REQUESTS.md
+@@ -5,6 +5,21 @@ source file has been modified.
+ 
+ ---
+ 
++## 0a. Resolved 2026-09-06 by the v2 integration
++
++- **Forecast never flagged true crossings (§2).** Addressed by the `xgboost_v2`
++  model: on the untouched test batches its point forecast flags 43 of 166
++  observed crossings (persistence: 14, all of them parts already over the limit
++  at 24 h), and the stratified upper bound now drives MONITOR with a stated
++  one-sided 90 % level. The 800-part demo reveal shows 17 of 43 crossers flagged.
++- **Decision on `xgboost` vs `persistence` for the demo (§2, §4).** Neither: the
++  bundle's validation winner is `xgboost_v2`, so the default needs no override.
++- **Newer bundle (§4).** Dropped in at `outputs/mlcc_v2/model_bundle`; the API
++  verifies all four artifact checksums and the library versions at startup.
++- **A1 (machine-readable unscored reasons)** and **A3 (Python version)** remain
++  open on the core side; the free-text mapping still works and 3.12 vs 3.13 has
++  not caused a failure.
++
+ ## 0. Resolved by the snapshot
+ 
+ The earlier questions about `AnomalyResult` attribute names, the feature frame's
+diff --git a/docs/backend/RUNNING.md b/docs/backend/RUNNING.md
+index 328ef29..e3778c8 100644
+--- a/docs/backend/RUNNING.md
++++ b/docs/backend/RUNNING.md
+@@ -32,9 +32,10 @@ was built with. `/health/ready` compares them and reports any drift.
+ 
+ ## 2. Artifacts
+ 
+-No preparation step is needed. The bundle ships in the repository at
+-`outputs/mlcc_v1/model_bundle/` (`manifest.json`, `state.skops`, `xgboost.json`,
+-`evaluation.json`). Its checksums are verified at startup.
++No preparation step is needed. The default bundle ships in the repository at
++`outputs/mlcc_v2/model_bundle/` (`manifest.json`, `state.skops`, `xgboost.json`,
++`xgboost_v2.ubj`, `evaluation.json`). Every declared checksum is verified at
++startup. The v1 bundle remains at `outputs/mlcc_v1/model_bundle/`.
+ 
+ To point at a different bundle, set `SIH_MLCC_BUNDLE_DIR`.
+ 
+@@ -44,8 +45,8 @@ To point at a different bundle, set `SIH_MLCC_BUNDLE_DIR`.
+ .venv\Scripts\python.exe -m pytest tests -q
+ ```
+ 
+-Expect **220 passed** in roughly 90 s. This includes Karthik's 82 core tests
+-unchanged.
++Expect **273 passed** in roughly 45 s on macOS / 90 s on Windows. This includes
++Karthik's core tests, the 38 `forecast_v2` tests and the API tests.
+ 
+ ## 4. Start the server
+ 
+@@ -74,8 +75,8 @@ repository root.
+ | Variable | Default | Purpose |
+ |---|---|---|
+ | `SIH_MODE` | `demo` | `demo` requires anomaly **and** forecast for readiness. `anomaly_only` is a development mode that declares its limitations in every payload. |
+-| `SIH_MLCC_BUNDLE_DIR` | `outputs/mlcc_v1/model_bundle` | Trusted local bundle. Never accepts an uploaded model. |
+-| `SIH_FORECAST_MODEL` | unset | Default forecast model. Unset uses the artifact's own internal-validation winner (`persistence`). A request's `forecast_model` field overrides it. |
++| `SIH_MLCC_BUNDLE_DIR` | `outputs/mlcc_v2/model_bundle` | Trusted local bundle. Never accepts an uploaded model. Point it at `outputs/mlcc_v1/model_bundle` to run the v1 bundle. |
++| `SIH_FORECAST_MODEL` | unset | Default forecast model. Unset uses the artifact's own internal-validation winner (`xgboost_v2` in the v2 bundle). A request's `forecast_model` field overrides it. |
+ | `SIH_CORS_ALLOW_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Comma-separated browser origins. Empty string disables CORS entirely. |
+ | `SIH_FRONTEND_DIST_DIR` | `frontend/dist` | SPA build. Served only if it exists; its absence never blocks the API. |
+ | `SIH_MAX_UPLOAD_BYTES` | `10485760` (10 MB) | Enforced while reading, before parsing. |
+@@ -88,10 +89,11 @@ Example — serving a Vite dev frontend and forcing the XGBoost candidate:
+ SIH_CORS_ALLOW_ORIGINS="http://localhost:5173" SIH_FORECAST_MODEL=xgboost .venv\Scripts\python.exe -m uvicorn sih26170.api.main:app --port 8000
+ ```
+ 
+-Requesting `xgboost` is legitimate for the demo, but it **lost** internal
+-validation to `persistence` (normalized MAE 0.2183 vs 0.1795). The response then
+-carries `selection_warning` and a `FORECAST_MODEL_NOT_VALIDATION_WINNER`
+-warning. Do not present it as the better model.
++With the v2 bundle the validation winner is `xgboost_v2` (normalized MAE 0.1639
++vs persistence 0.1795 on internal validation, 0.1362 vs 0.1531 on the untouched
++test batches), so no model needs to be forced for the demo. Requesting `xgboost`
++(the v1 candidate) or `persistence` still works; the response then carries
++`selection_warning` and a `FORECAST_MODEL_NOT_VALIDATION_WINNER` warning.
+ 
+ ## 6. Request examples
+ 
+diff --git a/docs/backend/STATUS.md b/docs/backend/STATUS.md
+index b0af65d..193231f 100644
+--- a/docs/backend/STATUS.md
++++ b/docs/backend/STATUS.md
+@@ -2,7 +2,73 @@
+ 
+ **Owner:** Ashvitha — FastAPI, upload validation, startup loading, the adapter to
+ Karthik's MLCC prototype, response contracts and integration tests.
+-**Branch:** `backend` · **Last updated:** 2026-09-05 (MLCC v1 integration)
++**Branch:** `backend` · **Last updated:** 2026-09-06 (MLCC v2 forecaster integrated; v1 section kept below)
++
++---
++
++## 0. 2026-09-06 — v2 forecaster integrated (read this first)
++
++The bundle the service loads by default is now **`outputs/mlcc_v2/model_bundle`**
++(`mlcc-pilot-1.1`, same bundle id `b5553f6f7032092e-s26170` because it was
++trained from the same data files). It contains everything the v1 bundle had plus
++one model, **`xgboost_v2`**, which won internal validation and is therefore the
++default forecast. The v1 bundle is untouched and still loads
++(`SIH_MLCC_BUNDLE_DIR=outputs/mlcc_v1/model_bundle`).
++
++| | v1 default (persistence) | v2 default (`xgboost_v2`) |
++|---|---|---|
++| internal validation, normalized MAE | 0.1795 | **0.1639** |
++| untouched test batches (2,400 parts), normalized MAE | 0.1531 | **0.1362** (0.0726 µA) |
++| test: point forecast flags an observed crossing | 14 of 166 (5 false) | **43 of 166** (19 false) |
++| test: latent crossings caught by the forecast, excluding tester faults | 2 | **31** |
++| fresh 4,000-part set generated by Codex, normalized MAE | 0.1585 | **0.1409** |
++| shifted-condition stress set | 0.1213 | **0.1173** |
++| low-prevalence stress set (almost no defects) | **0.0112** | 0.0208 |
++
++What `xgboost_v2` is: XGBoost with an absolute-error objective trained on the
++correction over persistence (the 24 h value is the base margin), using only the
++ten leakage-derived 0/24 h features. v1's XGBoost lost because squared error
++inflates healthy forecasts by about 0.12 of the limit; the v2 objective does not.
++Details, diagnostics and the predeclared comparison: `docs/CLAUDE_FORECAST_V2_HANDOFF.md`
++and `outputs/claude_forecast_v2/`. Codex's independent evaluation of the same
++candidate: `outputs/codex_ml_v2_review/` in the main project.
++
++**Interval change.** `xgboost_v2` carries a stratified asymmetric interval
++(strata on the 24 h slope robust z, margins from signed residuals on the
++calibration batches). `prediction_lower`/`prediction_upper` are each one-sided
++90 % bounds, so the pair is an **80 %** interval (`interval_nominal_coverage:
++0.8`, `upper_bound_nominal_level: 0.9`); the wider two-sided 90 % pair is in
++`prediction_lower_two_sided`/`prediction_upper_two_sided`. On the test batches
++the reported pair covered 82.7 % and the upper bound held for 92.0 %. The
++decision rule is unchanged: MONITOR when `prediction_upper` reaches the limit,
++which now means "about a one-in-ten chance of ending above the limit". Other
++models keep the v1 symmetric radius and `interval_nominal_coverage: 0.9`.
++
++**Contract: additive only.** New optional fields on `forecast`:
++`interval_stratum`, `upper_bound_nominal_level`, `prediction_lower_two_sided`,
++`prediction_upper_two_sided`; on `xgboost_explanation`: `explained_model`
++(`xgboost_v2` when it produced the forecast, `xgboost` for the v1 candidate).
++`available_models` gains `xgboost_v2`. Schema version stays `1.0.0`.
++
++**Verified on this machine (Python 3.12, locked library versions):**
++
++| Check | Result |
++|---|---|
++| full suite | **273 passed** (v1: 230; +38 forecast_v2 tests, +4 prototype tests, +1 API test) |
++| `scripts/compare_api_vs_core.py outputs/mlcc_v1/demo_early.csv` | 0 mismatches on 12 fields, for `xgboost_v2` and for `persistence` |
++| live `uvicorn` + `/health/ready` | 200, all checksums (now four artifacts) and versions pass |
++| live `POST /screen` with `demo_early.csv` + `demo_outcomes.csv` | 200, 800 scored / 0 unscored, 2.8 s; ACCEPT 714 · MONITOR 34 · RETEST 33 · ENGINEER_REVIEW 19 |
++| demo reveal (800 parts, 43 cross at 168 h) | 17 of 43 flagged non-ACCEPT; 7 by the point forecast, 17 by the upper bound; v2 normalized MAE 0.131 vs persistence 0.147 |
++| `docs/backend/sample_response.json`, `openapi.json`, `extrapolation_report.csv` | regenerated from the v2 run |
++| bundle `xgboost_v2` vs Codex's independent evaluation of the same candidate (`outputs/codex_ml_v2_review/test_predictions.csv`, 2,400 test parts) | identical to 2e-16 |
++
++Files changed for this integration: `src/sih26170/mlcc_prototype.py` (core,
++additive: `xgboost_v2` model class, stratified interval helpers, compatible
++loading of 1.0 bundles), new `src/sih26170/forecast_v2.py`, `api/config.py`
++(default bundle path), `api/schemas.py` and `api/service_mlcc.py` (new optional
++fields), `prediction/mlcc_engine.py` (verify every declared artifact),
++`scripts/{demo_screen,compare_api_vs_core,export_extrapolation,score_mlcc_prototype}.py`
++(bundle path / model choices), tests, docs, `outputs/mlcc_v2/model_bundle/`.
+ 
+ ---
+ 
+diff --git a/docs/backend/extrapolation_report.csv b/docs/backend/extrapolation_report.csv
+index eb3e048..8f5937d 100644
+--- a/docs/backend/extrapolation_report.csv
++++ b/docs/backend/extrapolation_report.csv
+@@ -1,62 +1,62 @@
+-component_id,batch_id,profile_id,feature,uploaded_value,parsed_value,training_min,training_max,verdict,recommendation,predicted_final_value
+-MLCC_C003490,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ENGINEER_REVIEW,0.12130230971100002
+-MLCC_C000287,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,RETEST,0.01975133126
+-MLCC_C000889,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,RETEST,0.0242837092467
+-MLCC_C001703,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,RETEST,0.0164345119491
+-MLCC_C002798,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,MONITOR,0.0131377206462
+-MLCC_C003360,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,MONITOR,0.0229544925007
+-MLCC_C000039,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.00828076987665
+-MLCC_C000125,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0137247047648
+-MLCC_C000372,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0170872714798
+-MLCC_C000397,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0130045475324
+-MLCC_C000413,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.007751031484240001
+-MLCC_C000484,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0127289200531
+-MLCC_C000597,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0053701152859
+-MLCC_C000729,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0118508564856
+-MLCC_C000747,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0119472786131
+-MLCC_C000764,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0107600142602
+-MLCC_C000828,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0116117244361
+-MLCC_C000873,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0160064188052
+-MLCC_C000957,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0106778822643
+-MLCC_C000982,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.00900038230013
+-MLCC_C000989,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0115540180432
+-MLCC_C001052,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0127785881509
+-MLCC_C001071,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0184366920575
+-MLCC_C001074,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.00727338020739
+-MLCC_C001095,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0110910313255
+-MLCC_C001131,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0100363243317
+-MLCC_C001249,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.021828198992
+-MLCC_C001324,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0111696092434
+-MLCC_C001417,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.00731846762936
+-MLCC_C001441,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0102540685418
+-MLCC_C001472,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.00966094994773
+-MLCC_C001583,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0108540824876
+-MLCC_C001684,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0160344938732
+-MLCC_C001740,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0116943038412
+-MLCC_C001826,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.00984164116922
+-MLCC_C001843,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.00698334715699
+-MLCC_C001859,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0106627988201
+-MLCC_C002005,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0139785486692
+-MLCC_C002142,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0130202234962
+-MLCC_C002259,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0106398097144
+-MLCC_C002316,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.00785672919715
+-MLCC_C002453,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0063652429217
+-MLCC_C002517,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0158502878319
+-MLCC_C002551,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.00781222437739
+-MLCC_C002639,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0198974899018
+-MLCC_C002643,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0105851521095
+-MLCC_C002749,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.00811817816453
+-MLCC_C002922,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0116409627416
+-MLCC_C002945,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0109165816999
+-MLCC_C003230,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.00776084575944
+-MLCC_C003296,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0137113665777
+-MLCC_C003334,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0116528523538
+-MLCC_C003335,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0116632888308
+-MLCC_C003411,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0084074263127
+-MLCC_C003461,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.00713780914686
+-MLCC_C003514,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0157648387811
+-MLCC_C003536,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0121096074244
+-MLCC_C003574,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0112707003896
+-MLCC_C003577,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0121922894406
+-MLCC_C003618,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.01661122174
+-MLCC_C003637,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.014398156736
++component_id,batch_id,profile_id,feature,uploaded_value,parsed_value,training_min,training_max,verdict,recommendation,predicted_final_value
++MLCC_C003490,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ENGINEER_REVIEW,0.1075067925453186
++MLCC_C000287,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,RETEST,0.09665672063827514
++MLCC_C000889,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,RETEST,0.11062301874160767
++MLCC_C001703,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,RETEST,0.08845315217971801
++MLCC_C002798,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,MONITOR,0.058864449262619016
++MLCC_C003360,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,MONITOR,0.09242226362228394
++MLCC_C000039,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.008995152711868286
++MLCC_C000125,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.014208516776561736
++MLCC_C000372,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.022662529349327085
++MLCC_C000397,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.013393833339214324
++MLCC_C000413,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.00846033364534378
++MLCC_C000484,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.013260012567043305
++MLCC_C000597,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.006101729124784469
++MLCC_C000729,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.012456481754779815
++MLCC_C000747,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.012663562595844268
++MLCC_C000764,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.011478956937789917
++MLCC_C000828,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.012344696223735808
++MLCC_C000873,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.019974079728126527
++MLCC_C000957,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.017295851111412047
++MLCC_C000982,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.009570885300636291
++MLCC_C000989,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.012286989390850067
++MLCC_C001052,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.013295221030712127
++MLCC_C001071,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.018835660815238953
++MLCC_C001074,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.008004995584487916
++MLCC_C001095,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.011855461299419402
++MLCC_C001131,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.01073939323425293
++MLCC_C001249,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.027795379757881163
++MLCC_C001324,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.011928414702415466
++MLCC_C001417,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.00804445892572403
++MLCC_C001441,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.010930587351322173
++MLCC_C001472,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.010364018976688384
++MLCC_C001583,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.011597328186035157
++MLCC_C001684,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.020490632057189942
++MLCC_C001740,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.012243187129497528
++MLCC_C001826,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.01054470956325531
++MLCC_C001843,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.007709339261054993
++MLCC_C001859,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.011225427389144896
++MLCC_C002005,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.01446236103773117
++MLCC_C002142,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.01353685587644577
++MLCC_C002259,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.011342065036296844
++MLCC_C002316,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.008582719266414641
++MLCC_C002453,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.007074545323848724
++MLCC_C002517,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.01660591185092926
++MLCC_C002551,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.008538214266300201
++MLCC_C002639,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.020369975566864013
++MLCC_C002643,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.011304094791412353
++MLCC_C002749,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.008832561671733855
++MLCC_C002922,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.01237393409013748
++MLCC_C002945,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.011981619894504547
++MLCC_C003230,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.008486835658550263
++MLCC_C003296,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.014178491234779357
++MLCC_C003334,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.0123858243227005
++MLCC_C003335,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.012396260797977447
++MLCC_C003411,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.009105121493339538
++MLCC_C003461,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.007863800525665283
++MLCC_C003514,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.019575031399726866
++MLCC_C003536,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.012805475592613219
++MLCC_C003574,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.012162425816059112
++MLCC_C003577,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.01288253366947174
++MLCC_C003618,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.01721452474594116
++MLCC_C003637,MLCC_B029,SIM_X7R_10N_50V,voltage_stress_ratio,0.995600247909,0.995600247909,0.880188180206,0.9914218024279999,above training maximum by 0.00417845,ACCEPT,0.01487993985414505
+diff --git a/docs/backend/openapi.json b/docs/backend/openapi.json
+index a9310b2..d3c1b17 100644
+--- a/docs/backend/openapi.json
++++ b/docs/backend/openapi.json
+@@ -825,6 +825,54 @@
+             "title": "Interval Method",
+             "description": "e.g. 'split_conformal'. Null when no calibrated interval is available."
+           },
++          "interval_stratum": {
++            "anyOf": [
++              {
++                "type": "string"
++              },
++              {
++                "type": "null"
++              }
++            ],
++            "title": "Interval Stratum",
++            "description": "For the stratified v2 interval: which 24 h slope robust-z stratum supplied the margins (slope_z_stratum_0: z < 2, 1: 2 to 5, 2: >= 5)."
++          },
++          "upper_bound_nominal_level": {
++            "anyOf": [
++              {
++                "type": "number"
++              },
++              {
++                "type": "null"
++              }
++            ],
++            "title": "Upper Bound Nominal Level",
++            "description": "For the stratified v2 interval: nominal one-sided level of prediction_upper (0.9 means about 10 % of comparable synthetic parts end above it). The pair (prediction_lower, prediction_upper) is then an 80 % interval."
++          },
++          "prediction_lower_two_sided": {
++            "anyOf": [
++              {
++                "type": "number"
++              },
++              {
++                "type": "null"
++              }
++            ],
++            "title": "Prediction Lower Two Sided",
++            "description": "Wider two-sided 90 % lower bound (v2 stratified interval only)."
++          },
++          "prediction_upper_two_sided": {
++            "anyOf": [
++              {
++                "type": "number"
++              },
++              {
++                "type": "null"
++              }
++            ],
++            "title": "Prediction Upper Two Sided",
++            "description": "Wider two-sided 90 % upper bound (v2 stratified interval only)."
++          },
+           "model_version": {
+             "anyOf": [
+               {
+@@ -2259,6 +2307,18 @@
+             "type": "boolean",
+             "title": "Is Active Forecast"
+           },
++          "explained_model": {
++            "anyOf": [
++              {
++                "type": "string"
++              },
++              {
++                "type": "null"
++              }
++            ],
++            "title": "Explained Model",
++            "description": "Which tree model these contributions explain: 'xgboost_v2' when that model produced the forecast, otherwise the v1 'xgboost' candidate."
++          },
+           "base_value_ua": {
+             "type": "number",
+             "title": "Base Value Ua"
+diff --git a/docs/backend/sample_response.json b/docs/backend/sample_response.json
+index 1467741..c9b13dd 100644
+--- a/docs/backend/sample_response.json
++++ b/docs/backend/sample_response.json
+@@ -1,8 +1,8 @@
+ {
+   "schema_version": "1.0.0",
+-  "request_id": "525b689d803f4acf8f830cdffce5546c",
+-  "generated_at": "2026-09-05T19:54:17.886272Z",
+-  "duration_ms": 1841.6,
++  "request_id": "642b6bc851514ca2afc44bec309b57a1",
++  "generated_at": "2026-09-06T00:09:13.506406Z",
++  "duration_ms": 840.094,
+   "input_source": "upload",
+   "filename": "sih26170_mlcc_synthetic_sample.csv",
+   "profile_id": "mlcc_x7r_leakage_ua",
+@@ -13,15 +13,15 @@
+     24.0
+   ],
+   "model_versions": {
+-    "anomaly": "mlcc-pilot-1.0",
+-    "forecast": "persistence",
++    "anomaly": "mlcc-pilot-1.1",
++    "forecast": "xgboost_v2",
+     "bundle": "b5553f6f7032092e-s26170"
+   },
+   "model_info": {
+-    "prototype_version": "mlcc-pilot-1.0",
++    "prototype_version": "mlcc-pilot-1.1",
+     "bundle_id": "b5553f6f7032092e-s26170",
+-    "selected_model": "persistence",
+-    "validation_winner": "persistence",
++    "selected_model": "xgboost_v2",
++    "validation_winner": "xgboost_v2",
+     "forecast_selection": "internal validation winner",
+     "selection_warning": null,
+     "model_training_data": "synthetic",
+@@ -33,7 +33,8 @@
+       "linear_extrapolation",
+       "persistence",
+       "ridge",
+-      "xgboost"
++      "xgboost",
++      "xgboost_v2"
+     ],
+     "limitations": [
+       "Only exact 0/24-hour MLCC_X7R leakage measurements in uA are supported",
+@@ -49,10 +50,10 @@
+   "scored_record_count": 240,
+   "unscored_record_count": 0,
+   "decision_counts": {
+-    "ACCEPT": 215,
+-    "MONITOR": 9,
+-    "RETEST": 14,
+-    "ENGINEER_REVIEW": 2
++    "ACCEPT": 210,
++    "MONITOR": 14,
++    "RETEST": 8,
++    "ENGINEER_REVIEW": 8
+   },
+   "capabilities": {
+     "anomaly": true,
+@@ -72,8 +73,8 @@
+   "provenance": "synthetic",
+   "records": [
+     {
+-      "component_id": "MLCC_C001046",
+-      "batch_id": "MLCC_B023",
++      "component_id": "MLCC_C000147",
++      "batch_id": "MLCC_B018",
+       "component_family": "MLCC_X7R",
+       "measurement_name": "leakage_ua",
+       "recommendation": "ENGINEER_REVIEW",
+@@ -81,67 +82,71 @@
+       "provisional": false,
+       "anomaly": {
+         "status": "available",
+-        "score": 1.0,
++        "score": 0.9999413061028241,
+         "is_anomaly": true,
+         "method": "median_mad+isolation_forest",
+         "model_version": null,
+         "contributing_features": [],
+         "reason_codes": [
+           "Current value is unusually above the batch norm",
+-          "Drift is unusually faster than comparable components",
+-          "Current value has used at least 80% of the safety limit"
++          "Drift is unusually faster than comparable components"
+         ],
+         "score_kind": "ranking score, not failure probability",
+-        "model_score": 0.9468069095708568,
+-        "robust_deviation_score": 50.92192638703171,
++        "model_score": 0.8913074976164841,
++        "robust_deviation_score": 13.24311610725179,
+         "note": "Relative deviation against comparable peers in the same batch. This score is not a probability of physical failure."
+       },
+       "forecast": {
+         "status": "available",
+-        "predicted_final_value": 1.38682735687,
+-        "prediction_lower": 0.5451596246585713,
+-        "prediction_upper": 2.228495089081429,
++        "predicted_final_value": 0.907775616645813,
++        "prediction_lower": 0.1969297516094647,
++        "prediction_upper": 1.4944393390516235,
+         "target_hour": 168.0,
+-        "interval_nominal_coverage": 0.9,
+-        "interval_method": "split_conformal_absolute_residual",
+-        "model_version": "persistence",
++        "interval_nominal_coverage": 0.8,
++        "interval_method": "stratified_asymmetric_split_conformal_signed_residual",
++        "interval_stratum": "slope_z_stratum_2",
++        "upper_bound_nominal_level": 0.9,
++        "prediction_lower_two_sided": 0.02157023724655764,
++        "prediction_upper_two_sided": 1.8078695286703186,
++        "model_version": "xgboost_v2",
+         "predicted_to_cross_limit": true,
+         "explanation": [],
+-        "interval_warning": "Nominal level; coverage on real components is not established; batch dependence limits the usual guarantee",
++        "interval_warning": "Each bound is a one-sided 90% calibrated bound (about 10% of comparable synthetic parts end above prediction_upper), so the pair is an 80% interval; the wider 90% two-sided pair is reported separately. Coverage on real components is not established; batch dependence limits the usual guarantee",
+         "prediction_readiness": "ready",
+         "out_of_training_range_features": [],
+         "prediction_readiness_warning": null,
+         "missing_optional_features": [],
+-        "xgboost_candidate_final_value": 0.4999830782413483,
++        "xgboost_candidate_final_value": 0.9337062835693358,
+         "xgboost_explanation": {
+-          "explains": "Unclipped XGBoost candidate forecast; associations, not physical causes",
+-          "is_active_forecast": false,
+-          "base_value_ua": 0.3767493963241577,
++          "explains": "Active xgboost_v2 forecast: absolute-error correction over the 24 h value (bias includes the persistence margin); associations, not physical causes",
++          "is_active_forecast": true,
++          "explained_model": "xgboost_v2",
++          "base_value_ua": 0.239859476685524,
+           "top_contributions": [
+             {
+-              "feature": "limit_fraction",
+-              "contribution_ua": 0.3076769709587097,
+-              "feature_value": 1.0667902745153846
++              "feature": "delta_fraction_of_limit",
++              "contribution_ua": 0.335572212934494,
++              "feature_value": 0.13079600842285716
+             },
+             {
+-              "feature": "capacitance_change_fraction",
+-              "contribution_ua": -0.20821192860603333,
+-              "feature_value": -0.009982015917021272
++              "feature": "percent_change",
++              "contribution_ua": 0.08163945376873016,
++              "feature_value": 0.6652311951786019
+             },
+             {
+-              "feature": "current_batch_robust_z",
+-              "contribution_ua": 0.20641334354877472,
+-              "feature_value": 23.723716868706344
++              "feature": "variability_fraction_of_limit",
++              "contribution_ua": 0.07436487078666687,
++              "feature_value": 0.06539800421142858
+             },
+             {
+-              "feature": "measurement_voltage_v",
+-              "contribution_ua": -0.19450682401657104,
+-              "feature_value": 15.7058373795
++              "feature": "distance_fraction_to_upper_limit",
++              "contribution_ua": 0.07069054245948792,
++              "feature_value": 0.6725866209985715
+             },
+             {
+-              "feature": "distance_fraction_to_upper_limit",
+-              "contribution_ua": 0.10792333632707596,
+-              "feature_value": -0.0667902745153846
++              "feature": "slope_fraction_per_hour",
++              "contribution_ua": 0.04178467392921448,
++              "feature_value": 0.005449833684285715
+             }
+           ]
+         },
+@@ -149,82 +154,82 @@
+       },
+       "limits": {
+         "direction": "upper",
+-        "upper_limit": 1.3,
++        "upper_limit": 0.7,
+         "lower_limit": null,
+-        "applicable_limit": 1.3,
+-        "headroom": -0.08682735686999998,
+-        "headroom_fraction": -0.0667902745153846,
+-        "limit_fraction": 1.0667902745153846
++        "applicable_limit": 0.7,
++        "headroom": 0.470810634699,
++        "headroom_fraction": 0.6725866209985715,
++        "limit_fraction": 0.3274133790014286
+       },
+       "peers": {
+-        "sample_size": 62,
++        "sample_size": 57,
+         "sufficient": true,
+         "status": "available",
+         "median": null,
+         "mad": null,
+         "peer_min": null,
+         "peer_max": null,
+-        "current_batch_robust_z": 23.723716868706344,
+-        "slope_batch_robust_z": 50.92192638703171,
++        "current_batch_robust_z": 7.702968334445618,
++        "slope_batch_robust_z": 13.24311610725179,
+         "warning": null,
+         "note": null
+       },
+       "measurement_unit": "uA",
+-      "initial_value": 0.0997290743192,
+-      "latest_value": 1.38682735687,
++      "initial_value": 0.137632159405,
++      "latest_value": 0.229189365301,
+       "last_observation_hour": 24.0,
+-      "absolute_change": 1.2870982825508,
+-      "percent_change": 12.905948353949634,
++      "absolute_change": 0.091557205896,
++      "percent_change": 0.6652311951786019,
+       "percent_change_available": true,
+-      "slope_per_hour": 0.053629095106283324,
++      "slope_per_hour": 0.003814883579,
+       "acceleration": null,
+       "early_trajectory": [
+         {
+           "hour": 0.0,
+-          "value": 0.0997290743192
++          "value": 0.137632159405
+         },
+         {
+           "hour": 24.0,
+-          "value": 1.38682735687
++          "value": 0.229189365301
+         }
+       ],
+-      "part_number": "FICTIONAL-MLCC-04",
++      "part_number": "FICTIONAL-MLCC-03",
+       "test_condition": null,
+-      "temperature_c": 122.43053183,
++      "temperature_c": 121.695789344,
+       "humidity_pct": null,
+-      "applied_voltage_v": 15.017835888,
+-      "board_position": "117",
++      "applied_voltage_v": 22.548566286,
++      "board_position": "83",
+       "data_source": "synthetic",
+       "provenance": "synthetic",
+-      "profile_id": "SIM_X7R_4U7_16V",
++      "profile_id": "SIM_X7R_1U_25V",
+       "recommendation_reasons": [
+         "Current value is unusually above the batch norm",
+         "Drift is unusually faster than comparable components",
+-        "Current value has used at least 80% of the safety limit",
+-        "The current measurement has crossed the approved limit"
++        "The predicted final value crosses the approved limit",
++        "The prediction range includes a possible limit crossing"
+       ],
+       "data_quality_warning": null,
+       "context": {
+-        "part_number": "FICTIONAL-MLCC-04",
+-        "nominal_capacitance_nf": 4700.0,
+-        "rated_voltage_v": 16.0,
+-        "package_code": "1210",
++        "part_number": "FICTIONAL-MLCC-03",
++        "nominal_capacitance_nf": 1000.0,
++        "rated_voltage_v": 25.0,
++        "package_code": "1206",
+         "dielectric": "X7R",
+-        "applied_voltage_v": 15.017835888,
+-        "measurement_voltage_v": 15.7058373795,
+-        "temperature_c": 122.43053183,
+-        "measurement_temperature_c": 25.0756692944,
+-        "prior_storage_humidity_pct": 34.7063719884,
+-        "tester_id": "TESTER_3",
+-        "tester_channel": 15.0,
+-        "board_position": 117.0,
++        "applied_voltage_v": 22.548566286,
++        "measurement_voltage_v": 24.9675555413,
++        "temperature_c": 121.695789344,
++        "measurement_temperature_c": 25.8331761278,
++        "prior_storage_humidity_pct": 49.121326946,
++        "tester_id": "TESTER_1",
++        "tester_channel": 4.0,
++        "board_position": 83.0,
+         "data_source": "synthetic",
+         "generator_version": "mlcc-synthetic-1.0.0"
+       }
+     },
+     {
+-      "component_id": "MLCC_C003490",
+-      "batch_id": "MLCC_B029",
++      "component_id": "MLCC_C001046",
++      "batch_id": "MLCC_B023",
+       "component_family": "MLCC_X7R",
+       "measurement_name": "leakage_ua",
+       "recommendation": "ENGINEER_REVIEW",
+@@ -244,57 +249,60 @@
+         ],
+         "score_kind": "ranking score, not failure probability",
+         "model_score": 0.9468069095708568,
+-        "robust_deviation_score": 52.01436539234558,
++        "robust_deviation_score": 50.92192638703171,
+         "note": "Relative deviation against comparable peers in the same batch. This score is not a probability of physical failure."
+       },
+       "forecast": {
+         "status": "available",
+-        "predicted_final_value": 0.12130230971100002,
+-        "prediction_lower": 0.043609903660714294,
+-        "prediction_upper": 0.19899471576128575,
++        "predicted_final_value": 1.3117566466331483,
++        "prediction_lower": 0.0,
++        "prediction_upper": 2.4012749882439395,
+         "target_hour": 168.0,
+-        "interval_nominal_coverage": 0.9,
+-        "interval_method": "split_conformal_absolute_residual",
+-        "model_version": "persistence",
++        "interval_nominal_coverage": 0.8,
++        "interval_method": "stratified_asymmetric_split_conformal_signed_residual",
++        "interval_stratum": "slope_z_stratum_2",
++        "upper_bound_nominal_level": 0.9,
++        "prediction_lower_two_sided": 0.0,
++        "prediction_upper_two_sided": 2.9833596261072306,
++        "model_version": "xgboost_v2",
+         "predicted_to_cross_limit": true,
+         "explanation": [],
+-        "interval_warning": "Nominal level; coverage on real components is not established; batch dependence limits the usual guarantee",
+-        "prediction_readiness": "outside_training_conditions",
+-        "out_of_training_range_features": [
+-          "voltage_stress_ratio"
+-        ],
+-        "prediction_readiness_warning": "Forecast extrapolates beyond observed training conditions; validation and interval coverage do not transfer",
++        "interval_warning": "Each bound is a one-sided 90% calibrated bound (about 10% of comparable synthetic parts end above prediction_upper), so the pair is an 80% interval; the wider 90% two-sided pair is reported separately. Coverage on real components is not established; batch dependence limits the usual guarantee",
++        "prediction_readiness": "ready",
++        "out_of_training_range_features": [],
++        "prediction_readiness_warning": null,
+         "missing_optional_features": [],
+-        "xgboost_candidate_final_value": 0.21643469810485838,
++        "xgboost_candidate_final_value": 0.4999830782413483,
+         "xgboost_explanation": {
+-          "explains": "Unclipped XGBoost candidate forecast; associations, not physical causes",
+-          "is_active_forecast": false,
+-          "base_value_ua": 0.03477686643600464,
++          "explains": "Active xgboost_v2 forecast: absolute-error correction over the 24 h value (bias includes the persistence margin); associations, not physical causes",
++          "is_active_forecast": true,
++          "explained_model": "xgboost_v2",
++          "base_value_ua": 1.4066431522369385,
+           "top_contributions": [
+             {
+-              "feature": "limit_fraction",
+-              "contribution_ua": 0.03493122383952141,
+-              "feature_value": 1.0108525809250002
++              "feature": "distance_fraction_to_upper_limit",
++              "contribution_ua": -0.2641522288322449,
++              "feature_value": -0.0667902745153846
+             },
+             {
+-              "feature": "current_batch_robust_z",
+-              "contribution_ua": 0.033326033502817154,
+-              "feature_value": 35.49699420913435
++              "feature": "delta_fraction_of_limit",
++              "contribution_ua": 0.1691535860300064,
++              "feature_value": 0.9900756019621537
+             },
+             {
+-              "feature": "measurement_voltage_v",
+-              "contribution_ua": 0.021862268447875977,
+-              "feature_value": 49.8284621484
++              "feature": "slope_batch_robust_z",
++              "contribution_ua": -0.05158764496445656,
++              "feature_value": 50.92192638703171
+             },
+             {
+-              "feature": "slope_batch_robust_z",
+-              "contribution_ua": 0.020610660314559937,
+-              "feature_value": 52.01436539234558
++              "feature": "variability_fraction_of_limit",
++              "contribution_ua": 0.038131579756736755,
++              "feature_value": 0.49503780098107697
+             },
+             {
+-              "feature": "delta_fraction_of_limit",
+-              "contribution_ua": 0.019670821726322174,
+-              "feature_value": 0.9271299205858334
++              "feature": "percent_change",
++              "contribution_ua": 0.03680026903748512,
++              "feature_value": 12.905948353949634
+             }
+           ]
+         },
+@@ -302,54 +310,54 @@
+       },
+       "limits": {
+         "direction": "upper",
+-        "upper_limit": 0.12,
++        "upper_limit": 1.3,
+         "lower_limit": null,
+-        "applicable_limit": 0.12,
+-        "headroom": -0.0013023097110000104,
+-        "headroom_fraction": -0.010852580925000088,
+-        "limit_fraction": 1.0108525809250002
++        "applicable_limit": 1.3,
++        "headroom": -0.08682735686999998,
++        "headroom_fraction": -0.0667902745153846,
++        "limit_fraction": 1.0667902745153846
+       },
+       "peers": {
+-        "sample_size": 61,
++        "sample_size": 62,
+         "sufficient": true,
+         "status": "available",
+         "median": null,
+         "mad": null,
+         "peer_min": null,
+         "peer_max": null,
+-        "current_batch_robust_z": 35.49699420913435,
+-        "slope_batch_robust_z": 52.01436539234558,
++        "current_batch_robust_z": 23.723716868706344,
++        "slope_batch_robust_z": 50.92192638703171,
+         "warning": null,
+         "note": null
+       },
+       "measurement_unit": "uA",
+-      "initial_value": 0.0100467192407,
+-      "latest_value": 0.121302309711,
++      "initial_value": 0.0997290743192,
++      "latest_value": 1.38682735687,
+       "last_observation_hour": 24.0,
+-      "absolute_change": 0.11125559047030001,
+-      "percent_change": 11.07382298687072,
++      "absolute_change": 1.2870982825508,
++      "percent_change": 12.905948353949634,
+       "percent_change_available": true,
+-      "slope_per_hour": 0.004635649602929166,
++      "slope_per_hour": 0.053629095106283324,
+       "acceleration": null,
+       "early_trajectory": [
+         {
+           "hour": 0.0,
+-          "value": 0.0100467192407
++          "value": 0.0997290743192
+         },
+         {
+           "hour": 24.0,
+-          "value": 0.121302309711
++          "value": 1.38682735687
+         }
+       ],
+-      "part_number": "FICTIONAL-MLCC-01",
++      "part_number": "FICTIONAL-MLCC-04",
+       "test_condition": null,
+-      "temperature_c": 123.488808317,
++      "temperature_c": 122.43053183,
+       "humidity_pct": null,
+-      "applied_voltage_v": 49.7800123954,
+-      "board_position": "163",
++      "applied_voltage_v": 15.017835888,
++      "board_position": "117",
+       "data_source": "synthetic",
+       "provenance": "synthetic",
+-      "profile_id": "SIM_X7R_10N_50V",
++      "profile_id": "SIM_X7R_4U7_16V",
+       "recommendation_reasons": [
+         "Current value is unusually above the batch norm",
+         "Drift is unusually faster than comparable components",
+@@ -358,34 +366,34 @@
+       ],
+       "data_quality_warning": null,
+       "context": {
+-        "part_number": "FICTIONAL-MLCC-01",
+-        "nominal_capacitance_nf": 10.0,
+-        "rated_voltage_v": 50.0,
+-        "package_code": "0805",
++        "part_number": "FICTIONAL-MLCC-04",
++        "nominal_capacitance_nf": 4700.0,
++        "rated_voltage_v": 16.0,
++        "package_code": "1210",
+         "dielectric": "X7R",
+-        "applied_voltage_v": 49.7800123954,
+-        "measurement_voltage_v": 49.8284621484,
+-        "temperature_c": 123.488808317,
+-        "measurement_temperature_c": 23.5809477333,
+-        "prior_storage_humidity_pct": 30.5725967761,
++        "applied_voltage_v": 15.017835888,
++        "measurement_voltage_v": 15.7058373795,
++        "temperature_c": 122.43053183,
++        "measurement_temperature_c": 25.0756692944,
++        "prior_storage_humidity_pct": 34.7063719884,
+         "tester_id": "TESTER_3",
+-        "tester_channel": 4.0,
+-        "board_position": 163.0,
++        "tester_channel": 15.0,
++        "board_position": 117.0,
+         "data_source": "synthetic",
+         "generator_version": "mlcc-synthetic-1.0.0"
+       }
+     },
+     {
+-      "component_id": "MLCC_C000147",
+-      "batch_id": "MLCC_B018",
++      "component_id": "MLCC_C001733",
++      "batch_id": "MLCC_B002",
+       "component_family": "MLCC_X7R",
+       "measurement_name": "leakage_ua",
+-      "recommendation": "RETEST",
++      "recommendation": "ENGINEER_REVIEW",
+       "recommendation_basis": "anomaly_and_forecast",
+       "provisional": false,
+       "anomaly": {
+         "status": "available",
+-        "score": 0.9999413061028241,
++        "score": 0.9977472317059355,
+         "is_anomaly": true,
+         "method": "median_mad+isolation_forest",
+         "model_version": null,
+@@ -395,56 +403,61 @@
+           "Drift is unusually faster than comparable components"
+         ],
+         "score_kind": "ranking score, not failure probability",
+-        "model_score": 0.8913074976164841,
+-        "robust_deviation_score": 13.243116107251799,
++        "model_score": 0.8698915256370023,
++        "robust_deviation_score": 9.593340156518193,
+         "note": "Relative deviation against comparable peers in the same batch. This score is not a probability of physical failure."
+       },
+       "forecast": {
+         "status": "available",
+-        "predicted_final_value": 0.22918936530099998,
+-        "prediction_lower": 0.0,
+-        "prediction_upper": 0.682395067261,
++        "predicted_final_value": 0.2649940550327301,
++        "prediction_lower": 0.011120531805462852,
++        "prediction_upper": 0.4745168130348053,
+         "target_hour": 168.0,
+-        "interval_nominal_coverage": 0.9,
+-        "interval_method": "split_conformal_absolute_residual",
+-        "model_version": "persistence",
+-        "predicted_to_cross_limit": false,
++        "interval_nominal_coverage": 0.8,
++        "interval_method": "stratified_asymmetric_split_conformal_signed_residual",
++        "interval_stratum": "slope_z_stratum_2",
++        "upper_bound_nominal_level": 0.9,
++        "prediction_lower_two_sided": 0.0,
++        "prediction_upper_two_sided": 0.5864561664700536,
++        "model_version": "xgboost_v2",
++        "predicted_to_cross_limit": true,
+         "explanation": [],
+-        "interval_warning": "Nominal level; coverage on real components is not established; batch dependence limits the usual guarantee",
++        "interval_warning": "Each bound is a one-sided 90% calibrated bound (about 10% of comparable synthetic parts end above prediction_upper), so the pair is an 80% interval; the wider 90% two-sided pair is reported separately. Coverage on real components is not established; batch dependence limits the usual guarantee",
+         "prediction_readiness": "ready",
+         "out_of_training_range_features": [],
+         "prediction_readiness_warning": null,
+         "missing_optional_features": [],
+-        "xgboost_candidate_final_value": 0.9337062835693358,
++        "xgboost_candidate_final_value": 0.28777214884757996,
+         "xgboost_explanation": {
+-          "explains": "Unclipped XGBoost candidate forecast; associations, not physical causes",
+-          "is_active_forecast": false,
+-          "base_value_ua": 0.20286506414413452,
++          "explains": "Active xgboost_v2 forecast: absolute-error correction over the 24 h value (bias includes the persistence margin); associations, not physical causes",
++          "is_active_forecast": true,
++          "explained_model": "xgboost_v2",
++          "base_value_ua": 0.06963034719228745,
+           "top_contributions": [
+             {
+               "feature": "delta_fraction_of_limit",
+-              "contribution_ua": 0.30716028809547424,
+-              "feature_value": 0.13079600842285716
++              "contribution_ua": 0.10177718847990036,
++              "feature_value": 0.10132637570599998
+             },
+             {
+-              "feature": "limit_fraction",
+-              "contribution_ua": 0.14919772744178772,
+-              "feature_value": 0.3274133790014286
++              "feature": "percent_change",
++              "contribution_ua": 0.026689568534493446,
++              "feature_value": 0.6256568568341243
+             },
+             {
+               "feature": "distance_fraction_to_upper_limit",
+-              "contribution_ua": 0.119488425552845,
+-              "feature_value": 0.6725866209985715
++              "contribution_ua": 0.020953718572854996,
++              "feature_value": 0.7367216300032
+             },
+             {
+-              "feature": "slope_batch_robust_z",
+-              "contribution_ua": 0.07524870336055756,
+-              "feature_value": 13.243116107251799
++              "feature": "variability_fraction_of_limit",
++              "contribution_ua": 0.018067670986056328,
++              "feature_value": 0.05066318785299999
+             },
+             {
+               "feature": "slope_fraction_per_hour",
+-              "contribution_ua": 0.032404717057943344,
+-              "feature_value": 0.0054498336842857134
++              "contribution_ua": 0.011770549230277538,
++              "feature_value": 0.00422193232108333
+             }
+           ]
+         },
+@@ -452,72 +465,74 @@
+       },
+       "limits": {
+         "direction": "upper",
+-        "upper_limit": 0.7,
++        "upper_limit": 0.25,
+         "lower_limit": null,
+-        "applicable_limit": 0.7,
+-        "headroom": 0.470810634699,
+-        "headroom_fraction": 0.6725866209985715,
+-        "limit_fraction": 0.3274133790014286
++        "applicable_limit": 0.25,
++        "headroom": 0.1841804075008,
++        "headroom_fraction": 0.7367216300032,
++        "limit_fraction": 0.2632783699968
+       },
+       "peers": {
+-        "sample_size": 57,
++        "sample_size": 60,
+         "sufficient": true,
+         "status": "available",
+         "median": null,
+         "mad": null,
+         "peer_min": null,
+         "peer_max": null,
+-        "current_batch_robust_z": 7.702968334445618,
+-        "slope_batch_robust_z": 13.243116107251799,
++        "current_batch_robust_z": 3.8581368867311876,
++        "slope_batch_robust_z": 9.593340156518193,
+         "warning": null,
+         "note": null
+       },
+       "measurement_unit": "uA",
+-      "initial_value": 0.137632159405,
+-      "latest_value": 0.229189365301,
++      "initial_value": 0.0404879985727,
++      "latest_value": 0.0658195924992,
+       "last_observation_hour": 24.0,
+-      "absolute_change": 0.091557205896,
+-      "percent_change": 0.6652311951786019,
++      "absolute_change": 0.025331593926499994,
++      "percent_change": 0.6256568568341243,
+       "percent_change_available": true,
+-      "slope_per_hour": 0.0038148835789999992,
++      "slope_per_hour": 0.0010554830802708326,
+       "acceleration": null,
+       "early_trajectory": [
+         {
+           "hour": 0.0,
+-          "value": 0.137632159405
++          "value": 0.0404879985727
+         },
+         {
+           "hour": 24.0,
+-          "value": 0.229189365301
++          "value": 0.0658195924992
+         }
+       ],
+-      "part_number": "FICTIONAL-MLCC-03",
++      "part_number": "FICTIONAL-MLCC-02",
+       "test_condition": null,
+-      "temperature_c": 121.695789344,
++      "temperature_c": 122.757377847,
+       "humidity_pct": null,
+-      "applied_voltage_v": 22.548566286,
++      "applied_voltage_v": 45.6771751333,
+       "board_position": "83",
+       "data_source": "synthetic",
+       "provenance": "synthetic",
+-      "profile_id": "SIM_X7R_1U_25V",
++      "profile_id": "SIM_X7R_100N_50V",
+       "recommendation_reasons": [
+         "Current value is unusually above the batch norm",
+-        "Drift is unusually faster than comparable components"
++        "Drift is unusually faster than comparable components",
++        "The predicted final value crosses the approved limit",
++        "The prediction range includes a possible limit crossing"
+       ],
+       "data_quality_warning": null,
+       "context": {
+-        "part_number": "FICTIONAL-MLCC-03",
+-        "nominal_capacitance_nf": 1000.0,
+-        "rated_voltage_v": 25.0,
+-        "package_code": "1206",
++        "part_number": "FICTIONAL-MLCC-02",
++        "nominal_capacitance_nf": 100.0,
++        "rated_voltage_v": 50.0,
++        "package_code": "0805",
+         "dielectric": "X7R",
+-        "applied_voltage_v": 22.548566286,
+-        "measurement_voltage_v": 24.9675555413,
+-        "temperature_c": 121.695789344,
+-        "measurement_temperature_c": 25.8331761278,
+-        "prior_storage_humidity_pct": 49.121326946,
+-        "tester_id": "TESTER_1",
+-        "tester_channel": 4.0,
++        "applied_voltage_v": 45.6771751333,
++        "measurement_voltage_v": 49.292016065,
++        "temperature_c": 122.757377847,
++        "measurement_temperature_c": 26.5854332302,
++        "prior_storage_humidity_pct": 58.9281130483,
++        "tester_id": "TESTER_3",
++        "tester_channel": 7.0,
+         "board_position": 83.0,
+         "data_source": "synthetic",
+         "generator_version": "mlcc-synthetic-1.0.0"
+@@ -565,6 +580,7 @@
+   ],
+   "evaluation": {
+     "available": true,
++    "source_filename": null,
+     "kind": "observed_readings",
+     "target_hour": 168.0,
+     "note": "Evaluation only. These are later OBSERVED measurements. They were excluded from feature building, anomaly scoring, forecasting and peer statistics, and reached the response only after screening.",
+@@ -618,5 +634,5 @@
+       "count": 61
+     }
+   ],
+-  "_note": "Genuine response from a real run of mlcc-pilot-1.0 on the synthetic MLCC sample. records/component_summaries/evaluation.outcomes are truncated to 3 entries for readability; every other field is exactly as returned. Model numbers are not hand-authored."
++  "_note": "Genuine response from a real run of mlcc-pilot-1.1 on the synthetic MLCC sample. records/component_summaries/evaluation.outcomes are truncated to 3 entries for readability; every other field is exactly as returned. Model numbers are not hand-authored."
+ }
+diff --git a/docs/backend/sample_response_with_outcomes.json b/docs/backend/sample_response_with_outcomes.json
+index d3c4910..ee01a62 100644
+--- a/docs/backend/sample_response_with_outcomes.json
++++ b/docs/backend/sample_response_with_outcomes.json
+@@ -1,10 +1,10 @@
+ {
+   "schema_version": "1.0.0",
+-  "request_id": "f9eecd64ee5147edadaed3a2a4182a97",
+-  "generated_at": "2026-09-05T22:11:17.477230Z",
+-  "duration_ms": 2856.825,
++  "request_id": "b2f3ea569f204a7891ed66b425514277",
++  "generated_at": "2026-09-06T00:13:38.496752Z",
++  "duration_ms": 850.845,
+   "input_source": "upload",
+-  "filename": "early.csv",
++  "filename": "sample_early.csv",
+   "profile_id": "mlcc_x7r_leakage_ua",
+   "as_of_hour": 24.0,
+   "target_hour": 168.0,
+@@ -13,15 +13,15 @@
+     24.0
+   ],
+   "model_versions": {
+-    "anomaly": "mlcc-pilot-1.0",
+-    "forecast": "persistence",
++    "anomaly": "mlcc-pilot-1.1",
++    "forecast": "xgboost_v2",
+     "bundle": "b5553f6f7032092e-s26170"
+   },
+   "model_info": {
+-    "prototype_version": "mlcc-pilot-1.0",
++    "prototype_version": "mlcc-pilot-1.1",
+     "bundle_id": "b5553f6f7032092e-s26170",
+-    "selected_model": "persistence",
+-    "validation_winner": "persistence",
++    "selected_model": "xgboost_v2",
++    "validation_winner": "xgboost_v2",
+     "forecast_selection": "internal validation winner",
+     "selection_warning": null,
+     "model_training_data": "synthetic",
+@@ -33,7 +33,8 @@
+       "linear_extrapolation",
+       "persistence",
+       "ridge",
+-      "xgboost"
++      "xgboost",
++      "xgboost_v2"
+     ],
+     "limitations": [
+       "Only exact 0/24-hour MLCC_X7R leakage measurements in uA are supported",
+@@ -49,10 +50,10 @@
+   "scored_record_count": 240,
+   "unscored_record_count": 0,
+   "decision_counts": {
+-    "ACCEPT": 215,
+-    "MONITOR": 9,
+-    "RETEST": 14,
+-    "ENGINEER_REVIEW": 2
++    "ACCEPT": 210,
++    "MONITOR": 14,
++    "RETEST": 8,
++    "ENGINEER_REVIEW": 8
+   },
+   "capabilities": {
+     "anomaly": true,
+@@ -71,6 +72,161 @@
+   },
+   "provenance": "synthetic",
+   "records": [
++    {
++      "component_id": "MLCC_C000147",
++      "batch_id": "MLCC_B018",
++      "component_family": "MLCC_X7R",
++      "measurement_name": "leakage_ua",
++      "recommendation": "ENGINEER_REVIEW",
++      "recommendation_basis": "anomaly_and_forecast",
++      "provisional": false,
++      "anomaly": {
++        "status": "available",
++        "score": 0.9999413061028241,
++        "is_anomaly": true,
++        "method": "median_mad+isolation_forest",
++        "model_version": null,
++        "contributing_features": [],
++        "reason_codes": [
++          "Current value is unusually above the batch norm",
++          "Drift is unusually faster than comparable components"
++        ],
++        "score_kind": "ranking score, not failure probability",
++        "model_score": 0.8913074976164841,
++        "robust_deviation_score": 13.24311610725179,
++        "note": "Relative deviation against comparable peers in the same batch. This score is not a probability of physical failure."
++      },
++      "forecast": {
++        "status": "available",
++        "predicted_final_value": 0.907775616645813,
++        "prediction_lower": 0.1969297516094647,
++        "prediction_upper": 1.4944393390516235,
++        "target_hour": 168.0,
++        "interval_nominal_coverage": 0.8,
++        "interval_method": "stratified_asymmetric_split_conformal_signed_residual",
++        "interval_stratum": "slope_z_stratum_2",
++        "upper_bound_nominal_level": 0.9,
++        "prediction_lower_two_sided": 0.02157023724655764,
++        "prediction_upper_two_sided": 1.8078695286703186,
++        "model_version": "xgboost_v2",
++        "predicted_to_cross_limit": true,
++        "explanation": [],
++        "interval_warning": "Each bound is a one-sided 90% calibrated bound (about 10% of comparable synthetic parts end above prediction_upper), so the pair is an 80% interval; the wider 90% two-sided pair is reported separately. Coverage on real components is not established; batch dependence limits the usual guarantee",
++        "prediction_readiness": "ready",
++        "out_of_training_range_features": [],
++        "prediction_readiness_warning": null,
++        "missing_optional_features": [],
++        "xgboost_candidate_final_value": 0.9337062835693358,
++        "xgboost_explanation": {
++          "explains": "Active xgboost_v2 forecast: absolute-error correction over the 24 h value (bias includes the persistence margin); associations, not physical causes",
++          "is_active_forecast": true,
++          "explained_model": "xgboost_v2",
++          "base_value_ua": 0.239859476685524,
++          "top_contributions": [
++            {
++              "feature": "delta_fraction_of_limit",
++              "contribution_ua": 0.335572212934494,
++              "feature_value": 0.13079600842285716
++            },
++            {
++              "feature": "percent_change",
++              "contribution_ua": 0.08163945376873016,
++              "feature_value": 0.6652311951786019
++            },
++            {
++              "feature": "variability_fraction_of_limit",
++              "contribution_ua": 0.07436487078666687,
++              "feature_value": 0.06539800421142858
++            },
++            {
++              "feature": "distance_fraction_to_upper_limit",
++              "contribution_ua": 0.07069054245948792,
++              "feature_value": 0.6725866209985715
++            },
++            {
++              "feature": "slope_fraction_per_hour",
++              "contribution_ua": 0.04178467392921448,
++              "feature_value": 0.005449833684285715
++            }
++          ]
++        },
++        "note": null
++      },
++      "limits": {
++        "direction": "upper",
++        "upper_limit": 0.7,
++        "lower_limit": null,
++        "applicable_limit": 0.7,
++        "headroom": 0.470810634699,
++        "headroom_fraction": 0.6725866209985715,
++        "limit_fraction": 0.3274133790014286
++      },
++      "peers": {
++        "sample_size": 57,
++        "sufficient": true,
++        "status": "available",
++        "median": null,
++        "mad": null,
++        "peer_min": null,
++        "peer_max": null,
++        "current_batch_robust_z": 7.702968334445618,
++        "slope_batch_robust_z": 13.24311610725179,
++        "warning": null,
++        "note": null
++      },
++      "measurement_unit": "uA",
++      "initial_value": 0.137632159405,
++      "latest_value": 0.229189365301,
++      "last_observation_hour": 24.0,
++      "absolute_change": 0.091557205896,
++      "percent_change": 0.6652311951786019,
++      "percent_change_available": true,
++      "slope_per_hour": 0.003814883579,
++      "acceleration": null,
++      "early_trajectory": [
++        {
++          "hour": 0.0,
++          "value": 0.137632159405
++        },
++        {
++          "hour": 24.0,
++          "value": 0.229189365301
++        }
++      ],
++      "part_number": "FICTIONAL-MLCC-03",
++      "test_condition": null,
++      "temperature_c": 121.695789344,
++      "humidity_pct": null,
++      "applied_voltage_v": 22.548566286,
++      "board_position": "83",
++      "data_source": "synthetic",
++      "provenance": "synthetic",
++      "profile_id": "SIM_X7R_1U_25V",
++      "recommendation_reasons": [
++        "Current value is unusually above the batch norm",
++        "Drift is unusually faster than comparable components",
++        "The predicted final value crosses the approved limit",
++        "The prediction range includes a possible limit crossing"
++      ],
++      "data_quality_warning": null,
++      "context": {
++        "part_number": "FICTIONAL-MLCC-03",
++        "nominal_capacitance_nf": 1000.0,
++        "rated_voltage_v": 25.0,
++        "package_code": "1206",
++        "dielectric": "X7R",
++        "applied_voltage_v": 22.548566286,
++        "measurement_voltage_v": 24.9675555413,
++        "temperature_c": 121.695789344,
++        "measurement_temperature_c": 25.8331761278,
++        "prior_storage_humidity_pct": 49.121326946,
++        "tester_id": "TESTER_1",
++        "tester_channel": 4.0,
++        "board_position": 83.0,
++        "data_source": "synthetic",
++        "generator_version": "mlcc-synthetic-1.0.0"
++      }
++    },
+     {
+       "component_id": "MLCC_C001046",
+       "batch_id": "MLCC_B023",
+@@ -98,50 +254,55 @@
+       },
+       "forecast": {
+         "status": "available",
+-        "predicted_final_value": 1.38682735687,
+-        "prediction_lower": 0.5451596246585713,
+-        "prediction_upper": 2.228495089081429,
++        "predicted_final_value": 1.3117566466331483,
++        "prediction_lower": 0.0,
++        "prediction_upper": 2.4012749882439395,
+         "target_hour": 168.0,
+-        "interval_nominal_coverage": 0.9,
+-        "interval_method": "split_conformal_absolute_residual",
+-        "model_version": "persistence",
++        "interval_nominal_coverage": 0.8,
++        "interval_method": "stratified_asymmetric_split_conformal_signed_residual",
++        "interval_stratum": "slope_z_stratum_2",
++        "upper_bound_nominal_level": 0.9,
++        "prediction_lower_two_sided": 0.0,
++        "prediction_upper_two_sided": 2.9833596261072306,
++        "model_version": "xgboost_v2",
+         "predicted_to_cross_limit": true,
+         "explanation": [],
+-        "interval_warning": "Nominal level; coverage on real components is not established; batch dependence limits the usual guarantee",
++        "interval_warning": "Each bound is a one-sided 90% calibrated bound (about 10% of comparable synthetic parts end above prediction_upper), so the pair is an 80% interval; the wider 90% two-sided pair is reported separately. Coverage on real components is not established; batch dependence limits the usual guarantee",
+         "prediction_readiness": "ready",
+         "out_of_training_range_features": [],
+         "prediction_readiness_warning": null,
+         "missing_optional_features": [],
+         "xgboost_candidate_final_value": 0.4999830782413483,
+         "xgboost_explanation": {
+-          "explains": "Unclipped XGBoost candidate forecast; associations, not physical causes",
+-          "is_active_forecast": false,
+-          "base_value_ua": 0.3767493963241577,
++          "explains": "Active xgboost_v2 forecast: absolute-error correction over the 24 h value (bias includes the persistence margin); associations, not physical causes",
++          "is_active_forecast": true,
++          "explained_model": "xgboost_v2",
++          "base_value_ua": 1.4066431522369385,
+           "top_contributions": [
+             {
+-              "feature": "limit_fraction",
+-              "contribution_ua": 0.3076769709587097,
+-              "feature_value": 1.0667902745153846
++              "feature": "distance_fraction_to_upper_limit",
++              "contribution_ua": -0.2641522288322449,
++              "feature_value": -0.0667902745153846
+             },
+             {
+-              "feature": "capacitance_change_fraction",
+-              "contribution_ua": -0.20821192860603333,
+-              "feature_value": -0.009982015917021272
++              "feature": "delta_fraction_of_limit",
++              "contribution_ua": 0.1691535860300064,
++              "feature_value": 0.9900756019621537
+             },
+             {
+-              "feature": "current_batch_robust_z",
+-              "contribution_ua": 0.20641334354877472,
+-              "feature_value": 23.723716868706344
++              "feature": "slope_batch_robust_z",
++              "contribution_ua": -0.05158764496445656,
++              "feature_value": 50.92192638703171
+             },
+             {
+-              "feature": "measurement_voltage_v",
+-              "contribution_ua": -0.19450682401657104,
+-              "feature_value": 15.7058373795
++              "feature": "variability_fraction_of_limit",
++              "contribution_ua": 0.038131579756736755,
++              "feature_value": 0.49503780098107697
+             },
+             {
+-              "feature": "distance_fraction_to_upper_limit",
+-              "contribution_ua": 0.10792333632707596,
+-              "feature_value": -0.0667902745153846
++              "feature": "percent_change",
++              "contribution_ua": 0.03680026903748512,
++              "feature_value": 12.905948353949634
+             }
+           ]
+         },
+@@ -223,8 +384,8 @@
+       }
+     },
+     {
+-      "component_id": "MLCC_C003490",
+-      "batch_id": "MLCC_B029",
++      "component_id": "MLCC_C001733",
++      "batch_id": "MLCC_B002",
+       "component_family": "MLCC_X7R",
+       "measurement_name": "leakage_ua",
+       "recommendation": "ENGINEER_REVIEW",
+@@ -232,69 +393,71 @@
+       "provisional": false,
+       "anomaly": {
+         "status": "available",
+-        "score": 1.0,
++        "score": 0.9977472317059355,
+         "is_anomaly": true,
+         "method": "median_mad+isolation_forest",
+         "model_version": null,
+         "contributing_features": [],
+         "reason_codes": [
+           "Current value is unusually above the batch norm",
+-          "Drift is unusually faster than comparable components",
+-          "Current value has used at least 80% of the safety limit"
++          "Drift is unusually faster than comparable components"
+         ],
+         "score_kind": "ranking score, not failure probability",
+-        "model_score": 0.9468069095708568,
+-        "robust_deviation_score": 52.01436539234558,
++        "model_score": 0.8698915256370023,
++        "robust_deviation_score": 9.593340156518193,
+         "note": "Relative deviation against comparable peers in the same batch. This score is not a probability of physical failure."
+       },
+       "forecast": {
+         "status": "available",
+-        "predicted_final_value": 0.12130230971100002,
+-        "prediction_lower": 0.043609903660714294,
+-        "prediction_upper": 0.19899471576128575,
++        "predicted_final_value": 0.2649940550327301,
++        "prediction_lower": 0.011120531805462852,
++        "prediction_upper": 0.4745168130348053,
+         "target_hour": 168.0,
+-        "interval_nominal_coverage": 0.9,
+-        "interval_method": "split_conformal_absolute_residual",
+-        "model_version": "persistence",
++        "interval_nominal_coverage": 0.8,
++        "interval_method": "stratified_asymmetric_split_conformal_signed_residual",
++        "interval_stratum": "slope_z_stratum_2",
++        "upper_bound_nominal_level": 0.9,
++        "prediction_lower_two_sided": 0.0,
++        "prediction_upper_two_sided": 0.5864561664700536,
++        "model_version": "xgboost_v2",
+         "predicted_to_cross_limit": true,
+         "explanation": [],
+-        "interval_warning": "Nominal level; coverage on real components is not established; batch dependence limits the usual guarantee",
+-        "prediction_readiness": "outside_training_conditions",
+-        "out_of_training_range_features": [
+-          "voltage_stress_ratio"
+-        ],
+-        "prediction_readiness_warning": "Forecast extrapolates beyond observed training conditions; validation and interval coverage do not transfer",
++        "interval_warning": "Each bound is a one-sided 90% calibrated bound (about 10% of comparable synthetic parts end above prediction_upper), so the pair is an 80% interval; the wider 90% two-sided pair is reported separately. Coverage on real components is not established; batch dependence limits the usual guarantee",
++        "prediction_readiness": "ready",
++        "out_of_training_range_features": [],
++        "prediction_readiness_warning": null,
+         "missing_optional_features": [],
+-        "xgboost_candidate_final_value": 0.21643469810485838,
++        "xgboost_candidate_final_value": 0.28777214884757996,
+         "xgboost_explanation": {
+-          "explains": "Unclipped XGBoost candidate forecast; associations, not physical causes",
+-          "is_active_forecast": false,
+-          "base_value_ua": 0.03477686643600464,
++          "explains": "Active xgboost_v2 forecast: absolute-error correction over the 24 h value (bias includes the persistence margin); associations, not physical causes",
++          "is_active_forecast": true,
++          "explained_model": "xgboost_v2",
++          "base_value_ua": 0.06963034719228745,
+           "top_contributions": [
+             {
+-              "feature": "limit_fraction",
+-              "contribution_ua": 0.03493122383952141,
+-              "feature_value": 1.0108525809250002
++              "feature": "delta_fraction_of_limit",
++              "contribution_ua": 0.10177718847990036,
++              "feature_value": 0.10132637570599998
+             },
+             {
+-              "feature": "current_batch_robust_z",
+-              "contribution_ua": 0.033326033502817154,
+-              "feature_value": 35.49699420913435
++              "feature": "percent_change",
++              "contribution_ua": 0.026689568534493446,
++              "feature_value": 0.6256568568341243
+             },
+             {
+-              "feature": "measurement_voltage_v",
+-              "contribution_ua": 0.021862268447875977,
+-              "feature_value": 49.8284621484
++              "feature": "distance_fraction_to_upper_limit",
++              "contribution_ua": 0.020953718572854996,
++              "feature_value": 0.7367216300032
+             },
+             {
+-              "feature": "slope_batch_robust_z",
+-              "contribution_ua": 0.020610660314559937,
+-              "feature_value": 52.01436539234558
++              "feature": "variability_fraction_of_limit",
++              "contribution_ua": 0.018067670986056328,
++              "feature_value": 0.05066318785299999
+             },
+             {
+-              "feature": "delta_fraction_of_limit",
+-              "contribution_ua": 0.019670821726322174,
+-              "feature_value": 0.9271299205858334
++              "feature": "slope_fraction_per_hour",
++              "contribution_ua": 0.011770549230277538,
++              "feature_value": 0.00422193232108333
+             }
+           ]
+         },
+@@ -302,75 +465,75 @@
+       },
+       "limits": {
+         "direction": "upper",
+-        "upper_limit": 0.12,
++        "upper_limit": 0.25,
+         "lower_limit": null,
+-        "applicable_limit": 0.12,
+-        "headroom": -0.0013023097110000104,
+-        "headroom_fraction": -0.010852580925000088,
+-        "limit_fraction": 1.0108525809250002
++        "applicable_limit": 0.25,
++        "headroom": 0.1841804075008,
++        "headroom_fraction": 0.7367216300032,
++        "limit_fraction": 0.2632783699968
+       },
+       "peers": {
+-        "sample_size": 61,
++        "sample_size": 60,
+         "sufficient": true,
+         "status": "available",
+         "median": null,
+         "mad": null,
+         "peer_min": null,
+         "peer_max": null,
+-        "current_batch_robust_z": 35.49699420913435,
+-        "slope_batch_robust_z": 52.01436539234558,
++        "current_batch_robust_z": 3.8581368867311876,
++        "slope_batch_robust_z": 9.593340156518193,
+         "warning": null,
+         "note": null
+       },
+       "measurement_unit": "uA",
+-      "initial_value": 0.0100467192407,
+-      "latest_value": 0.121302309711,
++      "initial_value": 0.0404879985727,
++      "latest_value": 0.0658195924992,
+       "last_observation_hour": 24.0,
+-      "absolute_change": 0.11125559047030001,
+-      "percent_change": 11.07382298687072,
++      "absolute_change": 0.025331593926499994,
++      "percent_change": 0.6256568568341243,
+       "percent_change_available": true,
+-      "slope_per_hour": 0.004635649602929166,
++      "slope_per_hour": 0.0010554830802708326,
+       "acceleration": null,
+       "early_trajectory": [
+         {
+           "hour": 0.0,
+-          "value": 0.0100467192407
++          "value": 0.0404879985727
+         },
+         {
+           "hour": 24.0,
+-          "value": 0.121302309711
++          "value": 0.0658195924992
+         }
+       ],
+-      "part_number": "FICTIONAL-MLCC-01",
++      "part_number": "FICTIONAL-MLCC-02",
+       "test_condition": null,
+-      "temperature_c": 123.488808317,
++      "temperature_c": 122.757377847,
+       "humidity_pct": null,
+-      "applied_voltage_v": 49.7800123954,
+-      "board_position": "163",
++      "applied_voltage_v": 45.6771751333,
++      "board_position": "83",
+       "data_source": "synthetic",
+       "provenance": "synthetic",
+-      "profile_id": "SIM_X7R_10N_50V",
++      "profile_id": "SIM_X7R_100N_50V",
+       "recommendation_reasons": [
+         "Current value is unusually above the batch norm",
+         "Drift is unusually faster than comparable components",
+-        "Current value has used at least 80% of the safety limit",
+-        "The current measurement has crossed the approved limit"
++        "The predicted final value crosses the approved limit",
++        "The prediction range includes a possible limit crossing"
+       ],
+       "data_quality_warning": null,
+       "context": {
+-        "part_number": "FICTIONAL-MLCC-01",
+-        "nominal_capacitance_nf": 10.0,
++        "part_number": "FICTIONAL-MLCC-02",
++        "nominal_capacitance_nf": 100.0,
+         "rated_voltage_v": 50.0,
+         "package_code": "0805",
+         "dielectric": "X7R",
+-        "applied_voltage_v": 49.7800123954,
+-        "measurement_voltage_v": 49.8284621484,
+-        "temperature_c": 123.488808317,
+-        "measurement_temperature_c": 23.5809477333,
+-        "prior_storage_humidity_pct": 30.5725967761,
++        "applied_voltage_v": 45.6771751333,
++        "measurement_voltage_v": 49.292016065,
++        "temperature_c": 122.757377847,
++        "measurement_temperature_c": 26.5854332302,
++        "prior_storage_humidity_pct": 58.9281130483,
+         "tester_id": "TESTER_3",
+-        "tester_channel": 4.0,
+-        "board_position": 163.0,
++        "tester_channel": 7.0,
++        "board_position": 83.0,
+         "data_source": "synthetic",
+         "generator_version": "mlcc-synthetic-1.0.0"
+       }
+@@ -401,11 +564,23 @@
+       "measurement_names": [
+         "leakage_ua"
+       ]
++    },
++    {
++      "component_id": "MLCC_C000097",
++      "batch_id": "MLCC_B002",
++      "component_family": "MLCC_X7R",
++      "summary_recommendation": "ACCEPT",
++      "scored_measurement_count": 1,
++      "unscored_measurement_count": 0,
++      "partial_coverage": false,
++      "measurement_names": [
++        "leakage_ua"
++      ]
+     }
+   ],
+   "evaluation": {
+     "available": true,
+-    "source_filename": "outcomes_168h.csv",
++    "source_filename": "sample_outcomes_168h.csv",
+     "kind": "observed_readings",
+     "target_hour": 168.0,
+     "note": "Evaluation only. These are later OBSERVED measurements. They were excluded from feature building, anomaly scoring, forecasting and peer statistics, and reached the response only after screening.",
+@@ -443,11 +618,6 @@
+     ]
+   },
+   "warnings": [
+-    {
+-      "code": "OUTCOME_LIMITS_IGNORED",
+-      "message": "The outcome file supplied upper_limit. Those columns were ignored: comparison limits are taken from the validated early input so that a later file cannot change what a component is judged against.",
+-      "count": 1
+-    },
+     {
+       "code": "SYNTHETIC_TRAINING_DATA",
+       "message": "These models were trained on synthetic MLCC data. Results demonstrate the pipeline and are not validated hardware screening.",
+@@ -464,5 +634,5 @@
+       "count": 61
+     }
+   ],
+-  "_note": "Genuine response from a real run of mlcc-pilot-1.0 with a separate outcome_file. records/component_summaries/evaluation.outcomes truncated for readability; every other field is exactly as returned. Model numbers are not hand-authored."
++  "_note": "Genuine response from a real run of mlcc-pilot-1.1 on the synthetic MLCC sample with the 168 h outcomes supplied as a separate outcome_file. records/component_summaries/evaluation.outcomes are truncated to 3 entries for readability; every other field is exactly as returned. Model numbers are not hand-authored."
+ }
+diff --git a/scripts/compare_api_vs_core.py b/scripts/compare_api_vs_core.py
+index 915c126..9f099d6 100644
+--- a/scripts/compare_api_vs_core.py
++++ b/scripts/compare_api_vs_core.py
+@@ -26,7 +26,7 @@ from sih26170.api.config import ServiceMode, Settings  # noqa: E402
+ from sih26170.api.main import create_app  # noqa: E402
+ from sih26170.mlcc_prototype import load_bundle, screen_readings  # noqa: E402
+ 
+-BUNDLE = PROJECT_ROOT / "outputs" / "mlcc_v1" / "model_bundle"
++BUNDLE = PROJECT_ROOT / "outputs" / "mlcc_v2" / "model_bundle"
+ DEFAULT_CSV = PROJECT_ROOT / "outputs" / "mlcc_v1" / "train_early.csv"
+ 
+ #: Fields that must agree exactly between the two paths.
+diff --git a/scripts/demo_screen.py b/scripts/demo_screen.py
+index b351492..ed87686 100644
+--- a/scripts/demo_screen.py
++++ b/scripts/demo_screen.py
+@@ -1,6 +1,6 @@
+ """Run the real MLCC bundle through the API and save a genuine sample response.
+ 
+-Everything here comes from an actual run of the shipped mlcc-pilot-1.0 artifact
++Everything here comes from an actual run of the shipped mlcc-pilot-1.1 (v2) artifact
+ through the real HTTP surface. Nothing is hand-authored, and no model numbers
+ are invented.
+ 
+@@ -29,7 +29,7 @@ from sih26170.api.config import ServiceMode, Settings  # noqa: E402
+ from sih26170.api.main import create_app  # noqa: E402
+ from sih26170.api.sample_data import build_sample_csv  # noqa: E402
+ 
+-BUNDLE = PROJECT_ROOT / "outputs" / "mlcc_v1" / "model_bundle"
++BUNDLE = PROJECT_ROOT / "outputs" / "mlcc_v2" / "model_bundle"
+ OUTPUT = PROJECT_ROOT / "docs" / "backend" / "sample_response.json"
+ 
+ #: How many records to keep in the saved sample response. The full run is
+diff --git a/scripts/export_extrapolation.py b/scripts/export_extrapolation.py
+index a45560b..ed1b008 100644
+--- a/scripts/export_extrapolation.py
++++ b/scripts/export_extrapolation.py
+@@ -33,7 +33,7 @@ from sih26170.api.config import ServiceMode, Settings  # noqa: E402
+ from sih26170.api.main import create_app  # noqa: E402
+ from sih26170.api.sample_data import build_sample_csv  # noqa: E402
+ 
+-BUNDLE = PROJECT_ROOT / "outputs" / "mlcc_v1" / "model_bundle"
++BUNDLE = PROJECT_ROOT / "outputs" / "mlcc_v2" / "model_bundle"
+ REPORT = PROJECT_ROOT / "docs" / "backend" / "extrapolation_report.csv"
+ 
+ 
+diff --git a/scripts/score_mlcc_prototype.py b/scripts/score_mlcc_prototype.py
+index 721fbc9..46f66ca 100644
+--- a/scripts/score_mlcc_prototype.py
++++ b/scripts/score_mlcc_prototype.py
+@@ -15,10 +15,10 @@ from sih26170.features import GROUP_COLUMNS  # noqa: E402
+ def main() -> None:
+     parser = argparse.ArgumentParser(description="Score MLCC 0/24-hour CSV using a frozen model bundle")
+     parser.add_argument("csv", type=Path)
+-    parser.add_argument("--bundle", type=Path, default=Path("outputs/mlcc_v1/model_bundle"))
++    parser.add_argument("--bundle", type=Path, default=Path("outputs/mlcc_v2/model_bundle"))
+     parser.add_argument("--output", type=Path, required=True)
+     parser.add_argument("--future-outcomes", type=Path, help="Optional reveal-only truth, never model input")
+-    parser.add_argument("--forecast-model", default="xgboost", choices=["xgboost", "persistence", "linear_extrapolation", "ridge", "hist_gradient_boosting"], help="Explicit demo candidate; validation winner stays recorded separately")
++    parser.add_argument("--forecast-model", default="xgboost", choices=["xgboost_v2", "xgboost", "persistence", "linear_extrapolation", "ridge", "hist_gradient_boosting"], help="Explicit demo candidate; validation winner stays recorded separately")
+     args = parser.parse_args()
+     ids = {column: str for column in GROUP_COLUMNS}
+     result = screen_readings(pd.read_csv(args.csv, dtype=ids), load_bundle(args.bundle),
+diff --git a/src/sih26170/api/config.py b/src/sih26170/api/config.py
+index 2556a48..74000f3 100644
+--- a/src/sih26170/api/config.py
++++ b/src/sih26170/api/config.py
+@@ -69,11 +69,15 @@ class Settings(BaseSettings):
+     mode: ServiceMode = ServiceMode.DEMO
+ 
+     artifacts_dir: Path = PROJECT_ROOT / "artifacts"
+-    mlcc_bundle_dir: Path = PROJECT_ROOT / "outputs" / "mlcc_v1" / "model_bundle"
++    #: The v2 bundle (mlcc-pilot-1.1) adds the xgboost_v2 forecaster, which won
++    #: internal validation and the untouched test batches; the v1 bundle under
++    #: outputs/mlcc_v1/model_bundle still loads and can be selected with
++    #: SIH_MLCC_BUNDLE_DIR for comparison.
++    mlcc_bundle_dir: Path = PROJECT_ROOT / "outputs" / "mlcc_v2" / "model_bundle"
+ 
+     #: Forecast model requested from the bundle. None uses the artifact's own
+-    #: internal-validation winner. The demo explicitly asks for "xgboost";
+-    #: the response always reports which model actually ran.
++    #: internal-validation winner (xgboost_v2 in the v2 bundle); the response
++    #: always reports which model actually ran.
+     forecast_model: str | None = None
+     frontend_dist_dir: Path = PROJECT_ROOT / "frontend" / "dist"
+ 
+diff --git a/src/sih26170/api/profiles.py b/src/sih26170/api/profiles.py
+index ef1ef87..b8cb46f 100644
+--- a/src/sih26170/api/profiles.py
++++ b/src/sih26170/api/profiles.py
+@@ -133,7 +133,7 @@ _PROFILES: tuple[Profile, ...] = (
+         description=(
+             "PILOT PROFILE. X7R multilayer ceramic capacitor leakage current in "
+             "microamps, screened at 0 h and 24 h against a 168 h target by the "
+-            "mlcc-pilot-1.0 bundle. Rows must carry a profile_id matching one of "
++            "loaded MLCC bundle. Rows must carry a profile_id matching one of "
+             "the bundle's supported part/test profiles."
+         ),
+         provenance_note=(
+diff --git a/src/sih26170/api/schemas.py b/src/sih26170/api/schemas.py
+index db4d3d4..812fea7 100644
+--- a/src/sih26170/api/schemas.py
++++ b/src/sih26170/api/schemas.py
+@@ -275,6 +275,13 @@ class XgboostExplanation(Base):
+ 
+     explains: str
+     is_active_forecast: bool
++    explained_model: str | None = Field(
++        default=None,
++        description=(
++            "Which tree model these contributions explain: 'xgboost_v2' when that "
++            "model produced the forecast, otherwise the v1 'xgboost' candidate."
++        ),
++    )
+     base_value_ua: float
+     top_contributions: list[XgboostContribution] = Field(default_factory=list)
+ 
+@@ -296,6 +303,27 @@ class ForecastEvidence(Base):
+         default=None,
+         description="e.g. 'split_conformal'. Null when no calibrated interval is available.",
+     )
++    interval_stratum: str | None = Field(
++        default=None,
++        description=(
++            "For the stratified v2 interval: which 24 h slope robust-z stratum "
++            "supplied the margins (slope_z_stratum_0: z < 2, 1: 2 to 5, 2: >= 5)."
++        ),
++    )
++    upper_bound_nominal_level: float | None = Field(
++        default=None,
++        description=(
++            "For the stratified v2 interval: nominal one-sided level of "
++            "prediction_upper (0.9 means about 10 % of comparable synthetic parts end above it). "
++            "The pair (prediction_lower, prediction_upper) is then an 80 % interval."
++        ),
++    )
++    prediction_lower_two_sided: float | None = Field(
++        default=None, description="Wider two-sided 90 % lower bound (v2 stratified interval only)."
++    )
++    prediction_upper_two_sided: float | None = Field(
++        default=None, description="Wider two-sided 90 % upper bound (v2 stratified interval only)."
++    )
+     model_version: str | None = None
+     predicted_to_cross_limit: bool | None = Field(
+         default=None,
+diff --git a/src/sih26170/api/service_mlcc.py b/src/sih26170/api/service_mlcc.py
+index a908b56..dae340e 100644
+--- a/src/sih26170/api/service_mlcc.py
++++ b/src/sih26170/api/service_mlcc.py
+@@ -205,6 +205,11 @@ def _build_record(
+         explanation = XgboostExplanation(
+             explains=str(explanation_payload.get("explains", "")),
+             is_active_forecast=bool(explanation_payload.get("is_active_forecast", False)),
++            explained_model=(
++                str(explanation_payload["explained_model"])
++                if explanation_payload.get("explained_model") is not None
++                else None
++            ),
+             base_value_ua=float(explanation_payload.get("base_value_ua", 0.0)),
+             top_contributions=[
+                 XgboostContribution(
+@@ -264,6 +269,10 @@ def _build_record(
+             target_hour=_f(core.get("target_hour")),
+             interval_nominal_coverage=_f(core.get("interval_nominal_coverage")),
+             interval_method=core.get("interval_method"),
++            interval_stratum=core.get("interval_stratum"),
++            upper_bound_nominal_level=_f(core.get("upper_bound_nominal_level")),
++            prediction_lower_two_sided=_f(core.get("prediction_lower_two_sided")),
++            prediction_upper_two_sided=_f(core.get("prediction_upper_two_sided")),
+             interval_warning=core.get("interval_warning"),
+             model_version=core.get("forecast_model"),
+             predicted_to_cross_limit=crosses,
+diff --git a/src/sih26170/mlcc_prototype.py b/src/sih26170/mlcc_prototype.py
+index b1e0d88..7f5a47c 100644
+--- a/src/sih26170/mlcc_prototype.py
++++ b/src/sih26170/mlcc_prototype.py
+@@ -33,7 +33,8 @@ from .features import GROUP_COLUMNS, MODEL_FEATURE_COLUMNS, build_component_feat
+ from .validation import REQUIRED_COLUMNS
+ 
+ 
+-VERSION = "mlcc-pilot-1.0"
++VERSION = "mlcc-pilot-1.1"
++COMPATIBLE_VERSIONS = ("mlcc-pilot-1.0", VERSION)  # 1.0 bundles have no xgboost_v2 model
+ AS_OF_HOUR = 24.0
+ TARGET_HOUR = 168.0
+ UNIT = "uA"
+@@ -52,6 +53,136 @@ METADATA_COLUMNS = [
+     "is_synthetic", "generator_version",
+ ]
+ CONDITION_COLUMNS = ["temperature_c", "measurement_temperature_c", "voltage_stress_ratio", "measurement_voltage_v"]
++
++# --- Forecast v2 (Claude forecasting workstream, 2026-09-06) ------------------
++# Absolute-error XGBoost on the correction over persistence: base_margin is the
++# 24 h value divided by the limit, so a zero tree output reproduces persistence.
++# Uses only the ten leakage-derived 0/24 h features; the batch-constant condition
++# columns and the auxiliary measurements are deliberately excluded (they act as
++# batch identifiers / carry no signal on the training folds). Hyperparameters are
++# v1's; a bounded tuning check on whole-batch folds found no improvement.
++RESIDUAL_XGB_NAME = "xgboost_v2"
++RESIDUAL_XGB_FEATURES = MODEL_FEATURE_COLUMNS + ["initial_fraction_of_limit"]
++RESIDUAL_XGB_FEATURE_INDEX = [FORECAST_COLUMNS.index(column) for column in RESIDUAL_XGB_FEATURES]
++PERSISTENCE_COLUMN_INDEX = FORECAST_COLUMNS.index("limit_fraction")
++SLOPE_Z_COLUMN_INDEX = FORECAST_COLUMNS.index("slope_batch_robust_z")
++RESIDUAL_XGB_PARAMS = {
++    "n_estimators": 350, "max_depth": 3, "learning_rate": 0.04, "min_child_weight": 12,
++    "subsample": 0.9, "colsample_bytree": 0.9, "reg_lambda": 10.0,
++    "objective": "reg:absoluteerror", "tree_method": "hist", "base_score": 0.0,
++}
++RESIDUAL_XGB_FILE = "xgboost_v2.ubj"
++# Stratified asymmetric split-conformal interval for the v2 model: strata on the
++# signed 24 h slope robust z (<2, 2-5, >=5), pooled fallback below 20 parts.
++INTERVAL_STRATA_EDGES = (2.0, 5.0)
++INTERVAL_MIN_STRATUM = 20
++STRATIFIED_INTERVAL_METHOD = "stratified_asymmetric_split_conformal_signed_residual"
++
++
++class ResidualOverPersistenceXGB:
++    """sklearn-like wrapper so the v2 forecaster fits into the v1 model dictionary.
++
++    ``fit``/``predict`` take the full FORECAST_COLUMNS matrix (after the bundle
++    imputer) and select the leakage-only columns internally; the persistence
++    forecast (limit_fraction) is always supplied as the XGBoost base margin.
++    """
++
++    def __init__(self, seed: int = 26170, n_jobs: int = 2) -> None:
++        from xgboost import XGBRegressor
++
++        self.model = XGBRegressor(random_state=seed, n_jobs=n_jobs, **RESIDUAL_XGB_PARAMS)
++
++    @staticmethod
++    def _split(matrix: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
++        full = np.asarray(matrix, dtype=float)
++        return full[:, RESIDUAL_XGB_FEATURE_INDEX], full[:, PERSISTENCE_COLUMN_INDEX]
++
++    def fit(self, matrix: np.ndarray, y: np.ndarray) -> "ResidualOverPersistenceXGB":
++        features, margin = self._split(matrix)
++        self.model.fit(features, np.asarray(y, dtype=float), base_margin=margin)
++        return self
++
++    def predict(self, matrix: np.ndarray) -> np.ndarray:
++        features, margin = self._split(matrix)
++        return np.asarray(self.model.predict(features, base_margin=margin), dtype=float)
++
++    def contributions(self, matrix: np.ndarray) -> np.ndarray:
++        """TreeSHAP contributions (last column = bias, which includes the persistence margin)."""
++        from xgboost import DMatrix
++
++        features, margin = self._split(matrix)
++        return self.model.get_booster().predict(DMatrix(features, base_margin=margin), pred_contribs=True)
++
++    def get_booster(self):
++        return self.model.get_booster()
++
++    def save_model(self, path: str | Path) -> None:
++        self.model.save_model(str(path))
++
++    @classmethod
++    def load(cls, path: str | Path) -> "ResidualOverPersistenceXGB":
++        from xgboost import XGBRegressor
++
++        instance = cls.__new__(cls)
++        instance.model = XGBRegressor()
++        instance.model.load_model(str(path))
++        return instance
++
++
++def interval_stratum(slope_batch_robust_z: np.ndarray) -> np.ndarray:
++    values = np.nan_to_num(np.asarray(slope_batch_robust_z, dtype=float), nan=0.0)
++    return np.digitize(values, INTERVAL_STRATA_EDGES)
++
++
++def signed_conformal_bounds(residuals: np.ndarray, alpha: float) -> dict[str, float]:
++    """Finite-sample quantiles of the signed residual (observed - forecast).
++
++    Returns the two-sided (1-alpha) bounds ``lower_two_sided``/``upper_two_sided``
++    (ranks floor((n+1)alpha/2), ceil((n+1)(1-alpha/2))) and the one-sided
++    (1-alpha) bounds ``lower``/``upper`` (ranks floor((n+1)alpha), ceil((n+1)(1-alpha))).
++    The reported interval is [lower, upper]: each bound is a one-sided (1-alpha)
++    bound, so the pair is a two-sided (1-2*alpha) interval whose upper bound is the
++    'may exceed limit' bound used by the decision rule."""
++    ordered = np.sort(np.asarray(residuals, dtype=float))
++    n = len(ordered)
++    if not 0 < alpha < 0.5 or n == 0 or not np.isfinite(ordered).all():
++        raise ValueError("Finite calibration residuals and 0 < alpha < 0.5 are required")
++    ranks = {"lower_two_sided": math.floor((n + 1) * (alpha / 2)), "upper_two_sided": math.ceil((n + 1) * (1 - alpha / 2)), "lower": math.floor((n + 1) * alpha), "upper": math.ceil((n + 1) * (1 - alpha))}
++    if min(ranks.values()) < 1 or max(ranks.values()) > n:
++        raise ValueError("Too few calibration components for asymmetric bounds at this alpha")
++    return {name: float(ordered[rank - 1]) for name, rank in ranks.items()}
++
++
++def stratified_interval_margins(residuals: np.ndarray, slope_batch_robust_z: np.ndarray, alpha: float) -> dict[str, dict[str, float]]:
++    """Per-stratum signed-residual margins with a pooled fallback for small strata."""
++    residuals = np.asarray(residuals, dtype=float)
++    strata = interval_stratum(slope_batch_robust_z)
++    pooled = signed_conformal_bounds(residuals, alpha)
++    margins: dict[str, dict[str, float]] = {}
++    for k in range(len(INTERVAL_STRATA_EDGES) + 1):
++        member = residuals[strata == k]
++        bounds, pooled_fallback = pooled, True
++        if len(member) >= INTERVAL_MIN_STRATUM:
++            try:
++                bounds, pooled_fallback = signed_conformal_bounds(member, alpha), False
++            except ValueError:
++                pass
++        margins[str(k)] = {**bounds, "calibration_components": int(len(member)), "pooled_fallback": pooled_fallback}
++    return margins
++
++
++def stratified_bounds(forecast: np.ndarray, slope_batch_robust_z: np.ndarray, margins: dict[str, dict[str, float]]) -> dict[str, np.ndarray]:
++    """Normalized bounds per component: one-sided ``lower``/``upper`` (the reported
++    interval), the wider two-sided pair, and the stratum index. Lower bounds are
++    clipped at zero leakage."""
++    strata = interval_stratum(slope_batch_robust_z)
++    forecast = np.asarray(forecast, dtype=float)
++    pick = lambda key: np.array([margins[str(k)][key] for k in strata])  # noqa: E731
++    return {
++        "lower": np.maximum(forecast + pick("lower"), 0.0), "upper": forecast + pick("upper"),
++        "lower_two_sided": np.maximum(forecast + pick("lower_two_sided"), 0.0), "upper_two_sided": forecast + pick("upper_two_sided"),
++        "stratum": strata,
++    }
+ # These are sklearn's numerical loss/tree objects, not arbitrary uploaded classes.
+ SKOPS_ALLOWED_TYPES = {
+     "numpy.dtype", "sklearn._loss.link.Interval",
+@@ -254,6 +385,7 @@ def _new_models(seed: int) -> dict[str, Any]:
+             reg_lambda=10.0, objective="reg:squarederror", tree_method="hist",
+             random_state=seed, n_jobs=2,
+         ),
++        RESIDUAL_XGB_NAME: ResidualOverPersistenceXGB(seed=seed, n_jobs=2),
+     }
+ 
+ 
+@@ -348,17 +480,31 @@ def screen_readings(
+                 DMatrix(matrix), pred_contribs=True,
+             )
+         radius = bundle.radii[active_model]
++        stratified = (bundle.manifest.get("interval", {}) or {}).get("stratified") or {}
++        use_stratified = bool(stratified) and stratified.get("model") == active_model
++        if use_stratified:
++            strat = stratified_bounds(forecasts, features["slope_batch_robust_z"].to_numpy(float), stratified["margins"])
++        if active_model == RESIDUAL_XGB_NAME:
++            with threadpool_limits(limits=1):
++                active_contributions = bundle.models[RESIDUAL_XGB_NAME].contributions(matrix)
+         early_groups = {key: group.sort_values("hours") for key, group in early.groupby(GROUP_COLUMNS)}
+         batch_counts = features.groupby(["batch_id", "component_family", "measurement_name"])["component_id"].transform("count")
+         for position, anomaly in enumerate(bundle.detector.to_results(scored)):
+             feature = features.iloc[position]
+             limit = float(feature["upper_limit"])
+             forecast = float(forecasts[position])
+-            prediction = PredictionResult(
+-                predicted_final_value=forecast * limit,
+-                prediction_lower=max(0.0, forecast - radius) * limit,
+-                prediction_upper=(forecast + radius) * limit,
+-            )
++            if use_stratified:
++                prediction = PredictionResult(
++                    predicted_final_value=forecast * limit,
++                    prediction_lower=float(strat["lower"][position]) * limit,
++                    prediction_upper=float(strat["upper"][position]) * limit,
++                )
++            else:
++                prediction = PredictionResult(
++                    predicted_final_value=forecast * limit,
++                    prediction_lower=max(0.0, forecast - radius) * limit,
++                    prediction_upper=(forecast + radius) * limit,
++                )
+             record = build_screening_record(anomaly, prediction)
+             group = early_groups[tuple(feature[column] for column in GROUP_COLUMNS)]
+             last = group.iloc[-1]
+@@ -368,14 +514,26 @@ def screen_readings(
+                 if np.isfinite(feature[column]) and not bounds[0] <= float(feature[column]) <= bounds[1]
+             ]
+             missing_optional = [column for column in FORECAST_COLUMNS if pd.isna(feature[column])]
+-            contributions = xgb_contributions[position, :-1]
++            if active_model == RESIDUAL_XGB_NAME:
++                contributions, contribution_names = active_contributions[position, :-1], RESIDUAL_XGB_FEATURES
++                explanation_base, explanation_text = float(active_contributions[position, -1] * limit), "Active xgboost_v2 forecast: absolute-error correction over the 24 h value (bias includes the persistence margin); associations, not physical causes"
++            else:
++                contributions, contribution_names = xgb_contributions[position, :-1], FORECAST_COLUMNS
++                explanation_base, explanation_text = float(xgb_contributions[position, -1] * limit), "Unclipped XGBoost candidate forecast; associations, not physical causes"
+             top_contributors = np.argsort(np.abs(contributions))[-5:][::-1]
+             record.update({
+                 "status": "scored", "unit": UNIT, "forecast_model": active_model,
+                 "xgboost_candidate_final_value": float(xgb_forecasts[position] * limit),
+-                "interval_nominal_coverage": 1.0 - bundle.manifest["alpha"],
+-                "interval_method": "split_conformal_absolute_residual",
+-                "interval_warning": "Nominal level; coverage on real components is not established; batch dependence limits the usual guarantee",
++                "interval_nominal_coverage": (1.0 - 2 * bundle.manifest["alpha"]) if use_stratified else (1.0 - bundle.manifest["alpha"]),
++                "interval_method": STRATIFIED_INTERVAL_METHOD if use_stratified else "split_conformal_absolute_residual",
++                "interval_stratum": (f"slope_z_stratum_{int(strat['stratum'][position])}" if use_stratified else None),
++                "upper_bound_nominal_level": (1.0 - bundle.manifest["alpha"]) if use_stratified else None,
++                "prediction_lower_two_sided": (float(strat["lower_two_sided"][position]) * limit if use_stratified else None),
++                "prediction_upper_two_sided": (float(strat["upper_two_sided"][position]) * limit if use_stratified else None),
++                "interval_warning": (
++                    "Each bound is a one-sided 90% calibrated bound (about 10% of comparable synthetic parts end above prediction_upper), so the pair is an 80% interval; the wider 90% two-sided pair is reported separately. Coverage on real components is not established; batch dependence limits the usual guarantee"
++                    if use_stratified else "Nominal level; coverage on real components is not established; batch dependence limits the usual guarantee"
++                ),
+                 "anomaly_score_kind": "ranking score, not failure probability",
+                 "initial_value": float(feature["initial_value"]),
+                 "delta": float(feature["delta"]), "percent_change": float(feature["percent_change"]) if feature["initial_value"] != 0 else None,
+@@ -392,10 +550,11 @@ def screen_readings(
+                 "out_of_training_range_features": outside_range,
+                 "prediction_readiness_warning": "Forecast extrapolates beyond observed training conditions; validation and interval coverage do not transfer" if outside_range else None,
+                 "xgboost_explanation": {
+-                    "explains": "Unclipped XGBoost candidate forecast; associations, not physical causes",
+-                    "is_active_forecast": active_model == "xgboost",
+-                    "base_value_ua": float(xgb_contributions[position, -1] * limit),
+-                    "top_contributions": [{"feature": FORECAST_COLUMNS[index], "contribution_ua": float(contributions[index] * limit), "feature_value": float(matrix[position, index])} for index in top_contributors],
++                    "explains": explanation_text,
++                    "is_active_forecast": active_model in ("xgboost", RESIDUAL_XGB_NAME),
++                    "explained_model": RESIDUAL_XGB_NAME if active_model == RESIDUAL_XGB_NAME else "xgboost",
++                    "base_value_ua": explanation_base,
++                    "top_contributions": [{"feature": contribution_names[index], "contribution_ua": float(contributions[index] * limit), "feature_value": float(matrix[position, FORECAST_COLUMNS.index(contribution_names[index])])} for index in top_contributors],
+                 },
+             })
+             records.append(record)
+@@ -480,12 +639,35 @@ def _evaluate(
+                     "interval_coverage": float(((y >= lower) & (y <= upper))[mask].mean()),
+                     "mean_interval_width_ua": float(((upper - lower) * limits)[mask].mean()),
+                 }
++        stratified = (bundle.manifest.get("interval", {}) or {}).get("stratified") or {}
++        if stratified.get("model") == name:
++            s = stratified_bounds(pred, features["slope_batch_robust_z"].to_numpy(float), stratified["margins"])
++            healthy_mask = ~_bool_labels(labels, "is_defect") & clean_tester if "is_defect" in labels else None
++            covered = (y >= s["lower"]) & (y <= s["upper"]); covered_wide = (y >= s["lower_two_sided"]) & (y <= s["upper_two_sided"])
++            per_batch = pd.Series(covered).groupby(features["batch_id"].to_numpy()).mean()
++            metric["stratified_interval"] = {
++                "method": STRATIFIED_INTERVAL_METHOD,
++                "reported_interval": "[one-sided lower, one-sided upper], nominal two-sided 0.8 with a 0.9 one-sided upper bound",
++                "coverage": float(covered.mean()), "upper_bound_coverage": float((y <= s["upper"]).mean()),
++                "two_sided_90_coverage": float(covered_wide.mean()),
++                "mean_width_normalized": float((s["upper"] - s["lower"]).mean()), "median_width_ua": float(np.median((s["upper"] - s["lower"]) * limits)),
++                "coverage_healthy": float(covered[healthy_mask].mean()) if healthy_mask is not None and healthy_mask.any() else None,
++                "coverage_nonhealthy": float(covered[~healthy_mask].mean()) if healthy_mask is not None and (~healthy_mask).any() else None,
++                "per_batch_coverage_min": float(per_batch.min()), "per_batch_coverage_max": float(per_batch.max()),
++                "share_upper_at_or_above_limit": float((s["upper"] >= 1.0).mean()),
++            }
+         result["models"][name] = metric
+     selected = _predict(bundle.selected_model, bundle.models, matrix, features)
+     radius = bundle.radii[bundle.selected_model]
++    stratified = (bundle.manifest.get("interval", {}) or {}).get("stratified") or {}
++    if stratified.get("model") == bundle.selected_model:
++        sel = stratified_bounds(selected, features["slope_batch_robust_z"].to_numpy(float), stratified["margins"])
++        sel_lower, sel_upper = sel["lower"], sel["upper"]
++    else:
++        sel_lower, sel_upper = np.maximum(0, selected - radius), selected + radius
+     actions = []
+     for index, anomaly in enumerate(bundle.detector.to_results(anomalies)):
+-        prediction = PredictionResult(float(selected[index] * limits[index]), float(max(0, selected[index] - radius) * limits[index]), float((selected[index] + radius) * limits[index]))
++        prediction = PredictionResult(float(selected[index] * limits[index]), float(sel_lower[index] * limits[index]), float(sel_upper[index] * limits[index]))
+         actions.append(build_screening_record(anomaly, prediction)["recommendation"])
+     alerts = np.array([action != "ACCEPT" for action in actions])
+     result["anomaly_detection"] = {
+@@ -576,6 +758,8 @@ def train_bundle(
+             name: conformal_radius(calibration_y, _predict(name, models, calibration_matrix, calibration), alpha)
+             for name in ["persistence", "linear_extrapolation", *models]
+         }
++        v2_calibration_residual = calibration_y - _predict(RESIDUAL_XGB_NAME, models, calibration_matrix, calibration)
++        stratified_margins = stratified_interval_margins(v2_calibration_residual, calibration["slope_batch_robust_z"].to_numpy(float), alpha)
+         manifest = {
+             "prototype_version": VERSION, "bundle_id": sha256(json.dumps(hashes, sort_keys=True).encode()).hexdigest()[:16] + f"-s{seed}",
+             "family": "MLCC_X7R", "measurement": "leakage_ua", "unit": UNIT,
+@@ -589,7 +773,12 @@ def train_bundle(
+                           "fit_batch_ids": sorted(train.iloc[fit_index]["batch_id"].unique().tolist()), "validation_batch_ids": sorted(train.iloc[validation_index]["batch_id"].unique().tolist())},
+             "split_summary": split_summary, "dataset_sha256": hashes,
+             "interval": {"method": "Split-conformal absolute normalized residual; ceil((n+1)*(1-alpha)) order statistic", "radii_normalized": radii,
++                         "stratified": {"model": RESIDUAL_XGB_NAME, "method": STRATIFIED_INTERVAL_METHOD, "stratum_feature": "slope_batch_robust_z", "edges": list(INTERVAL_STRATA_EDGES), "min_stratum_components": INTERVAL_MIN_STRATUM, "margins": stratified_margins,
++                                        "reported_interval": "prediction_lower/prediction_upper are the one-sided (1-alpha) bounds of each stratum (a two-sided 1-2*alpha interval); the two-sided (1-alpha) bounds are reported as prediction_lower_two_sided/prediction_upper_two_sided",
++                                        "note": "Signed-residual (observed - forecast) quantiles per slope-z stratum on the calibration batches; lower bounds clipped at zero; used only when xgboost_v2 is the active forecast"},
+                          "limitation": "Device dependence within batches limits exchangeability; nominal coverage is not a guarantee. Synthetic empirical coverage is not real-world validation."},
++            "forecast_v2": {"model": RESIDUAL_XGB_NAME, "features": RESIDUAL_XGB_FEATURES, "objective": RESIDUAL_XGB_PARAMS["objective"], "target": "observed final_value / upper_limit with base_margin = 24 h value / upper_limit (correction over persistence)", "params": RESIDUAL_XGB_PARAMS,
++                            "artifact": RESIDUAL_XGB_FILE, "provenance": "Claude forecasting v2 (training-only whole-batch experiment, 2026-09-06); see docs/CLAUDE_FORECAST_V2_HANDOFF.md"},
+             "versions": {package: importlib.metadata.version(package) for package in ("numpy", "pandas", "scikit-learn", "xgboost", "skops")},
+             "anomaly": {"contamination": 0.1, "robust_threshold": 3.5, "score_semantics": "Ranking score; not a failure probability", "fit_scope": "Training batches only; batch peer statistics recomputed from the uploaded 0/24 readings"},
+             "training_condition_ranges": {column: [float(train[column].min()), float(train[column].max())] for column in CONDITION_COLUMNS if train[column].notna().any()},
+@@ -601,14 +790,19 @@ def train_bundle(
+             [{"feature": column, "importance": float(importance)} for column, importance in zip(FORECAST_COLUMNS, models["xgboost"].feature_importances_)],
+             key=lambda item: item["importance"], reverse=True,
+         )
++        evaluation["xgboost_v2_feature_importance"] = sorted(
++            [{"feature": column, "importance": float(importance)} for column, importance in zip(RESIDUAL_XGB_FEATURES, models[RESIDUAL_XGB_NAME].model.feature_importances_)],
++            key=lambda item: item["importance"], reverse=True,
++        )
+     output_dir.mkdir(parents=True, exist_ok=True)
+     state = {"imputer": imputer, "detector_pipeline": detector.pipeline,
+              "detector_training_strengths": detector._training_strengths,
+-             "models": {name: model for name, model in models.items() if name != "xgboost"}, "radii": radii}
++             "models": {name: model for name, model in models.items() if name not in ("xgboost", RESIDUAL_XGB_NAME)}, "radii": radii}
+     sio.dump(state, output_dir / "state.skops")
+     models["xgboost"].save_model(output_dir / "xgboost.json")
++    models[RESIDUAL_XGB_NAME].save_model(output_dir / RESIDUAL_XGB_FILE)
+     (output_dir / "evaluation.json").write_text(json.dumps(_json_safe(evaluation), indent=2, allow_nan=False) + "\n")
+-    manifest["artifact_sha256"] = {name: _hash(output_dir / name) for name in ("state.skops", "xgboost.json", "evaluation.json")}
++    manifest["artifact_sha256"] = {name: _hash(output_dir / name) for name in ("state.skops", "xgboost.json", RESIDUAL_XGB_FILE, "evaluation.json")}
+     (output_dir / "manifest.json").write_text(json.dumps(_json_safe(manifest), indent=2, allow_nan=False) + "\n")
+     return {"bundle_dir": str(output_dir.resolve()), "selected_model": selected,
+             "validation_mae_normalized": validation_mae, "test": evaluation["test"]}
+@@ -621,10 +815,11 @@ def load_bundle(path: str | Path) -> ModelBundle:
+ 
+     directory = Path(path)
+     manifest = json.loads((directory / "manifest.json").read_text())
+-    if manifest.get("prototype_version") != VERSION or manifest.get("feature_columns") != FORECAST_COLUMNS:
++    if manifest.get("prototype_version") not in COMPATIBLE_VERSIONS or manifest.get("feature_columns") != FORECAST_COLUMNS:
+         raise ValueError("Unsupported model version or feature schema")
+-    for name in ("state.skops", "xgboost.json", "evaluation.json"):
+-        if _hash(directory / name) != manifest["artifact_sha256"][name]:
++    has_v2 = RESIDUAL_XGB_FILE in manifest.get("artifact_sha256", {})
++    for name in ("state.skops", "xgboost.json", "evaluation.json") + ((RESIDUAL_XGB_FILE,) if has_v2 else ()):
++        if not (directory / name).is_file() or _hash(directory / name) != manifest["artifact_sha256"][name]:
+             raise ValueError(f"Artifact integrity check failed: {name}")
+     for package, expected in manifest["versions"].items():
+         if importlib.metadata.version(package) != expected:
+@@ -641,4 +836,7 @@ def load_bundle(path: str | Path) -> ModelBundle:
+     detector._training_strengths = state["detector_training_strengths"]
+     model = XGBRegressor()
+     model.load_model(directory / "xgboost.json")
+-    return ModelBundle(manifest, state["imputer"], detector, {**state["models"], "xgboost": model}, state["radii"])
++    models = {**state["models"], "xgboost": model}
++    if has_v2:
++        models[RESIDUAL_XGB_NAME] = ResidualOverPersistenceXGB.load(directory / RESIDUAL_XGB_FILE)
++    return ModelBundle(manifest, state["imputer"], detector, models, state["radii"])
+diff --git a/src/sih26170/prediction/mlcc_engine.py b/src/sih26170/prediction/mlcc_engine.py
+index bff724b..906fe25 100644
+--- a/src/sih26170/prediction/mlcc_engine.py
++++ b/src/sih26170/prediction/mlcc_engine.py
+@@ -56,6 +56,8 @@ TEXT_COLUMNS: frozenset[str] = frozenset(
+     }
+ )
+ 
++#: Files every bundle must carry. A bundle may declare more (the v2 bundle adds
++#: xgboost_v2.ubj); every declared artifact is checksum-verified as well.
+ BUNDLE_FILES: tuple[str, ...] = ("state.skops", "xgboost.json", "evaluation.json")
+ 
+ 
+@@ -174,7 +176,7 @@ def verify_bundle(directory: Path, manifest: dict[str, Any]) -> list[tuple[str,
+     checks: list[tuple[str, bool, str | None]] = []
+     declared = manifest.get("artifact_sha256", {}) or {}
+ 
+-    for filename in BUNDLE_FILES:
++    for filename in BUNDLE_FILES + tuple(name for name in declared if name not in BUNDLE_FILES):
+         path = directory / filename
+         if not path.is_file():
+             checks.append((f"file:{filename}", False, "Artifact file is missing."))
+diff --git a/tests/api/test_health_profiles.py b/tests/api/test_health_profiles.py
+index 4c70f08..81c82b4 100644
+--- a/tests/api/test_health_profiles.py
++++ b/tests/api/test_health_profiles.py
+@@ -15,7 +15,7 @@ from sih26170.prediction.registry import ModelRegistry
+ 
+ from .doubles import RecordingAnomalyAdapter, RecordingForecastAdapter
+ 
+-REAL_BUNDLE = PROJECT_ROOT / "outputs" / "mlcc_v1" / "model_bundle"
++REAL_BUNDLE = PROJECT_ROOT / "outputs" / "mlcc_v2" / "model_bundle"
+ NO_BUNDLE = Path("__no_mlcc_bundle__")
+ 
+ 
+@@ -82,7 +82,7 @@ def test_readiness_is_200_with_the_real_bundle():
+     capabilities = {c["name"]: c for c in body["capabilities"]}
+     assert capabilities["anomaly"]["available"] is True
+     assert capabilities["forecast"]["available"] is True
+-    assert capabilities["anomaly"]["model_version"] == "mlcc-pilot-1.0"
++    assert capabilities["anomaly"]["model_version"] == "mlcc-pilot-1.1"
+     assert capabilities["anomaly"]["artifact_id"]
+ 
+ 
+diff --git a/tests/api/test_screen_mlcc.py b/tests/api/test_screen_mlcc.py
+index 8f76d97..971badc 100644
+--- a/tests/api/test_screen_mlcc.py
++++ b/tests/api/test_screen_mlcc.py
+@@ -1,6 +1,6 @@
+ """Integration tests for the MLCC pilot path, against the ACTUAL loaded bundle.
+ 
+-No doubles here. These exercise the shipped mlcc-pilot-1.0 artifact through the
++No doubles here. These exercise the shipped mlcc-pilot-1.1 (v2) artifact through the
+ real HTTP surface, which is the only way to know the demo will behave.
+ 
+ The bundle is loaded once for the module because deserialising it costs a couple
+@@ -20,8 +20,8 @@ from sih26170.api.config import PROJECT_ROOT, ServiceMode, Settings
+ from sih26170.api.schemas import OutcomeRecord
+ from sih26170.api.main import create_app
+ 
+-DEMO_DIR = PROJECT_ROOT / "outputs" / "mlcc_v1"
+-BUNDLE_DIR = DEMO_DIR / "model_bundle"
++DEMO_DIR = PROJECT_ROOT / "outputs" / "mlcc_v1"  # synthetic demo data
++BUNDLE_DIR = PROJECT_ROOT / "outputs" / "mlcc_v2" / "model_bundle"  # v2 bundle (mlcc-pilot-1.1)
+ 
+ pytestmark = pytest.mark.skipif(
+     not (BUNDLE_DIR / "manifest.json").is_file(),
+@@ -109,7 +109,9 @@ def test_record_carries_real_evidence(client, early_frame):
+     assert forecast["prediction_upper"] is not None
+     assert forecast["prediction_lower"] <= forecast["predicted_final_value"] <= forecast["prediction_upper"]
+     assert forecast["target_hour"] == 168.0
+-    assert forecast["interval_nominal_coverage"] == pytest.approx(0.9)
++    # v2 stratified interval: an 80 % pair whose upper bound is the one-sided 90 % bound
++    assert forecast["interval_nominal_coverage"] == pytest.approx(0.8)
++    assert forecast["upper_bound_nominal_level"] == pytest.approx(0.9)
+     assert forecast["interval_warning"]
+     assert forecast["prediction_readiness"] in {
+         "ready",
+@@ -151,10 +153,37 @@ def test_nulls_are_never_turned_into_zeros(client, early_frame):
+ def test_default_forecast_uses_the_validation_winner(client, early_frame):
+     body = screen(client, early_frame)
+     info = body["model_info"]
+-    assert info["selected_model"] == "persistence"
+-    assert info["validation_winner"] == "persistence"
++    assert info["selected_model"] == "xgboost_v2"
++    assert info["validation_winner"] == "xgboost_v2"
+     assert info["forecast_selection"] == "internal validation winner"
+     assert info["selection_warning"] is None
++    assert "xgboost_v2" in info["available_models"] and "persistence" in info["available_models"]
++    for record in body["records"]:
++        forecast = record["forecast"]
++        assert forecast["model_version"] == "xgboost_v2"
++        assert forecast["interval_method"] == "stratified_asymmetric_split_conformal_signed_residual"
++        assert forecast["interval_stratum"].startswith("slope_z_stratum_")
++        assert forecast["interval_nominal_coverage"] == pytest.approx(0.8)
++        assert forecast["upper_bound_nominal_level"] == pytest.approx(0.9)
++        assert forecast["prediction_lower_two_sided"] <= forecast["prediction_lower"] <= forecast["predicted_final_value"]
++        assert forecast["predicted_final_value"] <= forecast["prediction_upper"] <= forecast["prediction_upper_two_sided"]
++        assert forecast["xgboost_explanation"]["is_active_forecast"] is True
++        assert forecast["xgboost_explanation"]["explained_model"] == "xgboost_v2"
++
++
++def test_persistence_can_still_be_requested_with_the_v1_symmetric_interval(client, early_frame):
++    body = screen(client, early_frame, forecast_model="persistence")
++    info = body["model_info"]
++    assert info["selected_model"] == "persistence"
++    assert info["validation_winner"] == "xgboost_v2"
++    assert info["selection_warning"]
++    for record in body["records"]:
++        forecast = record["forecast"]
++        assert forecast["model_version"] == "persistence"
++        assert forecast["interval_method"] == "split_conformal_absolute_residual"
++        assert forecast["interval_stratum"] is None and forecast["prediction_upper_two_sided"] is None
++        assert forecast["interval_nominal_coverage"] == pytest.approx(0.9)
++        assert forecast["predicted_final_value"] == pytest.approx(record["latest_value"])
+ 
+ 
+ def test_requesting_xgboost_is_reported_and_warned(client, early_frame):
+@@ -163,14 +192,14 @@ def test_requesting_xgboost_is_reported_and_warned(client, early_frame):
+     info = body["model_info"]
+ 
+     assert info["selected_model"] == "xgboost"
+-    assert info["validation_winner"] == "persistence"
++    assert info["validation_winner"] == "xgboost_v2"
+     assert info["forecast_selection"] == "explicit caller choice"
+     assert info["selection_warning"]
+ 
+     warning = next(
+         w for w in body["warnings"] if w["code"] == "FORECAST_MODEL_NOT_VALIDATION_WINNER"
+     )
+-    assert "persistence" in warning["message"]
++    assert "xgboost_v2" in warning["message"]
+     assert "not evidence that the selected model is better" in warning["message"]
+ 
+     for record in body["records"]:
+@@ -179,13 +208,14 @@ def test_requesting_xgboost_is_reported_and_warned(client, early_frame):
+ 
+ def test_xgboost_candidate_is_named_separately_from_the_active_forecast(client, early_frame):
+     """A candidate's number must never be presented as the active forecast."""
+-    body = screen(client, early_frame)  # persistence is active
++    body = screen(client, early_frame, forecast_model="persistence")
+     record = body["records"][0]
+     forecast = record["forecast"]
+ 
+     assert forecast["model_version"] == "persistence"
+     assert forecast["xgboost_candidate_final_value"] is not None
+     assert forecast["xgboost_explanation"]["is_active_forecast"] is False
++    assert forecast["xgboost_explanation"]["explained_model"] == "xgboost"
+ 
+ 
+ def test_xgboost_explanation_marks_itself_active_when_it_is(client, early_frame):
+@@ -212,7 +242,7 @@ def test_model_info_declares_no_fitting_and_synthetic_training(client, early_fra
+     info = body["model_info"]
+     assert info["model_fitted_during_request"] is False
+     assert info["model_training_data"] == "synthetic"
+-    assert info["prototype_version"] == "mlcc-pilot-1.0"
++    assert info["prototype_version"] == "mlcc-pilot-1.1"
+     assert info["bundle_id"]
+     assert info["limitations"]
+     assert any(w["code"] == "SYNTHETIC_TRAINING_DATA" for w in body["warnings"])
+diff --git a/tests/test_mlcc_prototype.py b/tests/test_mlcc_prototype.py
+index a3021ed..6cac5a2 100644
+--- a/tests/test_mlcc_prototype.py
++++ b/tests/test_mlcc_prototype.py
+@@ -8,8 +8,9 @@ import pandas as pd
+ import pytest
+ 
+ from sih26170.mlcc_prototype import (
+-    FORECAST_COLUMNS, conformal_radius, load_bundle, prepare_early_features,
+-    screen_readings, train_bundle,
++    FORECAST_COLUMNS, RESIDUAL_XGB_FEATURES, RESIDUAL_XGB_NAME, STRATIFIED_INTERVAL_METHOD,
++    ResidualOverPersistenceXGB, conformal_radius, load_bundle, prepare_early_features,
++    screen_readings, signed_conformal_bounds, stratified_interval_margins, train_bundle,
+ )
+ 
+ 
+@@ -89,7 +90,8 @@ def test_training_selection_is_batch_disjoint_and_native_xgb_persisted(trained_b
+     assert not set(selection["fit_batch_ids"]) & set(selection["validation_batch_ids"])
+     assert all(batch.startswith("train_") for batch in selection["validation_batch_ids"])
+     assert (directory / "bundle/xgboost.json").is_file()
+-    assert set(result["test"]["models"]) == {"persistence", "linear_extrapolation", "ridge", "hist_gradient_boosting", "xgboost"}
++    assert (directory / "bundle/xgboost_v2.ubj").is_file()
++    assert set(result["test"]["models"]) == {"persistence", "linear_extrapolation", "ridge", "hist_gradient_boosting", "xgboost", "xgboost_v2"}
+ 
+ 
+ def test_reloaded_inference_never_fits_and_future_reveal_does_not_change_results(trained_bundle, monkeypatch) -> None:
+@@ -181,3 +183,84 @@ def test_explicit_xgboost_candidate_preserves_validation_winner_and_explains(tra
+     assert response["metadata"]["validation_winner"] == bundle.selected_model
+     assert all(record["forecast_model"] == "xgboost" for record in response["records"])
+     assert len(response["records"][0]["xgboost_explanation"]["top_contributions"]) == 5
++
++
++def test_v2_residual_model_uses_persistence_margin_and_persists_natively(trained_bundle, tmp_path: Path) -> None:
++    directory, bundle, result = trained_bundle
++    model = bundle.models[RESIDUAL_XGB_NAME]
++    assert isinstance(model, ResidualOverPersistenceXGB)
++    early, _ = make_split("v2", 1)
++    features, _, _ = prepare_early_features(early)
++    matrix = bundle.imputer.transform(features[FORECAST_COLUMNS])
++    predicted = model.predict(matrix)
++    # margin + trees: contributions (incl. bias) sum to the raw prediction
++    contributions = model.contributions(matrix)
++    np.testing.assert_allclose(contributions.sum(axis=1), predicted, rtol=1e-5, atol=1e-6)
++    # only the leakage-only columns can matter: perturbing an excluded column changes nothing
++    perturbed = matrix.copy()
++    for column in ("prior_storage_humidity_pct", "measurement_voltage_v", "capacitance_change_fraction"):
++        perturbed[:, FORECAST_COLUMNS.index(column)] += 123.0
++    np.testing.assert_allclose(model.predict(perturbed), predicted)
++    # native reload gives identical predictions
++    model.save_model(tmp_path / "m.ubj")
++    np.testing.assert_allclose(ResidualOverPersistenceXGB.load(tmp_path / "m.ubj").predict(matrix), predicted)
++    assert bundle.manifest["forecast_v2"]["features"] == RESIDUAL_XGB_FEATURES
++    assert bundle.manifest["interval"]["stratified"]["model"] == RESIDUAL_XGB_NAME
++    assert set(bundle.manifest["interval"]["stratified"]["margins"]) == {"0", "1", "2"}
++
++
++def test_v2_forecast_gets_stratified_asymmetric_interval_and_explanation(trained_bundle) -> None:
++    _, bundle, _ = trained_bundle
++    early, _ = make_split("v2s", 1)
++    response = screen_readings(early, bundle, forecast_model=RESIDUAL_XGB_NAME)
++    assert response["metadata"]["selected_model"] == RESIDUAL_XGB_NAME
++    margins = bundle.manifest["interval"]["stratified"]["margins"]
++    for record in response["records"]:
++        assert record["forecast_model"] == RESIDUAL_XGB_NAME
++        assert record["interval_method"] == STRATIFIED_INTERVAL_METHOD
++        assert record["interval_stratum"].startswith("slope_z_stratum_")
++        stratum = margins[record["interval_stratum"].rsplit("_", 1)[1]]
++        limit = record["safety_limit"]
++        normalized = record["predicted_final_value"] / limit
++        assert record["prediction_lower"] == pytest.approx(max(normalized + stratum["lower"], 0.0) * limit)
++        assert record["prediction_upper"] == pytest.approx((normalized + stratum["upper"]) * limit)
++        assert record["prediction_upper_two_sided"] == pytest.approx((normalized + stratum["upper_two_sided"]) * limit)
++        assert record["prediction_lower_two_sided"] <= record["prediction_lower"] <= record["predicted_final_value"] <= record["prediction_upper"] <= record["prediction_upper_two_sided"]
++        assert record["interval_nominal_coverage"] == pytest.approx(0.8) and record["upper_bound_nominal_level"] == pytest.approx(0.9)
++        assert record["xgboost_explanation"]["is_active_forecast"] is True
++        assert record["xgboost_explanation"]["explained_model"] == RESIDUAL_XGB_NAME
++        assert {item["feature"] for item in record["xgboost_explanation"]["top_contributions"]} <= set(RESIDUAL_XGB_FEATURES)
++    # v1 models keep the symmetric radius and the v1 explanation
++    legacy = screen_readings(early, bundle, forecast_model="persistence")
++    assert all(r["interval_method"] == "split_conformal_absolute_residual" and r["interval_stratum"] is None for r in legacy["records"])
++    assert all(r["xgboost_explanation"]["explained_model"] == "xgboost" and r["xgboost_explanation"]["is_active_forecast"] is False for r in legacy["records"])
++    json.dumps(response, allow_nan=False)
++
++
++def test_signed_conformal_bounds_and_pooled_fallback() -> None:
++    residuals = np.arange(1, 40, dtype=float) - 20  # -19..19, n=39
++    bounds = signed_conformal_bounds(residuals, 0.2)
++    # ranks: two-sided floor(40*0.1)=4 / ceil(40*0.9)=36; one-sided floor(40*0.2)=8 / ceil(40*0.8)=32
++    assert bounds == {"lower_two_sided": -16.0, "upper_two_sided": 16.0, "lower": -12.0, "upper": 12.0}
++    margins = stratified_interval_margins(residuals, np.full(39, 0.0), 0.2)
++    assert margins["0"]["pooled_fallback"] is False and margins["1"]["pooled_fallback"] is True
++    assert margins["1"]["lower"] == bounds["lower"] and margins["2"]["upper_two_sided"] == bounds["upper_two_sided"]
++    with pytest.raises(ValueError, match="Too few"):
++        signed_conformal_bounds(np.array([1.0, 2.0]), 0.05)
++
++
++def test_v1_bundle_without_v2_model_still_loads(trained_bundle, tmp_path: Path) -> None:
++    import shutil
++    directory, _, _ = trained_bundle
++    target = tmp_path / "legacy"
++    shutil.copytree(directory / "bundle", target)
++    manifest = json.loads((target / "manifest.json").read_text())
++    manifest["prototype_version"] = "mlcc-pilot-1.0"
++    manifest["artifact_sha256"].pop("xgboost_v2.ubj")
++    manifest["interval"].pop("stratified")
++    (target / "xgboost_v2.ubj").unlink()
++    (target / "manifest.json").write_text(json.dumps(manifest))
++    legacy = load_bundle(target)
++    assert RESIDUAL_XGB_NAME not in legacy.models
++    early, _ = make_split("legacy", 1)
++    assert screen_readings(early, legacy, forecast_model="xgboost")["metadata"]["selected_model"] == "xgboost"

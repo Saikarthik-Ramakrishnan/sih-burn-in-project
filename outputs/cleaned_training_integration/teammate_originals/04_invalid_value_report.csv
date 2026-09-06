@@ -1,0 +1,4 @@
+Check,Invalid Rows,Status
+Negative hours,0,PASS
+Negative measurement value,0,PASS
+Invalid upper limit,0,PASS

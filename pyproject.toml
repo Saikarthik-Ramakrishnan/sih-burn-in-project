@@ -1,0 +1,37 @@
+# Merged 2026-09-05: Karthik's core package metadata (name, deps, pytest config)
+# plus the backend workstream's API dependencies and test paths.
+# Karthik's original is preserved verbatim except where noted inline.
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sih26170-anomaly-core"
+version = "0.1.0"
+description = "Batch-aware early anomaly detection for component burn-in screening"
+requires-python = ">=3.11"
+dependencies = [
+  # --- core (Karthik) ---
+  "numpy>=2.0",
+  "pandas>=2.2",     # MLCC artifact was trained on 3.0.5; 2.x and 3.x both pass
+  "scikit-learn>=1.5",
+  # --- backend API (Ashvitha) ---
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "pydantic>=2.7",
+  "pydantic-settings>=2.3",
+  "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "httpx>=0.27"]
+# The MLCC bundle cannot load without these; demo mode requires them.
+prototype = ["xgboost>=3.0,<4", "skops>=0.13,<0.14"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.setuptools.packages.find]
+where = ["src"]

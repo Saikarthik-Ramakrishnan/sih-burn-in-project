@@ -1,0 +1,730 @@
+{
+  "low_prevalence": {
+    "components": 2000,
+    "batches": 20,
+    "models": {
+      "persistence": {
+        "mae_normalized": 0.011161064653725045,
+        "mae_ua": 0.005955668057588804,
+        "interval_coverage": 0.9985,
+        "mean_interval_width_normalized": 0.769680622500217,
+        "mean_interval_width_ua": 0.4575975826754914,
+        "observed_final_crossing": {
+          "tp": 6,
+          "fn": 2,
+          "fp": 0,
+          "tn": 1992,
+          "recall": 0.75,
+          "false_positive_rate": 0.0,
+          "precision": 1.0
+        },
+        "latent_physical_crossing_excluding_tester_faults": {
+          "tp": 0,
+          "fn": 2,
+          "fp": 0,
+          "tn": 1992,
+          "recall": 0.0,
+          "false_positive_rate": 0.0,
+          "precision": null
+        },
+        "by_profile": {
+          "SIM_X7R_100N_50V": {
+            "components": 500,
+            "mae_normalized": 0.013316552344452802,
+            "mae_ua": 0.0033291380861132005,
+            "interval_coverage": 0.998,
+            "mean_interval_width_ua": 0.19092008990429038
+          },
+          "SIM_X7R_10N_50V": {
+            "components": 500,
+            "mae_normalized": 0.011042521303956833,
+            "mae_ua": 0.00132510255647482,
+            "interval_coverage": 0.998,
+            "mean_interval_width_ua": 0.0913997877027731
+          },
+          "SIM_X7R_1U_25V": {
+            "components": 500,
+            "mae_normalized": 0.012003848114450858,
+            "mae_ua": 0.008402693680115599,
+            "interval_coverage": 0.998,
+            "mean_interval_width_ua": 0.5498732745611865
+          },
+          "SIM_X7R_4U7_16V": {
+            "components": 500,
+            "mae_normalized": 0.008281336852039694,
+            "mae_ua": 0.010765737907651602,
+            "interval_coverage": 1.0,
+            "mean_interval_width_ua": 0.9981971785337153
+          }
+        }
+      },
+      "linear_extrapolation": {
+        "mae_normalized": 0.07522475015459958,
+        "mae_ua": 0.044408640347948565,
+        "interval_coverage": 0.998,
+        "mean_interval_width_normalized": 0.6648467511876365,
+        "mean_interval_width_ua": 0.39504753696063516,
+        "observed_final_crossing": {
+          "tp": 6,
+          "fn": 2,
+          "fp": 1,
+          "tn": 1991,
+          "recall": 0.75,
+          "false_positive_rate": 0.000502008032128514,
+          "precision": 0.8571428571428571
+        },
+        "latent_physical_crossing_excluding_tester_faults": {
+          "tp": 0,
+          "fn": 2,
+          "fp": 1,
+          "tn": 1991,
+          "recall": 0.0,
+          "false_positive_rate": 0.000502008032128514,
+          "precision": 0.0
+        },
+        "by_profile": {
+          "SIM_X7R_100N_50V": {
+            "components": 500,
+            "mae_normalized": 0.07677907956480484,
+            "mae_ua": 0.01919476989120121,
+            "interval_coverage": 0.996,
+            "mean_interval_width_ua": 0.16518670141703543
+          },
+          "SIM_X7R_10N_50V": {
+            "components": 500,
+            "mae_normalized": 0.07175111006803622,
+            "mae_ua": 0.008610133208164346,
+            "interval_coverage": 0.998,
+            "mean_interval_width_ua": 0.07917173479639217
+          },
+          "SIM_X7R_1U_25V": {
+            "components": 500,
+            "mae_normalized": 0.08041632664799293,
+            "mae_ua": 0.05629142865359505,
+            "interval_coverage": 0.998,
+            "mean_interval_width_ua": 0.472157879142169
+          },
+          "SIM_X7R_4U7_16V": {
+            "components": 500,
+            "mae_normalized": 0.07195248433756435,
+            "mae_ua": 0.09353822963883365,
+            "interval_coverage": 1.0,
+            "mean_interval_width_ua": 0.8636738324869443
+          }
+        }
+      },
+      "ridge": {
+        "mae_normalized": 0.14563850203701761,
+        "mae_ua": 0.08051454016776113,
+        "interval_coverage": 0.998,
+        "mean_interval_width_normalized": 0.7506900674229725,
+        "mean_interval_width_ua": 0.4406617390404632,
+        "observed_final_crossing": {
+          "tp": 6,
+          "fn": 2,
+          "fp": 1,
+          "tn": 1991,
+          "recall": 0.75,
+          "false_positive_rate": 0.000502008032128514,
+          "precision": 0.8571428571428571
+        },
+        "latent_physical_crossing_excluding_tester_faults": {
+          "tp": 0,
+          "fn": 2,
+          "fp": 1,
+          "tn": 1991,
+          "recall": 0.0,
+          "false_positive_rate": 0.000502008032128514,
+          "precision": 0.0
+        },
+        "by_profile": {
+          "SIM_X7R_100N_50V": {
+            "components": 500,
+            "mae_normalized": 0.1531730120918654,
+            "mae_ua": 0.03829325302296635,
+            "interval_coverage": 0.996,
+            "mean_interval_width_ua": 0.18766987618498263
+          },
+          "SIM_X7R_10N_50V": {
+            "components": 500,
+            "mae_normalized": 0.15802821193589078,
+            "mae_ua": 0.018963385432306894,
+            "interval_coverage": 0.998,
+            "mean_interval_width_ua": 0.09086488708976917
+          },
+          "SIM_X7R_1U_25V": {
+            "components": 500,
+            "mae_normalized": 0.14659516190106203,
+            "mae_ua": 0.1026166133307434,
+            "interval_coverage": 0.998,
+            "mean_interval_width_ua": 0.5357603899798281
+          },
+          "SIM_X7R_4U7_16V": {
+            "components": 500,
+            "mae_normalized": 0.12475762221925221,
+            "mae_ua": 0.16218490888502787,
+            "interval_coverage": 1.0,
+            "mean_interval_width_ua": 0.9483518029072727
+          }
+        }
+      },
+      "hist_gradient_boosting": {
+        "mae_normalized": 0.1322284958258322,
+        "mae_ua": 0.07205026430529622,
+        "interval_coverage": 0.9895,
+        "mean_interval_width_normalized": 0.70859892381902,
+        "mean_interval_width_ua": 0.41549422090126054,
+        "observed_final_crossing": {
+          "tp": 6,
+          "fn": 2,
+          "fp": 2,
+          "tn": 1990,
+          "recall": 0.75,
+          "false_positive_rate": 0.001004016064257028,
+          "precision": 0.75
+        },
+        "latent_physical_crossing_excluding_tester_faults": {
+          "tp": 0,
+          "fn": 2,
+          "fp": 2,
+          "tn": 1990,
+          "recall": 0.0,
+          "false_positive_rate": 0.001004016064257028,
+          "precision": 0.0
+        },
+        "by_profile": {
+          "SIM_X7R_100N_50V": {
+            "components": 500,
+            "mae_normalized": 0.13156553794292977,
+            "mae_ua": 0.03289138448573244,
+            "interval_coverage": 0.986,
+            "mean_interval_width_ua": 0.17534456358844636
+          },
+          "SIM_X7R_10N_50V": {
+            "components": 500,
+            "mae_normalized": 0.1495107840267505,
+            "mae_ua": 0.01794129408321006,
+            "interval_coverage": 0.992,
+            "mean_interval_width_ua": 0.08634840847032069
+          },
+          "SIM_X7R_1U_25V": {
+            "components": 500,
+            "mae_normalized": 0.1413676351358343,
+            "mae_ua": 0.09895734459508401,
+            "interval_coverage": 0.986,
+            "mean_interval_width_ua": 0.5100639482060507
+          },
+          "SIM_X7R_4U7_16V": {
+            "components": 500,
+            "mae_normalized": 0.10647002619781415,
+            "mae_ua": 0.1384110340571584,
+            "interval_coverage": 0.994,
+            "mean_interval_width_ua": 0.8902199633402245
+          }
+        }
+      },
+      "xgboost": {
+        "mae_normalized": 0.12156802869939963,
+        "mae_ua": 0.06676029865808945,
+        "interval_coverage": 0.9925,
+        "mean_interval_width_normalized": 0.6728742999564272,
+        "mean_interval_width_ua": 0.3954835966450309,
+        "observed_final_crossing": {
+          "tp": 6,
+          "fn": 2,
+          "fp": 2,
+          "tn": 1990,
+          "recall": 0.75,
+          "false_positive_rate": 0.001004016064257028,
+          "precision": 0.75
+        },
+        "latent_physical_crossing_excluding_tester_faults": {
+          "tp": 0,
+          "fn": 2,
+          "fp": 2,
+          "tn": 1990,
+          "recall": 0.0,
+          "false_positive_rate": 0.001004016064257028,
+          "precision": 0.0
+        },
+        "by_profile": {
+          "SIM_X7R_100N_50V": {
+            "components": 500,
+            "mae_normalized": 0.11836295428935062,
+            "mae_ua": 0.029590738572337655,
+            "interval_coverage": 0.992,
+            "mean_interval_width_ua": 0.16558327598650407
+          },
+          "SIM_X7R_10N_50V": {
+            "components": 500,
+            "mae_normalized": 0.1405853153929463,
+            "mae_ua": 0.016870237847153555,
+            "interval_coverage": 0.992,
+            "mean_interval_width_ua": 0.08215067558098287
+          },
+          "SIM_X7R_1U_25V": {
+            "components": 500,
+            "mae_normalized": 0.12490130072837585,
+            "mae_ua": 0.0874309105098631,
+            "interval_coverage": 0.994,
+            "mean_interval_width_ua": 0.4827051104209239
+          },
+          "SIM_X7R_4U7_16V": {
+            "components": 500,
+            "mae_normalized": 0.1024225443869258,
+            "mae_ua": 0.13314930770300354,
+            "interval_coverage": 0.992,
+            "mean_interval_width_ua": 0.8514953245917125
+          }
+        }
+      }
+    },
+    "anomaly_detection": {
+      "observed_final_crossing": {
+        "tp": 7,
+        "fn": 1,
+        "fp": 103,
+        "tn": 1889,
+        "recall": 0.875,
+        "false_positive_rate": 0.051706827309236945,
+        "precision": 0.06363636363636363
+      },
+      "latent_physical_crossing_excluding_tester_faults": {
+        "tp": 1,
+        "fn": 1,
+        "fp": 103,
+        "tn": 1889,
+        "recall": 0.5,
+        "false_positive_rate": 0.051706827309236945,
+        "precision": 0.009615384615384616
+      },
+      "note": "Unusual early behaviour and future failure are distinct labels; this is early warning recall against final crossings"
+    },
+    "combined_screening": {
+      "alert_definition": "recommendation is MONITOR, RETEST or ENGINEER_REVIEW",
+      "observed_final_crossing": {
+        "tp": 7,
+        "fn": 1,
+        "fp": 106,
+        "tn": 1886,
+        "recall": 0.875,
+        "false_positive_rate": 0.05321285140562249,
+        "precision": 0.061946902654867256
+      },
+      "latent_physical_crossing_excluding_tester_faults": {
+        "tp": 1,
+        "fn": 1,
+        "fp": 106,
+        "tn": 1886,
+        "recall": 0.5,
+        "false_positive_rate": 0.05321285140562249,
+        "precision": 0.009345794392523364
+      },
+      "recommendations": {
+        "MONITOR": 76,
+        "ACCEPT": 1887,
+        "RETEST": 29,
+        "ENGINEER_REVIEW": 8
+      },
+      "by_scenario": {
+        "accelerating_drift": {
+          "components": 4,
+          "alert_rate": 0.25
+        },
+        "gradual_drift": {
+          "components": 2,
+          "alert_rate": 1.0
+        },
+        "healthy_settling": {
+          "components": 1537,
+          "alert_rate": 0.016916070266753416
+        },
+        "intermittent_leakage": {
+          "components": 1,
+          "alert_rate": 1.0
+        },
+        "late_abrupt_onset": {
+          "components": 1,
+          "alert_rate": 0.0
+        },
+        "moisture_associated_history": {
+          "components": 3,
+          "alert_rate": 0.3333333333333333
+        },
+        "ordinary_noise": {
+          "components": 446,
+          "alert_rate": 0.17040358744394618
+        },
+        "tester_channel_fault": {
+          "components": 6,
+          "alert_rate": 1.0
+        }
+      }
+    },
+    "interpretation": "Separate synthetic stress test. No training, tuning or selection used these rows. Rare-set recall has very few events; shifted-condition interval coverage is not assured."
+  },
+  "unseen_condition": {
+    "components": 2000,
+    "batches": 20,
+    "models": {
+      "persistence": {
+        "mae_normalized": 0.12134834692027686,
+        "mae_ua": 0.07490300599846696,
+        "interval_coverage": 0.9405,
+        "mean_interval_width_normalized": 0.8706499952044576,
+        "mean_interval_width_ua": 0.519281914128323,
+        "observed_final_crossing": {
+          "tp": 17,
+          "fn": 99,
+          "fp": 3,
+          "tn": 1881,
+          "recall": 0.14655172413793102,
+          "false_positive_rate": 0.0015923566878980893,
+          "precision": 0.85
+        },
+        "latent_physical_crossing_excluding_tester_faults": {
+          "tp": 2,
+          "fn": 88,
+          "fp": 3,
+          "tn": 1858,
+          "recall": 0.022222222222222223,
+          "false_positive_rate": 0.0016120365394948952,
+          "precision": 0.4
+        },
+        "by_profile": {
+          "SIM_X7R_100N_50V": {
+            "components": 500,
+            "mae_normalized": 0.1166885342178536,
+            "mae_ua": 0.0291721335544634,
+            "interval_coverage": 0.944,
+            "mean_interval_width_ua": 0.2129486423299213
+          },
+          "SIM_X7R_10N_50V": {
+            "components": 500,
+            "mae_normalized": 0.12137680866497033,
+            "mae_ua": 0.014565217039796439,
+            "interval_coverage": 0.94,
+            "mean_interval_width_ua": 0.10676512482218099
+          },
+          "SIM_X7R_1U_25V": {
+            "components": 500,
+            "mae_normalized": 0.10941964139693429,
+            "mae_ua": 0.076593748977854,
+            "interval_coverage": 0.946,
+            "mean_interval_width_ua": 0.5903461200148991
+          },
+          "SIM_X7R_4U7_16V": {
+            "components": 500,
+            "mae_normalized": 0.13790840340134924,
+            "mae_ua": 0.17928092442175397,
+            "interval_coverage": 0.932,
+            "mean_interval_width_ua": 1.167067769346291
+          }
+        }
+      },
+      "linear_extrapolation": {
+        "mae_normalized": 0.2959772242018498,
+        "mae_ua": 0.17156469578110467,
+        "interval_coverage": 0.917,
+        "mean_interval_width_normalized": 0.7356546450517601,
+        "mean_interval_width_ua": 0.4380557306344481,
+        "observed_final_crossing": {
+          "tp": 27,
+          "fn": 89,
+          "fp": 26,
+          "tn": 1858,
+          "recall": 0.23275862068965517,
+          "false_positive_rate": 0.013800424628450107,
+          "precision": 0.5094339622641509
+        },
+        "latent_physical_crossing_excluding_tester_faults": {
+          "tp": 13,
+          "fn": 77,
+          "fp": 12,
+          "tn": 1849,
+          "recall": 0.14444444444444443,
+          "false_positive_rate": 0.006448146157979581,
+          "precision": 0.52
+        },
+        "by_profile": {
+          "SIM_X7R_100N_50V": {
+            "components": 500,
+            "mae_normalized": 0.22519594243985128,
+            "mae_ua": 0.05629898560996282,
+            "interval_coverage": 0.936,
+            "mean_interval_width_ua": 0.18067937307123538
+          },
+          "SIM_X7R_10N_50V": {
+            "components": 500,
+            "mae_normalized": 0.37258703890501843,
+            "mae_ua": 0.0447104446686022,
+            "interval_coverage": 0.902,
+            "mean_interval_width_ua": 0.08959307329264735
+          },
+          "SIM_X7R_1U_25V": {
+            "components": 500,
+            "mae_normalized": 0.29452389542572494,
+            "mae_ua": 0.20616672679800743,
+            "interval_coverage": 0.916,
+            "mean_interval_width_ua": 0.5055508625857738
+          },
+          "SIM_X7R_4U7_16V": {
+            "components": 500,
+            "mae_normalized": 0.29160202003680474,
+            "mae_ua": 0.37908262604784615,
+            "interval_coverage": 0.914,
+            "mean_interval_width_ua": 0.976399613588136
+          }
+        }
+      },
+      "ridge": {
+        "mae_normalized": 0.18784228667293748,
+        "mae_ua": 0.11121647277273274,
+        "interval_coverage": 0.936,
+        "mean_interval_width_normalized": 0.8146828417708935,
+        "mean_interval_width_ua": 0.48161937230578056,
+        "observed_final_crossing": {
+          "tp": 21,
+          "fn": 95,
+          "fp": 14,
+          "tn": 1870,
+          "recall": 0.1810344827586207,
+          "false_positive_rate": 0.0074309978768577496,
+          "precision": 0.6
+        },
+        "latent_physical_crossing_excluding_tester_faults": {
+          "tp": 2,
+          "fn": 88,
+          "fp": 4,
+          "tn": 1857,
+          "recall": 0.022222222222222223,
+          "false_positive_rate": 0.0021493820526598604,
+          "precision": 0.3333333333333333
+        },
+        "by_profile": {
+          "SIM_X7R_100N_50V": {
+            "components": 500,
+            "mae_normalized": 0.18323536745532357,
+            "mae_ua": 0.04580884186383089,
+            "interval_coverage": 0.94,
+            "mean_interval_width_ua": 0.20188382734353633
+          },
+          "SIM_X7R_10N_50V": {
+            "components": 500,
+            "mae_normalized": 0.2048472371805759,
+            "mae_ua": 0.024581668461669107,
+            "interval_coverage": 0.934,
+            "mean_interval_width_ua": 0.10160612422912078
+          },
+          "SIM_X7R_1U_25V": {
+            "components": 500,
+            "mae_normalized": 0.1629952065119581,
+            "mae_ua": 0.11409664455837064,
+            "interval_coverage": 0.94,
+            "mean_interval_width_ua": 0.5399733790379255
+          },
+          "SIM_X7R_4U7_16V": {
+            "components": 500,
+            "mae_normalized": 0.2002913355438925,
+            "mae_ua": 0.2603787362070602,
+            "interval_coverage": 0.93,
+            "mean_interval_width_ua": 1.0830141586125395
+          }
+        }
+      },
+      "hist_gradient_boosting": {
+        "mae_normalized": 0.37342678961214804,
+        "mae_ua": 0.2216466464279513,
+        "interval_coverage": 0.743,
+        "mean_interval_width_normalized": 0.89822983746361,
+        "mean_interval_width_ua": 0.5329014990801261,
+        "observed_final_crossing": {
+          "tp": 49,
+          "fn": 67,
+          "fp": 159,
+          "tn": 1725,
+          "recall": 0.4224137931034483,
+          "false_positive_rate": 0.08439490445859872,
+          "precision": 0.23557692307692307
+        },
+        "latent_physical_crossing_excluding_tester_faults": {
+          "tp": 34,
+          "fn": 56,
+          "fp": 146,
+          "tn": 1715,
+          "recall": 0.37777777777777777,
+          "false_positive_rate": 0.0784524449220849,
+          "precision": 0.18888888888888888
+        },
+        "by_profile": {
+          "SIM_X7R_100N_50V": {
+            "components": 500,
+            "mae_normalized": 0.3873560553992669,
+            "mae_ua": 0.09683901384981672,
+            "interval_coverage": 0.73,
+            "mean_interval_width_ua": 0.224843800213696
+          },
+          "SIM_X7R_10N_50V": {
+            "components": 500,
+            "mae_normalized": 0.3864916227821755,
+            "mae_ua": 0.04637899473386106,
+            "interval_coverage": 0.728,
+            "mean_interval_width_ua": 0.10873662598347186
+          },
+          "SIM_X7R_1U_25V": {
+            "components": 500,
+            "mae_normalized": 0.3207479120319456,
+            "mae_ua": 0.22452353842236186,
+            "interval_coverage": 0.816,
+            "mean_interval_width_ua": 0.6132019935478157
+          },
+          "SIM_X7R_4U7_16V": {
+            "components": 500,
+            "mae_normalized": 0.3991115682352042,
+            "mae_ua": 0.5188450387057656,
+            "interval_coverage": 0.698,
+            "mean_interval_width_ua": 1.1848235765755204
+          }
+        }
+      },
+      "xgboost": {
+        "mae_normalized": 0.30802851155540034,
+        "mae_ua": 0.17996990467172622,
+        "interval_coverage": 0.8525,
+        "mean_interval_width_normalized": 0.8444124946869742,
+        "mean_interval_width_ua": 0.5005330091965982,
+        "observed_final_crossing": {
+          "tp": 44,
+          "fn": 72,
+          "fp": 76,
+          "tn": 1808,
+          "recall": 0.3793103448275862,
+          "false_positive_rate": 0.040339702760084924,
+          "precision": 0.36666666666666664
+        },
+        "latent_physical_crossing_excluding_tester_faults": {
+          "tp": 27,
+          "fn": 63,
+          "fp": 63,
+          "tn": 1798,
+          "recall": 0.3,
+          "false_positive_rate": 0.0338527673293928,
+          "precision": 0.3
+        },
+        "by_profile": {
+          "SIM_X7R_100N_50V": {
+            "components": 500,
+            "mae_normalized": 0.31362078934742565,
+            "mae_ua": 0.07840519733685641,
+            "interval_coverage": 0.866,
+            "mean_interval_width_ua": 0.21131738916966106
+          },
+          "SIM_X7R_10N_50V": {
+            "components": 500,
+            "mae_normalized": 0.33397491895154485,
+            "mae_ua": 0.040076990274185376,
+            "interval_coverage": 0.812,
+            "mean_interval_width_ua": 0.10261042811769824
+          },
+          "SIM_X7R_1U_25V": {
+            "components": 500,
+            "mae_normalized": 0.26412734703926083,
+            "mae_ua": 0.18488914292748257,
+            "interval_coverage": 0.902,
+            "mean_interval_width_ua": 0.5743235842352524
+          },
+          "SIM_X7R_4U7_16V": {
+            "components": 500,
+            "mae_normalized": 0.3203909908833697,
+            "mae_ua": 0.41650828814838065,
+            "interval_coverage": 0.83,
+            "mean_interval_width_ua": 1.1138806352637807
+          }
+        }
+      }
+    },
+    "anomaly_detection": {
+      "observed_final_crossing": {
+        "tp": 72,
+        "fn": 44,
+        "fp": 472,
+        "tn": 1412,
+        "recall": 0.6206896551724138,
+        "false_positive_rate": 0.2505307855626327,
+        "precision": 0.1323529411764706
+      },
+      "latent_physical_crossing_excluding_tester_faults": {
+        "tp": 51,
+        "fn": 39,
+        "fp": 453,
+        "tn": 1408,
+        "recall": 0.5666666666666667,
+        "false_positive_rate": 0.24341751746372917,
+        "precision": 0.10119047619047619
+      },
+      "note": "Unusual early behaviour and future failure are distinct labels; this is early warning recall against final crossings"
+    },
+    "combined_screening": {
+      "alert_definition": "recommendation is MONITOR, RETEST or ENGINEER_REVIEW",
+      "observed_final_crossing": {
+        "tp": 88,
+        "fn": 28,
+        "fp": 799,
+        "tn": 1085,
+        "recall": 0.7586206896551724,
+        "false_positive_rate": 0.42409766454352443,
+        "precision": 0.0992108229988726
+      },
+      "latent_physical_crossing_excluding_tester_faults": {
+        "tp": 66,
+        "fn": 24,
+        "fp": 780,
+        "tn": 1081,
+        "recall": 0.7333333333333333,
+        "false_positive_rate": 0.41912950026867274,
+        "precision": 0.07801418439716312
+      },
+      "recommendations": {
+        "ACCEPT": 1113,
+        "MONITOR": 660,
+        "RETEST": 105,
+        "ENGINEER_REVIEW": 122
+      },
+      "by_scenario": {
+        "accelerating_drift": {
+          "components": 115,
+          "alert_rate": 0.43478260869565216
+        },
+        "gradual_drift": {
+          "components": 96,
+          "alert_rate": 0.8333333333333334
+        },
+        "healthy_settling": {
+          "components": 1220,
+          "alert_rate": 0.34918032786885245
+        },
+        "intermittent_leakage": {
+          "components": 56,
+          "alert_rate": 0.5892857142857143
+        },
+        "late_abrupt_onset": {
+          "components": 71,
+          "alert_rate": 0.49295774647887325
+        },
+        "moisture_associated_history": {
+          "components": 65,
+          "alert_rate": 0.6615384615384615
+        },
+        "ordinary_noise": {
+          "components": 340,
+          "alert_rate": 0.5588235294117647
+        },
+        "tester_channel_fault": {
+          "components": 37,
+          "alert_rate": 0.8108108108108109
+        }
+      }
+    },
+    "interpretation": "Separate synthetic stress test. No training, tuning or selection used these rows. Rare-set recall has very few events; shifted-condition interval coverage is not assured."
+  }
+}

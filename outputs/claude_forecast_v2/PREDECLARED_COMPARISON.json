@@ -1,0 +1,393 @@
+{
+  "recorded_at": "2026-09-05T18:44:46Z",
+  "rule": "This list was fixed before scripts/claude_forecast_v2.py experiment was run. Any later change requires a new predeclaration and must be disclosed.",
+  "selection_rule": "Primary metric: normalized MAE (|prediction - observed final_value| / upper_limit) pooled over out-of-fold predictions on 5 profile-stratified whole-batch folds; ties broken by fold-mean MAE. Eligibility for recommendation: (a) pooled MAE below persistence and below persistence in at least 4 of 5 folds; (b) healthy-part MAE (is_healthy, retrospective) at most 0.02 normalized so the healthy majority is not inflated; (c) feature set must not contain the batch-constant condition columns (the v1 replica is a reference only, because those columns take one value per batch and act as batch identifiers). If nothing is eligible, persistence is recommended and XGBoost is reported as not beating the baseline. MAE in uA by profile, RMSE, mean signed error, crossing recall / false-positive rate / confusion counts (observed, new-below-limit-at-24h, latent excluding tester faults) and by-scenario MAE are reported for tradeoffs but do not drive selection. Hyperparameters are v1's for every configuration; no tuning.",
+  "folds": 5,
+  "seed": 26170,
+  "config_digest": "27702108c22c731553cbb314bae3576d1f76929dd1cbeab5b8fa231a3d0afd5a",
+  "configs": [
+    {
+      "name": "persistence",
+      "model": "persistence",
+      "target": "normalized",
+      "feature_set": "leakage_only",
+      "objective": null,
+      "params": {},
+      "description": "baseline: 168 h value = 24 h value",
+      "feature_columns": [
+        "percent_change",
+        "delta_fraction_of_limit",
+        "slope_fraction_per_hour",
+        "acceleration_fraction_per_hour2",
+        "variability_fraction_of_limit",
+        "limit_fraction",
+        "distance_fraction_to_upper_limit",
+        "current_batch_robust_z",
+        "slope_batch_robust_z",
+        "initial_fraction_of_limit"
+      ]
+    },
+    {
+      "name": "linear_extrapolation",
+      "model": "linear_extrapolation",
+      "target": "normalized",
+      "feature_set": "leakage_only",
+      "objective": null,
+      "params": {},
+      "description": "baseline: 24 h value + 0-24 h slope x 144 h",
+      "feature_columns": [
+        "percent_change",
+        "delta_fraction_of_limit",
+        "slope_fraction_per_hour",
+        "acceleration_fraction_per_hour2",
+        "variability_fraction_of_limit",
+        "limit_fraction",
+        "distance_fraction_to_upper_limit",
+        "current_batch_robust_z",
+        "slope_batch_robust_z",
+        "initial_fraction_of_limit"
+      ]
+    },
+    {
+      "name": "xgb_v1_replica",
+      "model": "xgboost",
+      "target": "normalized",
+      "feature_set": "v1_all",
+      "objective": "reg:squarederror",
+      "params": {},
+      "description": "v1 configuration reproduced (includes batch-constant condition columns)",
+      "feature_columns": [
+        "percent_change",
+        "delta_fraction_of_limit",
+        "slope_fraction_per_hour",
+        "acceleration_fraction_per_hour2",
+        "variability_fraction_of_limit",
+        "limit_fraction",
+        "distance_fraction_to_upper_limit",
+        "current_batch_robust_z",
+        "slope_batch_robust_z",
+        "initial_fraction_of_limit",
+        "temperature_c",
+        "measurement_temperature_c",
+        "voltage_stress_ratio",
+        "measurement_voltage_v",
+        "prior_storage_humidity_pct",
+        "initial_capacitance_fraction",
+        "current_capacitance_fraction",
+        "capacitance_change_fraction",
+        "initial_dissipation_factor_pct",
+        "current_dissipation_factor_pct",
+        "dissipation_factor_change_pct"
+      ]
+    },
+    {
+      "name": "xgb_sq_norm_leak",
+      "model": "xgboost",
+      "target": "normalized",
+      "feature_set": "leakage_only",
+      "objective": "reg:squarederror",
+      "params": {},
+      "description": "v1 objective/target without aux or condition columns",
+      "feature_columns": [
+        "percent_change",
+        "delta_fraction_of_limit",
+        "slope_fraction_per_hour",
+        "acceleration_fraction_per_hour2",
+        "variability_fraction_of_limit",
+        "limit_fraction",
+        "distance_fraction_to_upper_limit",
+        "current_batch_robust_z",
+        "slope_batch_robust_z",
+        "initial_fraction_of_limit"
+      ]
+    },
+    {
+      "name": "xgb_sq_resid_leak",
+      "model": "xgboost",
+      "target": "residual_over_persistence",
+      "feature_set": "leakage_only",
+      "objective": "reg:squarederror",
+      "params": {},
+      "description": "squared error on the correction over persistence",
+      "feature_columns": [
+        "percent_change",
+        "delta_fraction_of_limit",
+        "slope_fraction_per_hour",
+        "acceleration_fraction_per_hour2",
+        "variability_fraction_of_limit",
+        "limit_fraction",
+        "distance_fraction_to_upper_limit",
+        "current_batch_robust_z",
+        "slope_batch_robust_z",
+        "initial_fraction_of_limit"
+      ]
+    },
+    {
+      "name": "xgb_abs_norm_leak",
+      "model": "xgboost",
+      "target": "normalized",
+      "feature_set": "leakage_only",
+      "objective": "reg:absoluteerror",
+      "params": {},
+      "description": "MAE-consistent objective on the raw normalized target",
+      "feature_columns": [
+        "percent_change",
+        "delta_fraction_of_limit",
+        "slope_fraction_per_hour",
+        "acceleration_fraction_per_hour2",
+        "variability_fraction_of_limit",
+        "limit_fraction",
+        "distance_fraction_to_upper_limit",
+        "current_batch_robust_z",
+        "slope_batch_robust_z",
+        "initial_fraction_of_limit"
+      ]
+    },
+    {
+      "name": "xgb_abs_resid_leak",
+      "model": "xgboost",
+      "target": "residual_over_persistence",
+      "feature_set": "leakage_only",
+      "objective": "reg:absoluteerror",
+      "params": {},
+      "description": "hypothesised best: median correction over persistence, leakage-only",
+      "feature_columns": [
+        "percent_change",
+        "delta_fraction_of_limit",
+        "slope_fraction_per_hour",
+        "acceleration_fraction_per_hour2",
+        "variability_fraction_of_limit",
+        "limit_fraction",
+        "distance_fraction_to_upper_limit",
+        "current_batch_robust_z",
+        "slope_batch_robust_z",
+        "initial_fraction_of_limit"
+      ]
+    },
+    {
+      "name": "xgb_huber_resid_leak",
+      "model": "xgboost",
+      "target": "residual_over_persistence",
+      "feature_set": "leakage_only",
+      "objective": "reg:pseudohubererror",
+      "params": {
+        "huber_slope": 0.05
+      },
+      "description": "pseudo-Huber with delta 0.05 normalized: between L1 and L2",
+      "feature_columns": [
+        "percent_change",
+        "delta_fraction_of_limit",
+        "slope_fraction_per_hour",
+        "acceleration_fraction_per_hour2",
+        "variability_fraction_of_limit",
+        "limit_fraction",
+        "distance_fraction_to_upper_limit",
+        "current_batch_robust_z",
+        "slope_batch_robust_z",
+        "initial_fraction_of_limit"
+      ]
+    },
+    {
+      "name": "xgb_sq_log1p_leak",
+      "model": "xgboost",
+      "target": "log1p_normalized",
+      "feature_set": "leakage_only",
+      "objective": "reg:squarederror",
+      "params": {},
+      "description": "squared error on log1p(y): tail-taming transform alone",
+      "feature_columns": [
+        "percent_change",
+        "delta_fraction_of_limit",
+        "slope_fraction_per_hour",
+        "acceleration_fraction_per_hour2",
+        "variability_fraction_of_limit",
+        "limit_fraction",
+        "distance_fraction_to_upper_limit",
+        "current_batch_robust_z",
+        "slope_batch_robust_z",
+        "initial_fraction_of_limit"
+      ]
+    },
+    {
+      "name": "xgb_sq_log1p_resid_leak",
+      "model": "xgboost",
+      "target": "log1p_residual_over_persistence",
+      "feature_set": "leakage_only",
+      "objective": "reg:squarederror",
+      "params": {},
+      "description": "squared error on log1p(y) with log1p(persistence) offset: multiplicative correction",
+      "feature_columns": [
+        "percent_change",
+        "delta_fraction_of_limit",
+        "slope_fraction_per_hour",
+        "acceleration_fraction_per_hour2",
+        "variability_fraction_of_limit",
+        "limit_fraction",
+        "distance_fraction_to_upper_limit",
+        "current_batch_robust_z",
+        "slope_batch_robust_z",
+        "initial_fraction_of_limit"
+      ]
+    },
+    {
+      "name": "xgb_abs_resid_aux",
+      "model": "xgboost",
+      "target": "residual_over_persistence",
+      "feature_set": "leakage_plus_aux",
+      "objective": "reg:absoluteerror",
+      "params": {},
+      "description": "hypothesised best plus part-level capacitance/loss-factor features and batch-relative humidity rank",
+      "feature_columns": [
+        "percent_change",
+        "delta_fraction_of_limit",
+        "slope_fraction_per_hour",
+        "acceleration_fraction_per_hour2",
+        "variability_fraction_of_limit",
+        "limit_fraction",
+        "distance_fraction_to_upper_limit",
+        "current_batch_robust_z",
+        "slope_batch_robust_z",
+        "initial_fraction_of_limit",
+        "initial_capacitance_fraction",
+        "current_capacitance_fraction",
+        "capacitance_change_fraction",
+        "initial_dissipation_factor_pct",
+        "current_dissipation_factor_pct",
+        "dissipation_factor_change_pct",
+        "prior_storage_humidity_batch_rank_v2"
+      ]
+    },
+    {
+      "name": "xgb_abs_resid_peer",
+      "model": "xgboost",
+      "target": "residual_over_persistence",
+      "feature_set": "leakage_plus_channel_peer",
+      "objective": "reg:absoluteerror",
+      "params": {},
+      "description": "hypothesised best plus leave-one-out same-channel peer statistics (instrument-fault vs drift disambiguation)",
+      "feature_columns": [
+        "percent_change",
+        "delta_fraction_of_limit",
+        "slope_fraction_per_hour",
+        "acceleration_fraction_per_hour2",
+        "variability_fraction_of_limit",
+        "limit_fraction",
+        "distance_fraction_to_upper_limit",
+        "current_batch_robust_z",
+        "slope_batch_robust_z",
+        "initial_fraction_of_limit",
+        "channel_peer_median_current_z_v2",
+        "channel_peer_elevated_fraction_v2"
+      ]
+    }
+  ],
+  "feature_sets": {
+    "v1_all": [
+      "percent_change",
+      "delta_fraction_of_limit",
+      "slope_fraction_per_hour",
+      "acceleration_fraction_per_hour2",
+      "variability_fraction_of_limit",
+      "limit_fraction",
+      "distance_fraction_to_upper_limit",
+      "current_batch_robust_z",
+      "slope_batch_robust_z",
+      "initial_fraction_of_limit",
+      "temperature_c",
+      "measurement_temperature_c",
+      "voltage_stress_ratio",
+      "measurement_voltage_v",
+      "prior_storage_humidity_pct",
+      "initial_capacitance_fraction",
+      "current_capacitance_fraction",
+      "capacitance_change_fraction",
+      "initial_dissipation_factor_pct",
+      "current_dissipation_factor_pct",
+      "dissipation_factor_change_pct"
+    ],
+    "leakage_only": [
+      "percent_change",
+      "delta_fraction_of_limit",
+      "slope_fraction_per_hour",
+      "acceleration_fraction_per_hour2",
+      "variability_fraction_of_limit",
+      "limit_fraction",
+      "distance_fraction_to_upper_limit",
+      "current_batch_robust_z",
+      "slope_batch_robust_z",
+      "initial_fraction_of_limit"
+    ],
+    "leakage_plus_aux": [
+      "percent_change",
+      "delta_fraction_of_limit",
+      "slope_fraction_per_hour",
+      "acceleration_fraction_per_hour2",
+      "variability_fraction_of_limit",
+      "limit_fraction",
+      "distance_fraction_to_upper_limit",
+      "current_batch_robust_z",
+      "slope_batch_robust_z",
+      "initial_fraction_of_limit",
+      "initial_capacitance_fraction",
+      "current_capacitance_fraction",
+      "capacitance_change_fraction",
+      "initial_dissipation_factor_pct",
+      "current_dissipation_factor_pct",
+      "dissipation_factor_change_pct",
+      "prior_storage_humidity_batch_rank_v2"
+    ],
+    "leakage_plus_channel_peer": [
+      "percent_change",
+      "delta_fraction_of_limit",
+      "slope_fraction_per_hour",
+      "acceleration_fraction_per_hour2",
+      "variability_fraction_of_limit",
+      "limit_fraction",
+      "distance_fraction_to_upper_limit",
+      "current_batch_robust_z",
+      "slope_batch_robust_z",
+      "initial_fraction_of_limit",
+      "channel_peer_median_current_z_v2",
+      "channel_peer_elevated_fraction_v2"
+    ]
+  },
+  "provenance": {
+    "v1_xgb_params": {
+      "n_estimators": 350,
+      "max_depth": 3,
+      "learning_rate": 0.04,
+      "min_child_weight": 12,
+      "subsample": 0.9,
+      "colsample_bytree": 0.9,
+      "reg_lambda": 10.0,
+      "tree_method": "hist"
+    },
+    "feature_constants": {
+      "MIN_CHANNEL_PEERS": 5,
+      "CHANNEL_PEER_Z_THRESHOLD": 3.0
+    },
+    "v2_feature_formulas": {
+      "prior_storage_humidity_batch_rank_v2": "percentile rank (0-1, average ties) of prior_storage_humidity_pct among the components of the same batch_id/component_family/measurement_name in the same upload; NaN when humidity is missing",
+      "channel_peer_median_current_z_v2": "leave-one-out median of current_batch_robust_z over the OTHER components sharing the same batch_id/component_family/measurement_name/tester_channel in the same upload; NaN (then median-imputed) when tester_channel is missing or fewer than MIN_CHANNEL_PEERS peers are present",
+      "channel_peer_elevated_fraction_v2": "leave-one-out fraction of those channel peers whose current_batch_robust_z exceeds 3; same NaN rule. A shared elevation across a channel indicates a possible instrument/channel effect rather than a component property; tester_channel identity itself is never a feature"
+    },
+    "interval_constants": {
+      "SLOPE_Z_STRATA_EDGES": [
+        2.0,
+        5.0
+      ],
+      "MIN_STRATUM_CALIBRATION": 20
+    },
+    "source_sha256": {
+      "forecast_v2.py": "655ae3a90264029bd37e30a3e97fe52304d5e59748af557a351f85a23ede7353",
+      "features.py": "eb4082c5f79f5fa6e918dd68a216dacf60444682e2bc389f29b88488ed818d13",
+      "mlcc_prototype.py": "b164c41c7181e8c34e3bf8dca85c089767237bc0ca35fdffc9c7cde3f81adac9",
+      "validation.py": "ba2b125f714c913cff31489c3b340f2742a82b808008c3360f65b348bccfbdaf"
+    }
+  },
+  "provenance_digest": "8de2c026f037ef470103a119d4175fab878002462d64f18ecf508cda389bacd4",
+  "provenance_addendum": {
+    "recorded_at": "2026-09-05T23:14:26Z",
+    "note": "Added after the verification pass noted that the configuration digest did not cover shared hyperparameters, feature/interval constants or source files. The hyperparameters and constants are unchanged since the original predeclaration (V1_XGB_PARAMS were quoted in PREDECLARED_COMPARISON.md at that time). The source hashes are those of the revised forecast_v2.py; the experiment was re-run on the revised code and reproduced the original results bit-identically (see STATUS.md)."
+  }
+}

@@ -1,0 +1,8 @@
+scenario,n_components,fixed_limit,robust_mad,isolation_forest,combined,robust_mad_strict
+accelerating_drift,12,0.0,0.0,0.0,0.0,0.08333333333333333
+gradual_drift,16,0.0,0.875,0.8125,0.875,1.0
+healthy_stable,100,0.0,0.0,0.0,0.0,0.0
+intermittent,8,0.25,0.5,0.5,0.5,0.5
+ordinary_noise,44,0.0,0.0,0.0,0.0,0.06818181818181818
+sudden_step,12,0.16666666666666666,0.3333333333333333,0.3333333333333333,0.3333333333333333,0.3333333333333333
+tester_fault,8,0.0,0.125,0.125,0.125,0.125

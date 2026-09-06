@@ -1,0 +1,37 @@
+{
+  "candidate": "xgb_abs_resid_leak",
+  "snapshot_sha256": {
+    "work/ml_v2_review/src/sih26170/synthetic.py": "c608b1fe0486249e0211c2ff444313aad1b3a057403ffcf4cb260e35de2de2d6",
+    "work/ml_v2_review/src/sih26170/splitting.py": "acfee20db459d85df1adf59751185e36a083f2a23149c1008451676b59185f81",
+    "work/ml_v2_review/src/sih26170/mlcc_synthetic.py": "17f3c8e8c53a33c382a240f1a269fafd195e71afb60886b495c9a962ac6f7e50",
+    "work/ml_v2_review/src/sih26170/evaluation.py": "3e8be48ff8b1593db58d2e7edb560e29e4d16c47335e24d5841c19eb72c7f337",
+    "work/ml_v2_review/src/sih26170/__init__.py": "dd4f9e646e1961e42f78c6b35940408addd63259dc47dda6415c837ed8081e1c",
+    "work/ml_v2_review/src/sih26170/features.py": "eb4082c5f79f5fa6e918dd68a216dacf60444682e2bc389f29b88488ed818d13",
+    "work/ml_v2_review/src/sih26170/decision.py": "9cdc75e2e2a071ca799953d4ffe31b36eb802b14da94ba55755d3e3ef31dd35d",
+    "work/ml_v2_review/src/sih26170/mlcc_prototype.py": "b164c41c7181e8c34e3bf8dca85c089767237bc0ca35fdffc9c7cde3f81adac9",
+    "work/ml_v2_review/src/sih26170/anomaly.py": "364a9693219d54aef770259514a5739c310a881c3d87438f2bba2721c051ebf9",
+    "work/ml_v2_review/src/sih26170/contracts.py": "8b01ecb4141f17669e380342e42ddca853445fd34d71eea5a38dc8d41d531dee",
+    "work/ml_v2_review/src/sih26170/evaluation_harness.py": "a7ee002929484e79df13699eabfcb18da2a4fe2d1eb6fa2a400ccf22e872fe0d",
+    "work/ml_v2_review/src/sih26170/forecast_v2.py": "fb2c63ce8f27b88d8c452c7c5c7b8930a1f98420d1a0fc2748621b5a683b9ed6",
+    "work/ml_v2_review/src/sih26170/validation.py": "ba2b125f714c913cff31489c3b340f2742a82b808008c3360f65b348bccfbdaf",
+    "work/ml_v2_review/candidate/model.json": "def875634fcbb0b5d242a1b7583b485ab95cbf8083252f83906770a719c0b930",
+    "work/ml_v2_review/candidate/model.ubj": "7bf6d10c87fd6e7eb39a7c7f4d89df908d3e4395d4d637def1672384c355b9a6",
+    "work/ml_v2_review/candidate/manifest.json": "51f3558948f6ca39e1ffb922db4bd1d371fa6be82adee22d084164bc05c5d0b7"
+  },
+  "claude_source_sha256": {
+    "/Users/saikarthik26/Documents/Codex/2026-09-03/claude_forecast_v2_pack/src/sih26170/forecast_v2.py": "fb2c63ce8f27b88d8c452c7c5c7b8930a1f98420d1a0fc2748621b5a683b9ed6",
+    "/Users/saikarthik26/Documents/Codex/2026-09-03/claude_forecast_v2_pack/tests/test_forecast_v2.py": "24287df280f9b497b6c67c8900c5824a2dc621890ef81e0c1ca53a2f4cb78c69",
+    "/Users/saikarthik26/Documents/Codex/2026-09-03/claude_forecast_v2_pack/outputs/claude_forecast_v2/candidate/xgb_abs_resid_leak/model.json": "def875634fcbb0b5d242a1b7583b485ab95cbf8083252f83906770a719c0b930",
+    "/Users/saikarthik26/Documents/Codex/2026-09-03/claude_forecast_v2_pack/outputs/claude_forecast_v2/candidate/xgb_abs_resid_leak/model.ubj": "7bf6d10c87fd6e7eb39a7c7f4d89df908d3e4395d4d637def1672384c355b9a6"
+  },
+  "production_bundle_sha256": {
+    "outputs/mlcc_v1/model_bundle/xgboost.json": "151681b067f7904c15a1fb2ce7d58572c765cdb1ae2612a182be103f4ae9ed8a",
+    "outputs/mlcc_v1/model_bundle/state.skops": "36fb0474bd4d129ffea5c0b40616d78b4de7ee527ef8d2cb0af951001f131cfd",
+    "outputs/mlcc_v1/model_bundle/manifest.json": "656df2669edd327f02c7518a3d96bda921a53f47ca058705496f7aed8b4c6282",
+    "outputs/mlcc_v1/model_bundle/evaluation.json": "d9292e456498f4810f1d9b1011ceae01380837a0e6fccf97b904a4c74eb06c2d"
+  },
+  "protocol_sha256": "c96502b30d26a57ee7ca21cd11fc76308255171e473e8717cd1dd5016b0e8a26",
+  "models_refitted": false,
+  "full_snapshot_tests": "114 passed",
+  "source_training_hashes_verified": true
+}

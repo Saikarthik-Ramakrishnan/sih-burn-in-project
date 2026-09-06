@@ -1,0 +1,43 @@
+{
+  "keep_fraction_of_defects_in_training": 0.5,
+  "training_defect_parts_dropped": 716,
+  "configs": {
+    "persistence": {
+      "mae_normalized": 0.15919016691536034,
+      "healthy_mae_normalized": 0.007839940403118322,
+      "healthy_mean_signed_error_normalized": 0.0036721747321895753,
+      "crossing_recall": 0.18625678119349007,
+      "crossing_fp": 13
+    },
+    "xgb_v1_replica": {
+      "mae_normalized": 0.18666217068581362,
+      "healthy_mae_normalized": 0.07561536357518982,
+      "healthy_mean_signed_error_normalized": 0.07497402089360726,
+      "crossing_recall": 0.30018083182640143,
+      "crossing_fp": 61
+    },
+    "xgb_sq_resid_leak": {
+      "mae_normalized": 0.18570518237417863,
+      "healthy_mae_normalized": 0.0752988385216767,
+      "healthy_mean_signed_error_normalized": 0.07497739216872079,
+      "crossing_recall": 0.3182640144665461,
+      "crossing_fp": 66
+    },
+    "xgb_abs_resid_leak": {
+      "mae_normalized": 0.14627326366428406,
+      "healthy_mae_normalized": 0.0096013336015074,
+      "healthy_mean_signed_error_normalized": 0.0054468899168852065,
+      "crossing_recall": 0.19168173598553345,
+      "crossing_fp": 24
+    },
+    "xgb_abs_resid_aux": {
+      "mae_normalized": 0.1462771324136847,
+      "healthy_mae_normalized": 0.009567455062086672,
+      "healthy_mean_signed_error_normalized": 0.0054268548929901185,
+      "crossing_recall": 0.19168173598553345,
+      "crossing_fp": 23
+    }
+  },
+  "recorded_at": "2026-09-05T18:47:46Z",
+  "note": "robustness read-out with defect prevalence reduced in the training portion only; labels used to subsample training rows for this diagnostic, never as features; not a selection criterion"
+}

@@ -1,0 +1,11 @@
+{
+  "seed": 20260906,
+  "batches": 20,
+  "components": 4000,
+  "generator_sha256": "17f3c8e8c53a33c382a240f1a269fafd195e71afb60886b495c9a962ac6f7e50",
+  "use": "All generated batches evaluation-only; generator split annotations not used for fitting.",
+  "files": {
+    "fresh_early.csv": "8ff4ff51325475745cca5212edb78210e64266719a6910a612724c173a6b7430",
+    "fresh_labels.csv": "e3d8b0d45e650c02f9a8e9bcff9a52757cb56fc73108b578b730735390eb9a7d"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "as_of_hour": 24.0,
+  "train_batch_ids": [
+    "B02",
+    "B03",
+    "B04",
+    "B06",
+    "B07"
+  ],
+  "test_batch_ids": [
+    "B01",
+    "B05",
+    "B08"
+  ],
+  "synthetic_data_only": true,
+  "warning": "Results from synthetic data are not aerospace validation."
+}

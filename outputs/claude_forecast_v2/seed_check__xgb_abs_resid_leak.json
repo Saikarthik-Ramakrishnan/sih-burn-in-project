@@ -1,0 +1,37 @@
+{
+  "config": "xgb_abs_resid_leak",
+  "seeds": {
+    "1": {
+      "pooled_mae_normalized": 0.14286845722454994,
+      "healthy_mae_normalized": 0.016520276433891985,
+      "crossing_recall": 0.31464737793851716,
+      "crossing_fp": 39
+    },
+    "2": {
+      "pooled_mae_normalized": 0.14285044939566813,
+      "healthy_mae_normalized": 0.01653754084758194,
+      "crossing_recall": 0.3128390596745027,
+      "crossing_fp": 38
+    },
+    "3": {
+      "pooled_mae_normalized": 0.14289473492425375,
+      "healthy_mae_normalized": 0.016523358142716965,
+      "crossing_recall": 0.31103074141048825,
+      "crossing_fp": 38
+    },
+    "4": {
+      "pooled_mae_normalized": 0.1429588242226642,
+      "healthy_mae_normalized": 0.01654057973611901,
+      "crossing_recall": 0.31645569620253167,
+      "crossing_fp": 39
+    }
+  },
+  "pooled_mae_normalized_spread": {
+    "mean": 0.14289311644178398,
+    "std": 4.742954695319686e-05,
+    "min": 0.14285044939566813,
+    "max": 0.1429588242226642
+  },
+  "recorded_at": "2026-09-05T18:47:23Z",
+  "note": "post-selection stochastic-spread read-out; not used for selection"
+}

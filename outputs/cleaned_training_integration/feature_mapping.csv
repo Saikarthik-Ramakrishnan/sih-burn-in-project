@@ -1,0 +1,8 @@
+teammate_feature,model_feature,multiply_by,matches,max_absolute_error
+leakage_0h_ua,initial_value,1.0,True,0.0
+leakage_24h_ua,current_value,1.0,True,0.0
+upper_limit_ua,upper_limit,1.0,True,0.0
+change_0h_to_24h_ua,delta,1.0,True,2.220446049250313e-16
+percent_change_teammate,percent_change_model,0.01,True,1.7763568394002505e-15
+slope_ua_per_hour,slope,1.0,True,1.1340754724198376e-16
+fraction_of_limit,limit_fraction,1.0,True,2.220446049250313e-16

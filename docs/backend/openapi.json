@@ -1,0 +1,2346 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SIH26170 Burn-in Screening API",
+    "description": "Backend for SIH26170 - AI-driven anomaly detection in component burn-in and screening.\n\n**What this service does**\n\n* flags components that drift unusually compared with comparable peers in the\n  same batch, including parts still inside the specification limit;\n* where an artifact supports it, predicts the 168 h measurement from the 0 h and\n  24 h readings, with an explanation and, when calibrated, an uncertainty interval.\n\n**What the numbers are not**\n\n* the anomaly score is a relative deviation score, not a probability of physical\n  failure and not a confidence level;\n* feature contributions explain model behaviour; they do not establish a physical\n  cause such as water ingress or cracking;\n* a nominal interval is only as good as its held-out calibration, which is\n  reported per artifact rather than per record.\n\n`percent_change` is a **fraction**: 0.1 means 10 %.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/health/live": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Process liveness",
+        "description": "Returns 200 whenever the process is running. It says nothing about model availability.",
+        "operationId": "live_api_v1_health_live_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LivenessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health/ready": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Readiness for the configured mode",
+        "description": "Returns 200 only when the configured mode's artifacts, schema, checksums and a small inference probe all pass. Otherwise 503 with the specific reason for each capability. Demo mode requires both anomaly and forecast.",
+        "operationId": "ready_api_v1_health_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Required capabilities are unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/profiles": {
+      "get": {
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Screening profiles and their availability",
+        "description": "Lists every family/measurement profile the service knows about. A profile is usable only when its definition is 'supported' AND its artifacts are loaded. Planned profiles are listed so the roadmap is visible; they are never scoreable and 'usable' is false for them.",
+        "operationId": "list_profiles_api_v1_profiles_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfilesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/screen": {
+      "post": {
+        "tags": [
+          "screening"
+        ],
+        "summary": "Screen a burn-in CSV",
+        "description": "Accepts a long-format burn-in CSV as multipart form field 'file'. Only the validated 0/24 h -> 168 h mode is supported, so as_of_hour must be 24. The file is processed in memory; raw measurement values are never logged. Histories missing a required checkpoint are returned as explicit unscored records rather than being silently dropped.",
+        "operationId": "screen_api_v1_screen_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_screen_api_v1_screen_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScreenResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Upload exceeds the size or row limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Payload is not a text CSV file.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The file is invalid or nothing in it is eligible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A required model or core module is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sample.csv": {
+      "get": {
+        "tags": [
+          "screening"
+        ],
+        "summary": "Download the labelled synthetic sample CSV",
+        "description": "A deterministic slice of the project's synthetic MLCC_X7R / leakage_ua demonstration data, with 0 h and 24 h readings plus the 168 h outcome. Every row is marked synthetic in its data_source column: it is generated data for demonstrating the pipeline, NOT measured hardware.",
+        "operationId": "sample_csv_api_v1_sample_csv_get",
+        "responses": {
+          "200": {
+            "description": "Synthetic sample CSV.",
+            "content": {
+              "text/csv": {}
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnomalyEvidence": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/CapabilityStatus"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score",
+            "description": "Relative deviation score from the fitted detector. NOT a probability of physical failure and not a confidence level."
+          },
+          "is_anomaly": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Anomaly"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method",
+            "description": "e.g. 'median_mad+isolation_forest'."
+          },
+          "model_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Version"
+          },
+          "contributing_features": {
+            "items": {
+              "$ref": "#/components/schemas/FeatureContribution"
+            },
+            "type": "array",
+            "title": "Contributing Features"
+          },
+          "reason_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reason Codes",
+            "description": "Plain-language reason codes from the core detector."
+          },
+          "score_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Kind",
+            "description": "The core's own description of what the score is, e.g. 'ranking score, not failure probability'."
+          },
+          "model_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Score",
+            "description": "Isolation Forest component of the score."
+          },
+          "robust_deviation_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Robust Deviation Score",
+            "description": "Median/MAD component of the score."
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "AnomalyEvidence"
+      },
+      "Body_screen_api_v1_screen_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "description": "Long-format burn-in CSV."
+          },
+          "as_of_hour": {
+            "type": "number",
+            "title": "As Of Hour",
+            "description": "Cutoff hour. Only 24 is validated for this pilot.",
+            "default": 24.0
+          },
+          "forecast_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forecast Model",
+            "description": "Optional forecast model to request from the bundle. Omit to use the artifact's own internal-validation winner. The response always reports which model actually produced the forecasts, and warns when the requested one is not the validation winner."
+          },
+          "outcome_file": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/octet-stream"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome File",
+            "description": "OPTIONAL second CSV of observations strictly AFTER the cutoff, for the outcome reveal. Matched to the main file on component_id, batch_id, component_family and measurement_name. Its values and any limits it carries are never used to build features, produce forecasts or change recommendations - comparison limits come from the early file. Omit it and the endpoint behaves exactly as before. This is a presentation convenience, not a blind-testing mechanism."
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_screen_api_v1_screen_post"
+      },
+      "CapabilityFlags": {
+        "properties": {
+          "anomaly": {
+            "type": "boolean",
+            "title": "Anomaly"
+          },
+          "forecast": {
+            "type": "boolean",
+            "title": "Forecast"
+          },
+          "intervals": {
+            "type": "boolean",
+            "title": "Intervals",
+            "description": "Whether calibrated prediction intervals are available."
+          },
+          "explanations": {
+            "type": "boolean",
+            "title": "Explanations"
+          },
+          "peer_statistics": {
+            "type": "boolean",
+            "title": "Peer Statistics"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "anomaly",
+          "forecast",
+          "intervals",
+          "explanations",
+          "peer_statistics",
+          "mode"
+        ],
+        "title": "CapabilityFlags"
+      },
+      "CapabilityReport": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Capability identifier, e.g. 'anomaly' or 'forecast'."
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "description": "Why the capability is unavailable. Null when available."
+          },
+          "artifact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artifact Id"
+          },
+          "model_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Version"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/ProbeCheck"
+            },
+            "type": "array",
+            "title": "Checks",
+            "description": "Artifact presence, schema, checksum and inference-probe results."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "available"
+        ],
+        "title": "CapabilityReport"
+      },
+      "CapabilityStatus": {
+        "type": "string",
+        "enum": [
+          "available",
+          "unavailable",
+          "insufficient_data",
+          "not_supported"
+        ],
+        "title": "CapabilityStatus"
+      },
+      "ComponentSummary": {
+        "properties": {
+          "component_id": {
+            "type": "string",
+            "title": "Component Id"
+          },
+          "batch_id": {
+            "type": "string",
+            "title": "Batch Id"
+          },
+          "component_family": {
+            "type": "string",
+            "title": "Component Family"
+          },
+          "summary_recommendation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Recommendation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scored_measurement_count": {
+            "type": "integer",
+            "title": "Scored Measurement Count"
+          },
+          "unscored_measurement_count": {
+            "type": "integer",
+            "title": "Unscored Measurement Count"
+          },
+          "partial_coverage": {
+            "type": "boolean",
+            "title": "Partial Coverage"
+          },
+          "measurement_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Measurement Names"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "component_id",
+          "batch_id",
+          "component_family",
+          "summary_recommendation",
+          "scored_measurement_count",
+          "unscored_measurement_count",
+          "partial_coverage",
+          "measurement_names"
+        ],
+        "title": "ComponentSummary",
+        "description": "Documented aggregation across the measurements of one component.\n\n``summary_recommendation`` is the most urgent SCORED recommendation. It is\nnull when no measurement of the component was scored. ``partial_coverage``\nis true whenever at least one measurement went unscored - the UI must not\nrender such a component as fully passed."
+      },
+      "DataProvenance": {
+        "type": "string",
+        "enum": [
+          "synthetic",
+          "unknown",
+          "measured_unverified",
+          "mixed"
+        ],
+        "title": "DataProvenance",
+        "description": "How the data reaching the API was produced.\n\n``MEASURED_UNVERIFIED`` is an uploader's *claim* of hardware data. The API\ncannot independently verify provenance, so a claim is never promoted to\nverified, and an absent ``data_source`` column stays ``UNKNOWN``."
+      },
+      "DecisionCounts": {
+        "properties": {
+          "ACCEPT": {
+            "type": "integer",
+            "title": "Accept",
+            "default": 0
+          },
+          "MONITOR": {
+            "type": "integer",
+            "title": "Monitor",
+            "default": 0
+          },
+          "RETEST": {
+            "type": "integer",
+            "title": "Retest",
+            "default": 0
+          },
+          "ENGINEER_REVIEW": {
+            "type": "integer",
+            "title": "Engineer Review",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DecisionCounts"
+      },
+      "ErrorCode": {
+        "type": "string",
+        "enum": [
+          "FILE_TOO_LARGE",
+          "FILE_EMPTY",
+          "UNSUPPORTED_FILE_TYPE",
+          "ENCODING_INVALID",
+          "CSV_PARSE_FAILED",
+          "TOO_MANY_ROWS",
+          "MISSING_REQUIRED_COLUMNS",
+          "DUPLICATE_HEADER",
+          "NON_FINITE_VALUE",
+          "INVALID_HOURS",
+          "INVALID_LIMIT",
+          "INVALID_OPTIONAL_FIELD",
+          "LIMIT_CHANGED_WITHIN_HISTORY",
+          "DUPLICATE_MEASUREMENT_IDENTITY",
+          "AMBIGUOUS_COMPONENT_IDENTITY",
+          "UNSUPPORTED_PROFILE",
+          "INCOMPATIBLE_UNITS",
+          "INCOMPATIBLE_TEST_CONDITIONS",
+          "UNSUPPORTED_AS_OF_HOUR",
+          "NO_ELIGIBLE_HISTORIES",
+          "ANOMALY_MODEL_UNAVAILABLE",
+          "FORECAST_MODEL_UNAVAILABLE",
+          "CORE_UNAVAILABLE",
+          "SERVICE_NOT_READY",
+          "NOT_FOUND",
+          "INTERNAL_ERROR"
+        ],
+        "title": "ErrorCode"
+      },
+      "ErrorDetail": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ErrorCode"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "row": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row"
+          },
+          "column": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Column"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value",
+            "description": "Offending value as text, included only for schema/identity fields. Raw measurement values are never echoed back."
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorDetail",
+        "description": "One specific problem inside an upload.\n\n``row`` is the 1-based line number in the submitted CSV *including* the\nheader line, so the first data row is ``2``. It is null whenever the\nproblem is dataset-level rather than row-level."
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorCode"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "details": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorDetail"
+            },
+            "type": "array",
+            "title": "Details"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error",
+          "message"
+        ],
+        "title": "ErrorResponse"
+      },
+      "EvaluationSection": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "source_filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Filename",
+            "description": "Filename of the separate outcome file these came from, when one was uploaded. Null when the outcomes were extra rows in the main file."
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "'observed_readings' means real later measurements. 'simulation_truth' means latent generator values, which are NOT sensor measurements and must be labelled as such in the UI.",
+            "default": "observed_readings"
+          },
+          "target_hour": {
+            "type": "number",
+            "title": "Target Hour"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "description": "States that these values were excluded from all inference."
+          },
+          "outcomes": {
+            "items": {
+              "$ref": "#/components/schemas/OutcomeRecord"
+            },
+            "type": "array",
+            "title": "Outcomes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "available",
+          "target_hour",
+          "note"
+        ],
+        "title": "EvaluationSection"
+      },
+      "FeatureContribution": {
+        "properties": {
+          "feature": {
+            "type": "string",
+            "title": "Feature"
+          },
+          "contribution": {
+            "type": "number",
+            "title": "Contribution"
+          },
+          "direction": {
+            "type": "string",
+            "title": "Direction",
+            "description": "'increases' or 'decreases' the predicted value."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "feature",
+          "contribution",
+          "direction"
+        ],
+        "title": "FeatureContribution"
+      },
+      "ForecastEvidence": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/CapabilityStatus"
+          },
+          "predicted_final_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Predicted Final Value"
+          },
+          "prediction_lower": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prediction Lower"
+          },
+          "prediction_upper": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prediction Upper"
+          },
+          "target_hour": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Hour"
+          },
+          "interval_nominal_coverage": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval Nominal Coverage",
+            "description": "Nominal coverage of the interval, e.g. 0.9. Empirical coverage is reported per-artifact in the manifest, not per-record, and may differ."
+          },
+          "interval_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval Method",
+            "description": "e.g. 'split_conformal'. Null when no calibrated interval is available."
+          },
+          "interval_stratum": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval Stratum",
+            "description": "For the stratified v2 interval: which 24 h slope robust-z stratum supplied the margins (slope_z_stratum_0: z < 2, 1: 2 to 5, 2: >= 5)."
+          },
+          "upper_bound_nominal_level": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upper Bound Nominal Level",
+            "description": "For the stratified v2 interval: nominal one-sided level of prediction_upper (0.9 means about 10 % of comparable synthetic parts end above it). The pair (prediction_lower, prediction_upper) is then an 80 % interval."
+          },
+          "prediction_lower_two_sided": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prediction Lower Two Sided",
+            "description": "Wider two-sided 90 % lower bound (v2 stratified interval only)."
+          },
+          "prediction_upper_two_sided": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prediction Upper Two Sided",
+            "description": "Wider two-sided 90 % upper bound (v2 stratified interval only)."
+          },
+          "model_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Version"
+          },
+          "predicted_to_cross_limit": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Predicted To Cross Limit",
+            "description": "Whether the point prediction crosses the applicable limit at target_hour."
+          },
+          "explanation": {
+            "items": {
+              "$ref": "#/components/schemas/FeatureContribution"
+            },
+            "type": "array",
+            "title": "Explanation",
+            "description": "Feature contributions explaining model behaviour. These do not establish a physical cause such as water ingress or cracking."
+          },
+          "interval_warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval Warning",
+            "description": "The artifact's own caveat about what the nominal level does and does not mean."
+          },
+          "prediction_readiness": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prediction Readiness",
+            "description": "'ready', 'optional_inputs_imputed' or 'outside_training_conditions'."
+          },
+          "out_of_training_range_features": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Out Of Training Range Features",
+            "description": "Inputs beyond the ranges observed in training. Non-empty means the forecast extrapolates and its interval coverage does not transfer."
+          },
+          "prediction_readiness_warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prediction Readiness Warning"
+          },
+          "missing_optional_features": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Optional Features",
+            "description": "Optional inputs that were absent and median-imputed."
+          },
+          "xgboost_candidate_final_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Xgboost Candidate Final Value",
+            "description": "The XGBoost candidate's forecast, reported separately. It is NOT a substitute for predicted_final_value unless forecast_model is 'xgboost'."
+          },
+          "xgboost_explanation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/XgboostExplanation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "ForecastEvidence"
+      },
+      "LimitDirection": {
+        "type": "string",
+        "enum": [
+          "upper",
+          "lower",
+          "two_sided"
+        ],
+        "title": "LimitDirection",
+        "description": "Which side of the specification counts as a failure."
+      },
+      "LimitInfo": {
+        "properties": {
+          "direction": {
+            "$ref": "#/components/schemas/LimitDirection"
+          },
+          "upper_limit": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upper Limit"
+          },
+          "lower_limit": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lower Limit"
+          },
+          "applicable_limit": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applicable Limit",
+            "description": "The limit the decision was actually taken against."
+          },
+          "headroom": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headroom",
+            "description": "Signed distance from the latest early value to the applicable limit, in measurement units."
+          },
+          "headroom_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headroom Fraction",
+            "description": "headroom divided by the applicable limit. Null when the limit is zero."
+          },
+          "limit_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit Fraction",
+            "description": "latest_value divided by the applicable limit."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "direction"
+        ],
+        "title": "LimitInfo"
+      },
+      "LivenessResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "alive"
+          },
+          "service": {
+            "type": "string",
+            "title": "Service",
+            "default": "sih26170-backend"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "schema_version": {
+            "type": "string",
+            "title": "Schema Version"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version",
+          "schema_version",
+          "timestamp"
+        ],
+        "title": "LivenessResponse"
+      },
+      "ModelInfo": {
+        "properties": {
+          "prototype_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototype Version"
+          },
+          "bundle_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bundle Id"
+          },
+          "selected_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Model",
+            "description": "The model that produced the forecasts in this response."
+          },
+          "validation_winner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validation Winner",
+            "description": "Lowest-error model on internal validation batches."
+          },
+          "forecast_selection": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forecast Selection",
+            "description": "'explicit caller choice' or 'internal validation winner'."
+          },
+          "selection_warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selection Warning",
+            "description": "Non-null when the selected model is not the validation winner."
+          },
+          "model_training_data": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Training Data",
+            "description": "Provenance of the TRAINING data. Separate from the uploaded file's provenance."
+          },
+          "model_fitted_during_request": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Fitted During Request",
+            "description": "The core's own declaration. Must be false."
+          },
+          "supported_family": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supported Family"
+          },
+          "supported_measurement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supported Measurement"
+          },
+          "available_models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Available Models"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ModelInfo",
+        "description": "Identity and honest provenance of the models that produced this response.\n\n``selected_model`` is the model that ACTUALLY produced every\n``predicted_final_value``. ``validation_winner`` is the model that scored\nbest on internal validation. When they differ, ``selection_warning`` is\nnon-null, and the UI must not imply the selected model outperformed the\nbaseline."
+      },
+      "OutcomeRecord": {
+        "properties": {
+          "component_id": {
+            "type": "string",
+            "title": "Component Id"
+          },
+          "batch_id": {
+            "type": "string",
+            "title": "Batch Id"
+          },
+          "component_family": {
+            "type": "string",
+            "title": "Component Family"
+          },
+          "measurement_name": {
+            "type": "string",
+            "title": "Measurement Name"
+          },
+          "observed_value": {
+            "type": "number",
+            "title": "Observed Value"
+          },
+          "observed_hour": {
+            "type": "number",
+            "title": "Observed Hour"
+          },
+          "applicable_limit": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applicable Limit",
+            "description": "The specification limit this outcome was compared against, taken from the uploaded history. Null when the upload declared no limit for this component."
+          },
+          "crossed_applicable_limit": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crossed Applicable Limit",
+            "description": "True when the observed value breached the applicable limit. NULL means the limit was unknown, so no comparison was possible - it does NOT mean the component stayed inside its limit."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "component_id",
+          "batch_id",
+          "component_family",
+          "measurement_name",
+          "observed_value",
+          "observed_hour"
+        ],
+        "title": "OutcomeRecord",
+        "description": "EVALUATION ONLY.\n\nPopulated from observations after the cutoff when the upload contains them.\nThese values never enter feature building, scoring, peer statistics or\nexplanations. The section is omitted entirely for early-only uploads."
+      },
+      "PeerStatistics": {
+        "properties": {
+          "sample_size": {
+            "type": "integer",
+            "title": "Sample Size",
+            "description": "Number of comparable peers in the same batch/family/measurement/condition."
+          },
+          "sufficient": {
+            "type": "boolean",
+            "title": "Sufficient",
+            "description": "False when sample_size is below the profile's min_peer_group_size."
+          },
+          "status": {
+            "$ref": "#/components/schemas/CapabilityStatus"
+          },
+          "median": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median"
+          },
+          "mad": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mad",
+            "description": "Median absolute deviation."
+          },
+          "peer_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peer Min"
+          },
+          "peer_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peer Max"
+          },
+          "current_batch_robust_z": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Batch Robust Z",
+            "description": "Robust z-score of the cutoff value against comparable peers in the batch."
+          },
+          "slope_batch_robust_z": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slope Batch Robust Z",
+            "description": "Robust z-score of the early slope against the same peers."
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warning",
+            "description": "The core's own peer-comparison caveat, e.g. fewer than eight peers."
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sample_size",
+          "sufficient",
+          "status"
+        ],
+        "title": "PeerStatistics",
+        "description": "Batch-relative context for one measurement, computed from early data only."
+      },
+      "ProbeCheck": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "passed"
+        ],
+        "title": "ProbeCheck"
+      },
+      "ProfileItem": {
+        "properties": {
+          "profile_id": {
+            "type": "string",
+            "title": "Profile Id"
+          },
+          "component_family": {
+            "type": "string",
+            "title": "Component Family"
+          },
+          "measurement_name": {
+            "type": "string",
+            "title": "Measurement Name"
+          },
+          "measurement_unit": {
+            "type": "string",
+            "title": "Measurement Unit"
+          },
+          "limit_direction": {
+            "$ref": "#/components/schemas/LimitDirection"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProfileStatus",
+            "description": "'supported' means the profile definition is complete; it still needs artifacts to run."
+          },
+          "required_checkpoint_hours": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Required Checkpoint Hours"
+          },
+          "as_of_hour": {
+            "type": "number",
+            "title": "As Of Hour"
+          },
+          "target_hour": {
+            "type": "number",
+            "title": "Target Hour"
+          },
+          "min_peer_group_size": {
+            "type": "integer",
+            "title": "Min Peer Group Size",
+            "description": "Below this many comparable peers, batch-relative statistics are reported as unavailable."
+          },
+          "anomaly_available": {
+            "type": "boolean",
+            "title": "Anomaly Available"
+          },
+          "forecast_available": {
+            "type": "boolean",
+            "title": "Forecast Available"
+          },
+          "usable": {
+            "type": "boolean",
+            "title": "Usable",
+            "description": "True only when status is 'supported' AND the required artifacts are loaded."
+          },
+          "supported_part_profiles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Supported Part Profiles",
+            "description": "Part/test profile ids the loaded artifact was trained on. When non-empty, each uploaded row must carry a profile_id from this list or its history is reported unscored."
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "provenance_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provenance Note"
+          },
+          "unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unavailable Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "profile_id",
+          "component_family",
+          "measurement_name",
+          "measurement_unit",
+          "limit_direction",
+          "status",
+          "required_checkpoint_hours",
+          "as_of_hour",
+          "target_hour",
+          "min_peer_group_size",
+          "anomaly_available",
+          "forecast_available",
+          "usable",
+          "description"
+        ],
+        "title": "ProfileItem"
+      },
+      "ProfileStatus": {
+        "type": "string",
+        "enum": [
+          "supported",
+          "planned"
+        ],
+        "title": "ProfileStatus"
+      },
+      "ProfilesResponse": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "title": "Schema Version"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "profiles": {
+            "items": {
+              "$ref": "#/components/schemas/ProfileItem"
+            },
+            "type": "array",
+            "title": "Profiles"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "schema_version",
+          "mode",
+          "profiles"
+        ],
+        "title": "ProfilesResponse"
+      },
+      "ReadinessResponse": {
+        "properties": {
+          "ready": {
+            "type": "boolean",
+            "title": "Ready"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode",
+            "description": "'demo' requires anomaly + forecast; 'anomaly_only' is a development mode."
+          },
+          "service": {
+            "type": "string",
+            "title": "Service",
+            "default": "sih26170-backend"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "schema_version": {
+            "type": "string",
+            "title": "Schema Version"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          },
+          "capabilities": {
+            "items": {
+              "$ref": "#/components/schemas/CapabilityReport"
+            },
+            "type": "array",
+            "title": "Capabilities"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations",
+            "description": "Human-readable limitations of the current mode. Non-empty in anomaly_only mode."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ready",
+          "mode",
+          "version",
+          "schema_version",
+          "timestamp",
+          "capabilities"
+        ],
+        "title": "ReadinessResponse"
+      },
+      "Recommendation": {
+        "type": "string",
+        "enum": [
+          "ACCEPT",
+          "MONITOR",
+          "RETEST",
+          "ENGINEER_REVIEW"
+        ],
+        "title": "Recommendation",
+        "description": "Preserved verbatim from the core decision module."
+      },
+      "ResponseWarning": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ResponseWarning"
+      },
+      "ScreenResponse": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "title": "Schema Version"
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "duration_ms": {
+            "type": "number",
+            "title": "Duration Ms",
+            "description": "Measured server-side processing time for this request."
+          },
+          "input_source": {
+            "type": "string",
+            "title": "Input Source",
+            "description": "'upload' or 'sample'."
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Id"
+          },
+          "as_of_hour": {
+            "type": "number",
+            "title": "As Of Hour"
+          },
+          "target_hour": {
+            "type": "number",
+            "title": "Target Hour"
+          },
+          "checkpoint_hours_used": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Checkpoint Hours Used"
+          },
+          "model_versions": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Model Versions"
+          },
+          "model_info": {
+            "$ref": "#/components/schemas/ModelInfo"
+          },
+          "batch_count": {
+            "type": "integer",
+            "title": "Batch Count"
+          },
+          "unique_component_count": {
+            "type": "integer",
+            "title": "Unique Component Count"
+          },
+          "measurement_record_count": {
+            "type": "integer",
+            "title": "Measurement Record Count",
+            "description": "Number of (component, measurement) histories present in the upload."
+          },
+          "scored_record_count": {
+            "type": "integer",
+            "title": "Scored Record Count"
+          },
+          "unscored_record_count": {
+            "type": "integer",
+            "title": "Unscored Record Count"
+          },
+          "decision_counts": {
+            "$ref": "#/components/schemas/DecisionCounts"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/CapabilityFlags"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/DataProvenance"
+          },
+          "records": {
+            "items": {
+              "$ref": "#/components/schemas/ScreeningRecord"
+            },
+            "type": "array",
+            "title": "Records"
+          },
+          "unscored_records": {
+            "items": {
+              "$ref": "#/components/schemas/UnscoredRecord"
+            },
+            "type": "array",
+            "title": "Unscored Records"
+          },
+          "component_summaries": {
+            "items": {
+              "$ref": "#/components/schemas/ComponentSummary"
+            },
+            "type": "array",
+            "title": "Component Summaries"
+          },
+          "evaluation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationSection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Omitted when the upload contains only early data."
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/ResponseWarning"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "schema_version",
+          "request_id",
+          "generated_at",
+          "duration_ms",
+          "input_source",
+          "as_of_hour",
+          "target_hour",
+          "checkpoint_hours_used",
+          "model_versions",
+          "batch_count",
+          "unique_component_count",
+          "measurement_record_count",
+          "scored_record_count",
+          "unscored_record_count",
+          "decision_counts",
+          "capabilities",
+          "provenance",
+          "records",
+          "unscored_records",
+          "component_summaries"
+        ],
+        "title": "ScreenResponse"
+      },
+      "ScreeningRecord": {
+        "properties": {
+          "component_id": {
+            "type": "string",
+            "title": "Component Id"
+          },
+          "batch_id": {
+            "type": "string",
+            "title": "Batch Id"
+          },
+          "component_family": {
+            "type": "string",
+            "title": "Component Family"
+          },
+          "measurement_name": {
+            "type": "string",
+            "title": "Measurement Name"
+          },
+          "recommendation": {
+            "$ref": "#/components/schemas/Recommendation"
+          },
+          "recommendation_basis": {
+            "type": "string",
+            "title": "Recommendation Basis",
+            "description": "'anomaly_and_forecast' or 'anomaly_only' (provisional when the forecast is unavailable)."
+          },
+          "provisional": {
+            "type": "boolean",
+            "title": "Provisional",
+            "description": "True when the recommendation was reached without a forecast."
+          },
+          "anomaly": {
+            "$ref": "#/components/schemas/AnomalyEvidence"
+          },
+          "forecast": {
+            "$ref": "#/components/schemas/ForecastEvidence"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/LimitInfo"
+          },
+          "peers": {
+            "$ref": "#/components/schemas/PeerStatistics"
+          },
+          "measurement_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measurement Unit"
+          },
+          "initial_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initial Value",
+            "description": "Value at hour 0."
+          },
+          "latest_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Value",
+            "description": "Value at the cutoff hour."
+          },
+          "last_observation_hour": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Observation Hour",
+            "description": "Hour of the latest reading used for inference (the cutoff)."
+          },
+          "absolute_change": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Absolute Change",
+            "description": "latest_value minus initial_value."
+          },
+          "percent_change": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent Change",
+            "description": "FRACTION, not a percentage. 0.1 means 10 %. Null when initial_value is 0."
+          },
+          "percent_change_available": {
+            "type": "boolean",
+            "title": "Percent Change Available",
+            "description": "False when initial_value is zero, where a displayable percentage is undefined."
+          },
+          "slope_per_hour": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slope Per Hour",
+            "description": "absolute_change divided by the elapsed hours between the two checkpoints."
+          },
+          "acceleration": {
+            "type": "null",
+            "title": "Acceleration",
+            "description": "Always null in the 0/24 h mode. Two observations cannot evidence acceleration; the field exists so richer checkpoint profiles can populate it later."
+          },
+          "early_trajectory": {
+            "items": {
+              "$ref": "#/components/schemas/TrajectoryPoint"
+            },
+            "type": "array",
+            "title": "Early Trajectory",
+            "description": "The early readings actually used, ordered by hour."
+          },
+          "part_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Part Number"
+          },
+          "test_condition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Condition"
+          },
+          "temperature_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature C"
+          },
+          "humidity_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Humidity Pct"
+          },
+          "applied_voltage_v": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied Voltage V"
+          },
+          "board_position": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Board Position"
+          },
+          "data_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Source"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/DataProvenance"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Id",
+            "description": "Part/test profile this component was screened under."
+          },
+          "recommendation_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recommendation Reasons"
+          },
+          "data_quality_warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Quality Warning"
+          },
+          "context": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Context",
+            "description": "Per-record context the upload supplied (part number, tester, board position, stress and measurement conditions). Presentation only - never a predictive input."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "component_id",
+          "batch_id",
+          "component_family",
+          "measurement_name",
+          "recommendation",
+          "recommendation_basis",
+          "provisional",
+          "anomaly",
+          "forecast",
+          "limits",
+          "peers",
+          "percent_change_available",
+          "provenance"
+        ],
+        "title": "ScreeningRecord",
+        "description": "One (component, measurement) screening result."
+      },
+      "TrajectoryPoint": {
+        "properties": {
+          "hour": {
+            "type": "number",
+            "title": "Hour"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "hour",
+          "value"
+        ],
+        "title": "TrajectoryPoint"
+      },
+      "UnscoredReason": {
+        "type": "string",
+        "enum": [
+          "missing_checkpoint",
+          "too_few_early_readings",
+          "unsupported_profile",
+          "profile_not_available",
+          "insufficient_peers",
+          "anomaly_model_unavailable",
+          "core_error"
+        ],
+        "title": "UnscoredReason"
+      },
+      "UnscoredRecord": {
+        "properties": {
+          "component_id": {
+            "type": "string",
+            "title": "Component Id"
+          },
+          "batch_id": {
+            "type": "string",
+            "title": "Batch Id"
+          },
+          "component_family": {
+            "type": "string",
+            "title": "Component Family"
+          },
+          "measurement_name": {
+            "type": "string",
+            "title": "Measurement Name"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/UnscoredReason"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "available_hours": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Available Hours"
+          },
+          "missing_checkpoint_hours": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Missing Checkpoint Hours"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "component_id",
+          "batch_id",
+          "component_family",
+          "measurement_name",
+          "reason",
+          "message"
+        ],
+        "title": "UnscoredRecord",
+        "description": "A (component, measurement) history the service could not score.\n\nThese are reported explicitly so the UI never implies a silent pass."
+      },
+      "XgboostContribution": {
+        "properties": {
+          "feature": {
+            "type": "string",
+            "title": "Feature"
+          },
+          "contribution_ua": {
+            "type": "number",
+            "title": "Contribution Ua"
+          },
+          "feature_value": {
+            "type": "number",
+            "title": "Feature Value"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "feature",
+          "contribution_ua",
+          "feature_value"
+        ],
+        "title": "XgboostContribution"
+      },
+      "XgboostExplanation": {
+        "properties": {
+          "explains": {
+            "type": "string",
+            "title": "Explains"
+          },
+          "is_active_forecast": {
+            "type": "boolean",
+            "title": "Is Active Forecast"
+          },
+          "explained_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explained Model",
+            "description": "Which tree model these contributions explain: 'xgboost_v2' when that model produced the forecast, otherwise the v1 'xgboost' candidate."
+          },
+          "base_value_ua": {
+            "type": "number",
+            "title": "Base Value Ua"
+          },
+          "top_contributions": {
+            "items": {
+              "$ref": "#/components/schemas/XgboostContribution"
+            },
+            "type": "array",
+            "title": "Top Contributions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "explains",
+          "is_active_forecast",
+          "base_value_ua"
+        ],
+        "title": "XgboostExplanation",
+        "description": "TreeSHAP contributions for the XGBoost candidate.\n\n``is_active_forecast`` is false when a different model produced the forecast\nshown beside it. In that case these contributions explain the CANDIDATE, not\nthe number on screen, and the UI must say so."
+      }
+    }
+  }
+}

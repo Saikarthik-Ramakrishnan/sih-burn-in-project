@@ -1,0 +1,6 @@
+method,method_label,n_defects,n_ever_flagged,n_flagged_before_crossing,n_flagged_never_crossing,median_first_flag_hour,median_lead_hours,mean_lead_hours
+combined,Combined robust + Isolation Forest (existing detector),48,48,28,6,24.0,96.0,98.35714285714286
+fixed_limit,Fixed upper-limit screening,48,37,0,0,120.0,,
+isolation_forest,Isolation Forest,48,41,23,4,24.0,114.0,97.30434782608695
+robust_mad,Median/MAD robust screening (repository rule),48,48,28,6,24.0,96.0,94.07142857142857
+robust_mad_strict,"Median/MAD, textbook scale (diagnostic)",48,48,28,6,24.0,102.0,105.42857142857143

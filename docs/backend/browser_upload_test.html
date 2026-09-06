@@ -1,0 +1,150 @@
+<!-- Standalone page: served by a plain static server that sends no charset,
+     so it must declare its own or the em-dashes arrive as mojibake. -->
+<meta charset="utf-8">
+<title>SIH26170 backend — browser upload check</title>
+<style>
+  :root { color-scheme: light; font-family: ui-sans-serif, system-ui, sans-serif; }
+  body { margin: 0; padding: 24px; background: #f6f7f9; color: #14171f; }
+  main { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p.sub { margin: 0 0 20px; color: #5a6272; font-size: 13px; }
+  fieldset { border: 1px solid #d8dce4; border-radius: 8px; background: #fff; padding: 14px 16px; margin: 0 0 14px; }
+  legend { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: #5a6272; padding: 0 6px; }
+  label { display: block; font-size: 13px; margin: 8px 0 4px; font-weight: 500; }
+  input[type=text] { width: 100%; padding: 7px 9px; border: 1px solid #d8dce4; border-radius: 6px; font: inherit; }
+  button { font: inherit; font-weight: 600; padding: 8px 16px; border-radius: 6px; border: 1px solid #2f6feb;
+           background: #2f6feb; color: #fff; cursor: pointer; margin-right: 8px; }
+  button.secondary { background: #fff; color: #2f6feb; }
+  button:disabled { opacity: .5; cursor: default; }
+  pre { background: #10141c; color: #d6dde8; padding: 12px; border-radius: 8px; overflow-x: auto;
+        font-size: 12px; line-height: 1.5; max-height: 380px; }
+  .row { display: flex; gap: 20px; flex-wrap: wrap; }
+  .row > div { flex: 1 1 240px; }
+  .ok { color: #1a7f45; font-weight: 600; }
+  .bad { color: #c02626; font-weight: 600; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  td { padding: 3px 8px 3px 0; }
+  td:first-child { color: #5a6272; white-space: nowrap; }
+</style>
+
+<main>
+  <h1>SIH26170 backend — browser upload check</h1>
+  <p class="sub">
+    Serve this file from a <strong>different origin</strong> than the API (for example
+    <code>python -m http.server 5173</code>) so the request is genuinely cross-origin
+    and CORS is actually exercised. This is a plumbing check, not the dashboard.
+  </p>
+
+  <fieldset>
+    <legend>Target</legend>
+    <label for="base">API base URL</label>
+    <input id="base" type="text" value="http://127.0.0.1:8000/api/v1">
+    <div class="row" style="margin-top:12px">
+      <div>
+        <label for="file">Early CSV (required)</label>
+        <input id="file" type="file" accept=".csv,text/csv">
+      </div>
+      <div>
+        <label for="outcome">Outcome CSV (optional)</label>
+        <input id="outcome" type="file" accept=".csv,text/csv">
+      </div>
+    </div>
+    <div style="margin-top:14px">
+      <button id="ready">1. Check readiness</button>
+      <button id="sample" class="secondary">2. Load sample.csv</button>
+      <button id="send" class="secondary">3. Upload &amp; screen</button>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Result</legend>
+    <div id="summary">Nothing run yet.</div>
+    <pre id="out">—</pre>
+  </fieldset>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const base = () => $("base").value.replace(/\/$/, "");
+  const show = (label, ok, body) => {
+    $("summary").innerHTML =
+      `<span class="${ok ? "ok" : "bad"}">${label}</span>`;
+    $("out").textContent =
+      typeof body === "string" ? body : JSON.stringify(body, null, 2);
+  };
+
+  $("ready").onclick = async () => {
+    try {
+      const res = await fetch(`${base()}/health/ready`);
+      const body = await res.json();
+      const rows = body.capabilities
+        .map((c) => `${c.available ? "OK  " : "FAIL"} ${c.name}${c.reason ? " — " + c.reason : ""}`)
+        .join("\n");
+      show(`HTTP ${res.status} — ready=${body.ready}`, res.ok, rows);
+    } catch (err) {
+      show("Network/CORS failure", false, String(err) +
+        "\n\nIf this says 'Failed to fetch', the origin serving this page is " +
+        "probably not in SIH_CORS_ALLOW_ORIGINS.");
+    }
+  };
+
+  $("sample").onclick = async () => {
+    try {
+      const res = await fetch(`${base()}/sample.csv`);
+      const text = await res.text();
+      const file = new File([text], "sample.csv", { type: "text/csv" });
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      $("file").files = dt.files;
+      show(`HTTP ${res.status} — sample loaded (${text.length} bytes)`, res.ok,
+        text.split("\n").slice(0, 4).join("\n") + "\n…");
+    } catch (err) {
+      show("Could not load sample", false, String(err));
+    }
+  };
+
+  $("send").onclick = async () => {
+    const early = $("file").files[0];
+    if (!early) return show("Pick an early CSV first", false, "—");
+
+    const form = new FormData();
+    form.append("file", early);
+    const outcome = $("outcome").files[0];
+    if (outcome) form.append("outcome_file", outcome);
+
+    $("send").disabled = true;
+    show("Uploading…", true, "—");
+    try {
+      // NOTE: do NOT set Content-Type. The browser must set the multipart
+      // boundary itself; setting it by hand produces a 422.
+      const res = await fetch(`${base()}/screen`, { method: "POST", body: form });
+      const body = await res.json();
+
+      if (!res.ok) {
+        show(`HTTP ${res.status} — ${body.error}`, false, body);
+        return;
+      }
+      const ev = body.evaluation;
+      const lines = [
+        ["request id", res.headers.get("x-request-id") || "(not exposed)"],
+        ["schema", body.schema_version],
+        ["components", body.unique_component_count],
+        ["scored / unscored", `${body.scored_record_count} / ${body.unscored_record_count}`],
+        ["decisions", JSON.stringify(body.decision_counts)],
+        ["forecast from", body.model_info.selected_model],
+        ["duration", `${body.duration_ms} ms`],
+        ["outcomes", ev ? `${ev.outcomes.length} (${ev.kind})` : "none uploaded"],
+        ["warnings", body.warnings.map((w) => w.code).join(", ") || "none"],
+      ];
+      $("summary").innerHTML =
+        `<span class="ok">HTTP ${res.status}</span><table>` +
+        lines.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("") +
+        "</table>";
+      $("out").textContent = JSON.stringify(body.records[0] ?? {}, null, 2);
+    } catch (err) {
+      show("Network/CORS failure", false, String(err));
+    } finally {
+      $("send").disabled = false;
+    }
+  };
+</script>

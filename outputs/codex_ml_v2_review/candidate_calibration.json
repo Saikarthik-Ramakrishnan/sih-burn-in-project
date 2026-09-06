@@ -1,0 +1,50 @@
+{
+  "candidate_model_sha256": "7bf6d10c87fd6e7eb39a7c7f4d89df908d3e4395d4d637def1672384c355b9a6",
+  "calibration_input_sha256": {
+    "calibration_early.csv": "4125e5fe1690cc94e487ef31226159c55bd774c58a79314a3636b5787d52bc1a",
+    "calibration_labels.csv": "7e8e92edacc1c614faa83f287d72717e3d41d4eb40ccb745d2fac6cd0b0f233a"
+  },
+  "batch_ids": [
+    "MLCC_B001",
+    "MLCC_B004",
+    "MLCC_B006",
+    "MLCC_B019",
+    "MLCC_B020",
+    "MLCC_B034",
+    "MLCC_B038",
+    "MLCC_B040",
+    "MLCC_B048",
+    "MLCC_B052",
+    "MLCC_B055",
+    "MLCC_B056"
+  ],
+  "components": 2400,
+  "alpha": 0.1,
+  "signed_slope_z_edges": [
+    2,
+    5
+  ],
+  "stratum_counts": {
+    "0": 2207,
+    "2": 106,
+    "1": 87
+  },
+  "margins_normalized_lower_upper_one_sided": {
+    "0": [
+      -0.026501316723200385,
+      0.9176102156610937,
+      0.4206941753192627
+    ],
+    "1": [
+      -0.4863596059538847,
+      0.9912708089961557,
+      0.6562890546851472
+    ],
+    "2": [
+      -1.266007684856079,
+      1.285848445749294,
+      0.8380910320083008
+    ]
+  },
+  "warning": "Empirical synthetic coverage only; dependent batch observations limit guarantees."
+}

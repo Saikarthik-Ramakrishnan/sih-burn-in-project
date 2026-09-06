@@ -1,0 +1,13 @@
+Check,Result
+CSV successfully loaded,PASS
+Missing values,PASS
+Duplicate measurements found,PASS
+Duplicate measurements removed,NONE FOUND
+Negative hours,PASS
+Negative measurement values,PASS
+Invalid upper limits,PASS
+Readings sorted by component and time,PASS
+0h available,PASS
+24h available,PASS
+Every component has 0h,PASS
+Every component has 24h,PASS

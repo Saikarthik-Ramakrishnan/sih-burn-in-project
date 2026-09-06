@@ -1,0 +1,160 @@
+{
+  "candidate_version": "claude-forecast-v2.0",
+  "config": {
+    "name": "xgb_abs_resid_leak",
+    "model": "xgboost",
+    "target": "residual_over_persistence",
+    "feature_set": "leakage_only",
+    "objective": "reg:absoluteerror",
+    "params": {},
+    "description": "hypothesised best: median correction over persistence, leakage-only",
+    "feature_columns": [
+      "percent_change",
+      "delta_fraction_of_limit",
+      "slope_fraction_per_hour",
+      "acceleration_fraction_per_hour2",
+      "variability_fraction_of_limit",
+      "limit_fraction",
+      "distance_fraction_to_upper_limit",
+      "current_batch_robust_z",
+      "slope_batch_robust_z",
+      "initial_fraction_of_limit"
+    ]
+  },
+  "family": "MLCC_X7R",
+  "measurement": "leakage_ua",
+  "unit": "uA",
+  "as_of_hour": 24.0,
+  "target_hour": 168.0,
+  "supported_checkpoints_hours": [
+    0.0,
+    24.0
+  ],
+  "supported_profiles": [
+    "SIM_X7R_100N_50V",
+    "SIM_X7R_10N_50V",
+    "SIM_X7R_1U_25V",
+    "SIM_X7R_4U7_16V"
+  ],
+  "feature_columns": [
+    "percent_change",
+    "delta_fraction_of_limit",
+    "slope_fraction_per_hour",
+    "acceleration_fraction_per_hour2",
+    "variability_fraction_of_limit",
+    "limit_fraction",
+    "distance_fraction_to_upper_limit",
+    "current_batch_robust_z",
+    "slope_batch_robust_z",
+    "initial_fraction_of_limit"
+  ],
+  "imputation_medians": {
+    "percent_change": -0.07991993000324703,
+    "delta_fraction_of_limit": -0.009523833235214281,
+    "slope_fraction_per_hour": -0.0003968263848005952,
+    "acceleration_fraction_per_hour2": 0.0,
+    "variability_fraction_of_limit": 0.006188915709423075,
+    "limit_fraction": 0.11768698529499999,
+    "distance_fraction_to_upper_limit": 0.882313014705,
+    "current_batch_robust_z": 0.0,
+    "slope_batch_robust_z": -7.597546723692172e-17,
+    "initial_fraction_of_limit": 0.12609673282384998
+  },
+  "missing_value_policy": "Leakage checkpoints must be finite (else unavailable). Optional auxiliary columns may be missing and are filled with the training medians recorded in imputation_medians. No other preprocessing.",
+  "target": {
+    "definition": "observed final_value at 168 h divided by the per-component upper_limit; predictions are multiplied back by upper_limit to give uA",
+    "parameterisation": "residual_over_persistence",
+    "clipping": "nonnegative only; no upper clipping",
+    "base_margin_required_at_predict": true
+  },
+  "training": {
+    "components": 7200,
+    "batches": 36,
+    "batch_ids": [
+      "MLCC_B003",
+      "MLCC_B005",
+      "MLCC_B007",
+      "MLCC_B008",
+      "MLCC_B009",
+      "MLCC_B010",
+      "MLCC_B011",
+      "MLCC_B012",
+      "MLCC_B013",
+      "MLCC_B014",
+      "MLCC_B015",
+      "MLCC_B016",
+      "MLCC_B021",
+      "MLCC_B022",
+      "MLCC_B024",
+      "MLCC_B025",
+      "MLCC_B027",
+      "MLCC_B028",
+      "MLCC_B033",
+      "MLCC_B036",
+      "MLCC_B037",
+      "MLCC_B039",
+      "MLCC_B041",
+      "MLCC_B042",
+      "MLCC_B043",
+      "MLCC_B044",
+      "MLCC_B045",
+      "MLCC_B046",
+      "MLCC_B047",
+      "MLCC_B049",
+      "MLCC_B050",
+      "MLCC_B051",
+      "MLCC_B053",
+      "MLCC_B054",
+      "MLCC_B057",
+      "MLCC_B058"
+    ],
+    "input_sha256": {
+      "train_early.csv": "b407d150ff393cbd9171978038b5ab856aa344d24a0e6e1040592c25721e2cc4",
+      "train_labels.csv": "81cdc6bcd225df34c7c1e9e9b75c922585eabdf7fdfa0ac78eb6455d0c34d6d1"
+    },
+    "seed": 26170,
+    "data": "synthetic training batches only"
+  },
+  "environment": {
+    "python": "3.12.13",
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "versions": {
+      "numpy": "2.5.2",
+      "pandas": "3.0.5",
+      "scikit-learn": "1.9.0",
+      "xgboost": "3.4.1",
+      "scipy": "1.18.1",
+      "threadpoolctl": "3.6.0"
+    }
+  },
+  "experiment_reference": {
+    "cv_results": "cv_results.json",
+    "predeclaration_digest": "27702108c22c731553cbb314bae3576d1f76929dd1cbeab5b8fa231a3d0afd5a",
+    "pooled_mae_normalized": 0.14292315451867502,
+    "fold_mae_normalized": {
+      "mean": 0.14285091696895377,
+      "std": 0.0016330788365972995,
+      "min": 0.14099410382907282,
+      "max": 0.14545146875891826,
+      "per_fold": [
+        0.14545146875891826,
+        0.14252485702596085,
+        0.14099410382907282,
+        0.1422790222065224,
+        0.1430051330242946
+      ]
+    },
+    "persistence_pooled_mae_normalized": 0.15919016691536034
+  },
+  "interval": "none: this candidate returns point forecasts only; Codex connects separately calibrated intervals",
+  "assumptions": [
+    "Only exact 0 h and 24 h MLCC_X7R leakage_ua readings in uA are supported",
+    "Batch-relative features are recomputed from the uploaded batch peers, so a small uploaded batch weakens them (see peer_count)",
+    "Synthetic training data; no field accuracy is claimed",
+    "Simulated scenario labels never enter inference"
+  ],
+  "artifact_sha256": {
+    "model.ubj": "7bf6d10c87fd6e7eb39a7c7f4d89df908d3e4395d4d637def1672384c355b9a6",
+    "model.json": "def875634fcbb0b5d242a1b7583b485ab95cbf8083252f83906770a719c0b930"
+  }
+}
