@@ -1,6 +1,6 @@
-# Dashboard
+# Leakage Lens dashboard
 
-React + Vite front end for the screening results, dark "obsidian-amber" theme. It polls `/api/v1/health/ready`, screens a CSV through `POST /api/v1/screen` (optional outcome file for the 168 h reveal), and shows the overview, component grid, fault topology, per-part inspector, chamber view and export.
+React + Vite front end for the screening results, dark "obsidian-amber" theme with the double-L emblem (`src/components/common/LeakageLensLogo.jsx`; standalone copy at `docs/assets/leakage-lens-logo.svg`). A first-run onboarding flow (`src/components/onboarding/`) walks a new engineer through the upload, the four recommendations and the glossary; it can be reopened from the sidebar. It polls `/api/v1/health/ready`, screens a CSV through `POST /api/v1/screen` (optional outcome file for the 168 h reveal), and shows the overview, component grid, fault topology, per-part inspector, chamber view and export.
 
 ```bash
 cd frontend

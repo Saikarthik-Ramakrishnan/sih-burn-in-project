@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 460" width="900" height="460" fill="none" role="img" aria-label="Leakage Lens logo">
+  <defs>
+    <linearGradient id="llLeft" x1="315" y1="115" x2="620" y2="610" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fb923c"/>
+      <stop offset="60%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+    <linearGradient id="llRight" x1="510" y1="245" x2="950" y2="720" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#f97316"/>
+      <stop offset="65%" stop-color="#ea580c"/>
+      <stop offset="100%" stop-color="#c2410c"/>
+    </linearGradient>
+    <linearGradient id="border" x1="0" y1="0" x2="320" y2="320" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fb923c" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#ea580c" stop-opacity="0.2"/>
+    </linearGradient>
+  </defs>
+  <!-- Obsidian squircle with the double-L monogram (same paths as the dashboard emblem) -->
+  <g transform="translate(290 0)">
+    <rect width="320" height="320" rx="72" fill="#08090e"/>
+    <rect x="7" y="7" width="306" height="306" rx="66" stroke="#f97316" stroke-opacity="0.35" stroke-width="4"/>
+    <rect x="15" y="15" width="290" height="290" rx="60" stroke="url(#border)" stroke-width="3"/>
+    <g transform="translate(-38 30) scale(0.3125)">
+      <path d="M 315 590 L 445 150 Q 455 115 495 115 L 620 115 L 620 118 Q 570 145 558 190 L 475 545 Q 468 575 500 575 L 570 575 Q 565 605 525 610 Z" fill="url(#llLeft)" stroke="#fb923c" stroke-width="10" stroke-linejoin="round"/>
+      <path d="M 510 670 L 645 280 Q 657 245 697 245 L 835 245 L 835 248 Q 785 275 773 320 L 690 655 Q 683 690 720 690 L 950 690 Q 940 720 900 720 L 525 720 Z" fill="url(#llRight)" stroke="#f97316" stroke-width="10" stroke-linejoin="round"/>
+    </g>
+  </g>
+  <text x="450" y="395" text-anchor="middle" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="58" font-weight="600" letter-spacing="14" fill="#e2e8f0">LEAKAGE LENS</text>
+  <text x="450" y="440" text-anchor="middle" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="22" letter-spacing="6" fill="#94a3b8">SIH26170 · BURN-IN EARLY ANOMALY &amp; FORECAST</text>
+</svg>

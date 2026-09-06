@@ -1,4 +1,8 @@
-# SIH26170: early anomaly detection for component burn-in
+# Leakage Lens: early anomaly detection for component burn-in
+
+<p align="center">
+  <img src="docs/assets/leakage-lens-logo.svg" alt="Leakage Lens logo" width="420">
+</p>
 
 Burn-in screening for electronic components: parts are held at elevated temperature and voltage for 168 h and measured at fixed checkpoints. This system uses the 0 h and 24 h leakage-current readings to (1) detect components that are drifting differently from the rest of their batch and (2) forecast the 168 h leakage with a calibrated prediction interval. Components are ranked into ACCEPT, MONITOR, RETEST or ENGINEER_REVIEW.
 
@@ -6,7 +10,7 @@ The pilot targets X7R ceramic capacitors, measuring leakage current in µA. All 
 
 Stack: Python 3.12 core (numpy, pandas, scikit-learn, XGBoost), FastAPI backend, React + Vite dashboard.
 
-## System Overveiw
+## System overview
 
 Input: a long-format CSV with one row per component per checkpoint (identity columns, `hours`, `measurement_value`, `upper_limit`, `profile_id`).
 
@@ -42,7 +46,7 @@ Start here and work deeper:
 | [Model bundle](outputs/mlcc_v2/START_HERE.md) | What the release bundle contains and how it was trained and tested |
 | [Datasets](outputs/mlcc_v1/README.md) | The synthetic data, its splits and column meanings |
 | [Forecasting experiment](outputs/claude_forecast_v2/README.md) | Why v1 lost to persistence and how v2 was chosen |
-| [Dashboard](frontend/README.md) | React + Vite front end: run it, live sample screening, the bundled demo subset |
+| [Dashboard](frontend/README.md) | Leakage Lens front end: run it, onboarding, live sample screening, the bundled demo subset |
 
 Start with the documentation for an overview of the system, then follow the Quick Start to run it.
 
