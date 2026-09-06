@@ -95,9 +95,9 @@ export default function TrajectoryChart({
           x={getX(24)}
           y={padding.top - 14}
           fill="#f97316"
-          fontSize="9"
+          fontSize="10.5"
           textAnchor="middle"
-          fontWeight="bold"
+          fontWeight="600"
         >
           24h CUTOFF
         </text>
@@ -117,8 +117,8 @@ export default function TrajectoryChart({
           x={width - padding.right + 5}
           y={getY(limit) + 3}
           fill="#f97316"
-          fontSize="9"
-          fontWeight="bold"
+          fontSize="10"
+          fontWeight="600"
         >
           LIMIT ({limit} µA)
         </text>
@@ -127,7 +127,7 @@ export default function TrajectoryChart({
         {[0, 24, 48, 72, 96, 120, 144, 168].map(h => (
           <g key={h} transform={`translate(${getX(h)}, ${height - padding.bottom})`}>
             <line y2="5" stroke="rgba(255,255,255,0.12)" />
-            <text y="18" fill="#64748b" fontSize="9" textAnchor="middle">
+            <text y="18" fill="#94a3b8" fontSize="10" textAnchor="middle">
               {h}h
             </text>
           </g>
@@ -137,7 +137,7 @@ export default function TrajectoryChart({
         {[0, maxVal * 0.33, maxVal * 0.66, maxVal].map((val, idx) => (
           <g key={idx} transform={`translate(${padding.left}, ${getY(val)})`}>
             <line x2="-5" stroke="rgba(255,255,255,0.12)" />
-            <text x="-8" y="3" fill="#64748b" fontSize="9" textAnchor="end">
+            <text x="-8" y="3.5" fill="#94a3b8" fontSize="10" textAnchor="end">
               {val.toFixed(2)}
             </text>
           </g>
@@ -203,8 +203,8 @@ export default function TrajectoryChart({
           x={getX(168) - 10}
           y={getY(predVal) - 10}
           fill="#f97316"
-          fontSize="10"
-          fontWeight="bold"
+          fontSize="11.5"
+          fontWeight="600"
           textAnchor="end"
         >
           Forecast: {predVal} µA
@@ -236,8 +236,8 @@ export default function TrajectoryChart({
               x={getX(168) + 10}
               y={getY(record.observed_168h || outcomeTraj[outcomeTraj.length - 1].value) + 4}
               fill="#cbd5e1"
-              fontSize="10"
-              fontWeight="bold"
+              fontSize="11.5"
+              fontWeight="600"
             >
               Actual 168h: {record.observed_168h} µA
             </text>
