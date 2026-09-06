@@ -167,7 +167,18 @@ marks the container unhealthy instead of serving a broken model. CORS is
 disabled in the image because the dashboard is served same-origin; set
 `SIH_CORS_ALLOW_ORIGINS` if a separate frontend origin needs it.
 
-## 9. Public deployment (Fly.io)
+## 9a. Public deployment, free: Render (API) + Vercel (dashboard)
+
+`render.yaml` is a Render Blueprint: sign in at https://render.com with GitHub,
+New → Blueprint → select this repository → Apply. Render builds the Dockerfile
+and serves the API and the dashboard at `https://leakage-lens.onrender.com`
+(health check `/api/v1/health/ready`; the free instance sleeps when idle and
+wakes on the first request). `frontend/vercel.json` rewrites `/api/*` from the
+Vercel-hosted dashboard to that Render URL, so the app is same-origin at
+`https://leakage-lens.vercel.app`; update both files if Render assigns a
+different hostname.
+
+## 9b. Public deployment, paid: Fly.io
 
 `fly.toml` at the repository root deploys the same Dockerfile. One-time setup:
 

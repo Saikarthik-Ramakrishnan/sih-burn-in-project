@@ -1,0 +1,20 @@
+# Render Blueprint: free web service built from the repository Dockerfile.
+# Free instances sleep after 15 minutes idle and wake on the next request
+# (about 30 to 60 s including the model probe).
+services:
+  - type: web
+    name: leakage-lens
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/v1/health/ready
+    autoDeploy: true
+    envVars:
+      - key: SIH_MODE
+        value: demo
+      - key: SIH_CORS_ALLOW_ORIGINS
+        value: https://leakage-lens.vercel.app
+      - key: PORT
+        value: "8000"
