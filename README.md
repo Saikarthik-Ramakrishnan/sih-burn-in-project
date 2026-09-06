@@ -4,7 +4,7 @@ Burn-in runs electronic parts hot and under voltage for a week. This project rea
 
 Pilot scope: X7R ceramic capacitors, leakage current in µA. All data are synthetic, so the results demonstrate the pipeline; field accuracy remains to be established on measured hardware. The release forecaster `xgboost_v2` reaches normalized MAE 0.136 on untouched test batches, compared with 0.153 for persistence.
 
-## Summary
+## About the Project
 
 An engineer uploads a CSV of 0 h and 24 h readings. The backend validates it, builds batch-relative features, scores each part with a median/MAD baseline and an Isolation Forest, forecasts the 168 h value with `xgboost_v2`, attaches a calibrated interval and TreeSHAP explanation, and returns one of ACCEPT, MONITOR, RETEST or ENGINEER_REVIEW per part. The dashboard renders that response. Models are trained offline from whole-batch splits and load once at startup; a request only runs inference.
 
