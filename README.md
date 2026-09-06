@@ -1,96 +1,77 @@
-# SIH26170 anomaly-detection core
+# SIH26170 — early anomaly detection for component burn-in
 
-## MLCC prototype update — 5 September 2026
+Burn-in runs electronic parts hot and under voltage for a week and checks whether they drift out of spec. This project reads only the first two measurements of that week (0 h and 24 h), spots parts that behave oddly next to their batch mates, and forecasts where each part's leakage current will be at 168 h. It ships as a Python core, a FastAPI backend, and a React dashboard.
 
-The new synthetic MLCC dataset, saved Isolation Forest/XGBoost prototype and
-role-specific handoffs are described in `outputs/mlcc_v1/START_HERE.md`.
-Run `scripts/score_mlcc_prototype.py` against the supplied demo CSV and model
-bundle for real local inference. The earlier generic anomaly core below is
-preserved. FastAPI and the frontend remain separate teammate workstreams.
+The pilot covers one part family: X7R multilayer ceramic capacitors, leakage current in µA. Every dataset in this repository is synthetic. The numbers here demonstrate that the pipeline works; they are not evidence of field accuracy.
 
-This is the technical-lead portion of the SIH26170 prototype. It turns early
-burn-in measurements into component-level features, compares each component
-with genuinely comparable peers, and returns an explainable anomaly result.
+## What it does
 
-## Current scope
+- **Anomaly screening.** A median/MAD baseline plus an Isolation Forest compare each part with comparable peers in the same batch, so a part can be flagged while still inside its limit.
+- **Forecasting.** `xgboost_v2` predicts the 168 h leakage from the 0/24 h readings. It learns a correction on top of "the value stays where it is" with an absolute-error objective, which is why it beats persistence where the earlier squared-error model did not (normalized MAE 0.136 vs 0.153 on untouched test batches).
+- **Calibrated uncertainty.** Each forecast carries a stratified prediction interval and a one-sided 90% upper bound that drives the MONITOR decision.
+- **Explanations and honesty flags.** TreeSHAP contributions for the active forecast, explicit unscored records, and warnings whenever a number should not be read at face value.
 
-- strict input validation;
-- leakage-safe feature engineering up to a chosen `as_of_hour`;
-- a transparent median/MAD baseline;
-- an Isolation Forest model;
-- plain-language reason codes;
-- reproducible multi-batch synthetic scenarios kept separate from model inputs;
-- held-out-batch evaluation against fixed-limit and robust baselines;
-- repeated-split and time-sweep reporting;
-- a decision layer that consumes Ashvitha's prediction output contract.
+## Repository layout
 
-The prediction model, dashboard, production API, and real-world validation are
-separate modules. This package does not claim that an anomaly proves a physical
-failure mechanism.
-
-## Input contract
-
-Every row is one measurement for one component at one time.
-
-| Column | Meaning |
+| Path | What lives there |
 |---|---|
-| `component_id` | Unique component identifier |
-| `batch_id` | Manufacturing/test batch |
-| `component_family` | Comparable component type |
-| `hours` | Hours since burn-in began |
-| `measurement_name` | For example, `leakage_ua` |
-| `measurement_value` | Observed value |
-| `upper_limit` | Approved maximum for this measurement |
+| `src/sih26170/` | Shared core: validation, features, anomaly detector, decision rules, the MLCC prototype and the `forecast_v2` experiment runner |
+| `src/sih26170/api/`, `src/sih26170/prediction/` | FastAPI backend: ingestion, response contract, bundle loading |
+| `outputs/mlcc_v2/model_bundle/` | The release bundle the backend loads (`mlcc-pilot-1.1`) |
+| `outputs/mlcc_v1/` | Synthetic datasets (train / calibration / test / stress / demo) and the earlier v1 bundle |
+| `outputs/claude_forecast_v2/` | Forecasting experiment: predeclared comparison, diagnostics, out-of-fold forecasts |
+| `outputs/codex_ml_v2_review/` | Independent evaluation of the v2 candidate on test, fresh and stress batches |
+| `my-app/` | React + Vite dashboard |
+| `tests/` | 273 tests across core, forecasting and API |
 
-Optional columns include `lower_limit`, `temperature_c`, `humidity_pct`,
-`test_condition`, and `data_source`.
-
-## Run locally
+## Quick start
 
 ```bash
-python -m venv .venv
-.venv/bin/pip install -e '.[dev]'
-.venv/bin/pytest
-.venv/bin/python examples/run_anomaly_demo.py
-.venv/bin/python examples/run_evaluation.py
-.venv/bin/python examples/run_evaluation_harness_demo.py
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]" "xgboost==3.4.1" "skops==0.13.0"
+pytest tests -q
+uvicorn sih26170.api.main:app --port 8000
 ```
 
-## Stable interface for teammates
+Then open `http://127.0.0.1:8000/api/v1/docs`, or upload `outputs/mlcc_v1/demo_early.csv`:
 
-```python
-features = build_component_features(readings, as_of_hour=24)
-detector = BatchAwareAnomalyDetector(contamination=0.1)
-results = detector.fit_score(features)
+```bash
+curl -F "file=@outputs/mlcc_v1/demo_early.csv;type=text/csv" http://127.0.0.1:8000/api/v1/screen
 ```
 
-The dashboard should consume the fields defined by `AnomalyResult.to_dict()`.
-The future-value model can be connected through `PredictionResult` and
-`build_screening_record()`.
+On macOS, XGBoost needs `brew install libomp`. The dashboard runs separately with `cd my-app && npm install && npm run dev`.
 
-## Evaluation interpretation
+## Documentation
 
-The generated evaluation files are synthetic test-harness results, not evidence
-of aerospace performance. Complete batches are held out, scenario labels are
-joined only after scoring, and readings later than `as_of_hour` cannot enter a
-feature. Read `docs/evaluation_notes.md` before quoting any metric.
+Start here and work deeper:
 
-## Stress-testing harness
+| Document | Description |
+|---|---|
+| [Running the backend](docs/backend/RUNNING.md) | Install, environment variables, start the server, request examples |
+| [API contract](docs/backend/API_CONTRACT.md) | Endpoints, request and response fields, how to read every number without misleading a judge |
+| [Backend status](docs/backend/STATUS.md) | What is verified, measured performance, known limitations, files changed |
+| [Integration requests](docs/backend/INTEGRATION_REQUESTS.md) | Open questions between the backend and the core, and what has been resolved |
+| [v2 bundle: start here](outputs/mlcc_v2/START_HERE.md) | What the release bundle contains, how it was trained, test-set results |
+| [Forecasting v2 handoff](docs/CLAUDE_FORECAST_V2_HANDOFF.md) | Why persistence beat v1, the predeclared experiment, interval design, integration notes |
+| [Forecasting diagnostics](outputs/claude_forecast_v2/DIAGNOSTICS.md) | Six analyses of what 0/24 h readings can and cannot predict |
+| [Cross-validated comparison](outputs/claude_forecast_v2/COMPARISON.md) | Twelve configurations on whole-batch folds, per fold, profile, stratum and scenario |
+| [v1 bundle: start here](outputs/mlcc_v1/START_HERE.md) | The first prototype, who received which pack, honest first results |
+| [Data dictionary](outputs/mlcc_v1/DATA_DICTIONARY.md) | Every column in the synthetic datasets and how it may be used |
+| [Sources and assumptions](outputs/mlcc_v1/SOURCES_AND_ASSUMPTIONS.md) | What the generator assumes, which public data was checked, what is not claimed |
+| [Evaluation notes](docs/evaluation_notes.md) | How held-out batches and time sweeps are evaluated, and how to quote a metric |
+| [Stress-testing harness](docs/evaluation_notes_harness.md) | Fixed-limit vs robust vs Isolation Forest, and how much warning each buys |
+| [Technical lead plan](docs/technical_lead_plan.md) | Scope, milestones and ownership across the team |
+| [Cleaned training integration](outputs/cleaned_training_integration/README.md) | How the teammates' cleaned data and feature mappings were verified against the core |
+| [Dashboard field dictionary](my-app/docs/dashboardAdapterFieldDictionary.md) | Which response fields the dashboard binds to and how to display them |
+| [Dashboard app](my-app/README.md) | React + Vite setup for the frontend |
 
-`sih26170.evaluation_harness` compares fixed-limit, median/MAD, Isolation
-Forest and the existing combined detector on held-out batches, and adds a
-screening-hour ladder that measures how much warning each method actually buys
-before a component crosses its limit. `sih26170.splitting` holds the
-batch-level split and its leakage guards.
+Handoff prompts and team briefs live in `outputs/*.md` and `outputs/mlcc_v1/handoffs/`.
 
-```python
-dataset = generate_burn_in_dataset(seed=26170, n_batches=8, components_per_batch=50)
-split = split_batches(dataset.readings, test_fraction=0.4, random_state=7)
-assert_split_is_leakage_safe(dataset.readings, split, as_of_hour=24)
-report = run_holdout_evaluation(dataset, split=split)
+## Validation
+
+```bash
+pytest tests -q
+python scripts/compare_api_vs_core.py outputs/mlcc_v1/demo_early.csv
 ```
 
-Recall, false-negative rate, false-positive rate, precision and lead time are
-reported; ordinary accuracy is not, because at these defect rates a screen that
-flags nothing would score well on it. See `docs/evaluation_notes_harness.md`
-for results, failure cases and the open interface questions.
+The first runs the full suite; the second pushes the same CSV through the HTTP API and through the core directly and exits non-zero if any of twelve per-component fields disagree.
