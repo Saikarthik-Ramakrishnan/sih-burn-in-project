@@ -147,3 +147,22 @@ cd docs/backend && python -m http.server 5173 --bind 127.0.0.1
 `compare_api_vs_core.py` takes an optional second argument naming the forecast
 model, and exits non-zero on any disagreement between the API and the core, so
 it is usable as a check in CI.
+
+## 8. Docker
+
+From the repository root:
+
+```bash
+docker compose up --build
+```
+
+`Dockerfile` is a two-stage build: `node:22-alpine` runs `npm run build` for
+`frontend/`, then `python:3.12-slim` installs `requirements-docker.txt` (the
+exact versions the bundle was validated with) plus `libgomp1` for XGBoost,
+copies `src/`, `outputs/mlcc_v2/model_bundle/` and the two demo CSVs, and serves
+everything with uvicorn on port 8000. `.dockerignore` keeps training data,
+stress sets, experiment outputs and tests out of the image. The `HEALTHCHECK`
+polls `/api/v1/health/ready`, so a bundle that fails a checksum or version check
+marks the container unhealthy instead of serving a broken model. CORS is
+disabled in the image because the dashboard is served same-origin; set
+`SIH_CORS_ALLOW_ORIGINS` if a separate frontend origin needs it.

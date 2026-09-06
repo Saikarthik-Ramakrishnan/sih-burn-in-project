@@ -1,0 +1,9 @@
+services:
+  leakage-lens:
+    build: .
+    image: leakage-lens:latest
+    ports:
+      - "8000:8000"
+    environment:
+      SIH_MODE: demo
+    restart: unless-stopped

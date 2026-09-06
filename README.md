@@ -35,6 +35,14 @@ uvicorn sih26170.api.main:app --port 8000
 
 Upload `outputs/mlcc_v1/demo_early.csv` at `http://127.0.0.1:8000/api/v1/docs`. macOS needs `brew install libomp`.
 
+## Run with Docker
+
+```bash
+docker compose up --build
+```
+
+One image: a Node stage builds the dashboard, a Python 3.12 stage installs the exact validated library versions, the release bundle and the demo CSVs, and uvicorn serves the API and the dashboard together on http://localhost:8000. The container is healthy only when `/api/v1/health/ready` passes its checksum, version and inference-probe checks.
+
 ## Documentation
 
 Start here and work deeper:
