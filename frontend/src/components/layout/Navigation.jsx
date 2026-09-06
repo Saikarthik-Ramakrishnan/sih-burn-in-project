@@ -72,10 +72,10 @@ export default function Navigation({
       `}
     >
       {/* Top: Brand & Logo */}
-      <div className="p-3.5 border-b border-white/[0.05]">
+      <div className="p-3 border-b border-white/[0.05]">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center shrink-0">
-            <Cpu className="w-4 h-4" strokeWidth={1.5} />
+          <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center shrink-0">
+            <Cpu className="w-5 h-5" strokeWidth={1.5} />
           </div>
 
           <div
@@ -110,20 +110,15 @@ export default function Navigation({
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`
-                relative w-full flex items-center h-10 px-3 rounded-lg text-xs transition-all duration-150 cursor-pointer group
+                relative w-full flex items-center h-10 px-2.5 rounded-lg text-xs transition-all duration-150 cursor-pointer group
                 ${
                   isActive
-                    ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20 font-medium'
+                    ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20 font-medium shadow-[0_0_12px_rgba(249,115,22,0.08)]'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.03] border border-transparent'
                 }
               `}
               title={!isExpanded ? tab.label : undefined}
             >
-              {/* Active Indicator Bar */}
-              {isActive && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r bg-orange-400" />
-              )}
-
               {/* Icon */}
               <div className="w-5 flex items-center justify-center shrink-0">
                 <Icon
@@ -163,68 +158,79 @@ export default function Navigation({
         })}
       </nav>
 
-      {/* Bottom: Status & Quick Action */}
-      <div className="p-2.5 border-t border-white/[0.05] space-y-2">
+      {/* Bottom: Status & Quick Actions */}
+      <div className="p-2 border-t border-white/[0.05] space-y-1.5">
         {/* Help Entry: Guide & Glossary */}
         <button
           onClick={() => window.dispatchEvent(new CustomEvent('open-onboarding'))}
           className={`
-            w-full flex items-center justify-center gap-2 h-9 rounded-lg text-xs font-mono transition-all cursor-pointer text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent hover:border-white/[0.08]
-            ${isExpanded ? 'px-3 justify-start' : 'p-2'}
+            relative w-full flex items-center h-10 px-2.5 rounded-lg text-xs transition-all duration-150 cursor-pointer group
+            text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent hover:border-white/[0.06]
           `}
           title={!isExpanded ? 'Guide & Glossary' : undefined}
         >
-          <HelpCircle className="w-4 h-4 shrink-0 text-orange-400/80" strokeWidth={1.5} />
-          <span
+          <div className="w-5 flex items-center justify-center shrink-0">
+            <HelpCircle className="w-4 h-4 text-slate-400 group-hover:text-orange-400 transition-colors" strokeWidth={1.5} />
+          </div>
+          <div
             className={`
-              transition-opacity duration-200 overflow-hidden whitespace-nowrap
-              ${isExpanded ? 'opacity-100 max-w-full' : 'opacity-0 max-w-0 hidden'}
+              flex-1 flex items-center justify-between ml-3 transition-opacity duration-200 overflow-hidden whitespace-nowrap
+              ${isExpanded ? 'opacity-100 max-w-full' : 'opacity-0 max-w-0 pointer-events-none'}
             `}
           >
-            Guide &amp; Glossary
-          </span>
+            <span className="truncate tracking-tight font-medium">Guide &amp; Glossary</span>
+            <span className="ml-2 px-1.5 py-0.2 rounded text-[9px] font-mono shrink-0 bg-white/[0.04] text-slate-400 border border-white/[0.06]">
+              DOCS
+            </span>
+          </div>
         </button>
 
         {onOpenUpload && (
           <button
             onClick={onOpenUpload}
             className={`
-              w-full flex items-center justify-center gap-2 h-9 rounded-lg text-xs font-mono transition-all cursor-pointer
-              ${
-                isExpanded
-                  ? 'btn-primary px-3'
-                  : 'p-2 text-orange-400 hover:bg-orange-500/10 border border-transparent hover:border-orange-500/20'
-              }
+              relative w-full flex items-center h-10 px-2.5 rounded-lg text-xs font-mono transition-all duration-150 cursor-pointer group
+              bg-orange-500/15 text-orange-300 hover:bg-orange-500/25 border border-orange-500/30 hover:border-orange-500/50
+              font-medium shadow-[0_0_12px_rgba(249,115,22,0.1)]
             `}
             title={!isExpanded ? 'Upload CSV' : undefined}
           >
-            <UploadCloud className="w-4 h-4 shrink-0" strokeWidth={1.5} />
-            <span
+            <div className="w-5 flex items-center justify-center shrink-0">
+              <UploadCloud className="w-4 h-4 text-orange-400 group-hover:scale-110 transition-transform" strokeWidth={1.5} />
+            </div>
+            <div
               className={`
-                transition-opacity duration-200 overflow-hidden whitespace-nowrap
-                ${isExpanded ? 'opacity-100 max-w-full' : 'opacity-0 max-w-0 hidden'}
+                flex-1 flex items-center justify-between ml-3 transition-opacity duration-200 overflow-hidden whitespace-nowrap
+                ${isExpanded ? 'opacity-100 max-w-full' : 'opacity-0 max-w-0 pointer-events-none'}
               `}
             >
-              Upload CSV
-            </span>
+              <span className="truncate tracking-tight font-semibold">Upload CSV</span>
+              <span className="ml-2 px-1.5 py-0.2 rounded text-[9px] font-mono shrink-0 bg-orange-500/20 text-orange-200 border border-orange-500/30">
+                SCREEN
+              </span>
+            </div>
           </button>
         )}
 
-        {/* Minimal Status Dot */}
-        <div className="flex items-center justify-center sm:justify-start gap-2.5 px-2 py-1.5 rounded-lg text-[11px] font-mono text-slate-400">
-          <span
-            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-              backendReady ? 'bg-orange-400' : 'bg-slate-500'
-            }`}
-          />
-          <span
+        {/* Minimal Status Indicator */}
+        <div className="flex items-center h-8 px-2.5 rounded-lg text-[11px] font-mono text-slate-400">
+          <div className="w-5 flex items-center justify-center shrink-0">
+            <span
+              className={`w-2 h-2 rounded-full shrink-0 ${
+                backendReady ? 'bg-orange-400 shadow-[0_0_8px_rgba(249,115,22,0.6)]' : 'bg-slate-500'
+              }`}
+            />
+          </div>
+          <div
             className={`
-              transition-opacity duration-200 overflow-hidden whitespace-nowrap text-[10px]
-              ${isExpanded ? 'opacity-100 max-w-full' : 'opacity-0 max-w-0 hidden'}
+              ml-3 transition-opacity duration-200 overflow-hidden whitespace-nowrap text-[10px] tracking-wider
+              ${isExpanded ? 'opacity-100 max-w-full' : 'opacity-0 max-w-0 pointer-events-none'}
             `}
           >
-            {backendReady ? 'SYSTEM ONLINE' : 'LOCAL DEMO'}
-          </span>
+            <span className={backendReady ? 'text-orange-400/90 font-medium' : 'text-slate-500'}>
+              {backendReady ? 'SYSTEM ONLINE' : 'LOCAL DEMO'}
+            </span>
+          </div>
         </div>
       </div>
     </aside>
