@@ -33,7 +33,9 @@ import {
   Compass,
   Eye,
   EyeOff,
-  Sliders
+  Sliders,
+  RefreshCw,
+  Wind
 } from 'lucide-react';
 import { formatPercent, formatZ } from '../../lib/utils';
 
@@ -87,12 +89,24 @@ export default function TopologyView({
   const [hoveredNodeId, setHoveredNodeId] = useState(null);
   const [selectedHubId, setSelectedHubId] = useState(null);
 
-  // New controls
+  // Display toggles
   const [edgeMode, setEdgeMode] = useState('all'); // 'all' | 'threats_only' | 'selected' | 'hidden'
   const [nodeSizing, setNodeSizing] = useState('risk'); // 'risk' | 'uniform'
   const [showLabels, setShowLabels] = useState('hover'); // 'hover' | 'all'
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isPhysicsActive, setIsPhysicsActive] = useState(false);
+
+  // Obsidian-style Fluid Physics Configuration & State
+  const [isPhysicsActive, setIsPhysicsActive] = useState(true);
+  const [showForcesDrawer, setShowForcesDrawer] = useState(false);
+  const [physicsParams, setPhysicsParams] = useState({
+    repelStrength: 480,       // Obsidian repel force (n-body anti-gravity)
+    linkDistance: 82,          // Resting length of springs
+    linkStrength: 0.085,       // Elastic spring tension
+    centerGravity: 0.007,      // Center pull
+    viscousFriction: 0.895,    // Fluid damping / viscosity
+    ambientDrift: true,        // Obsidian-style gentle cosmic breathing motion
+    maxVelocity: 12
+  });
 
   // Canvas Pan & Zoom State
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
@@ -105,10 +119,12 @@ export default function TopologyView({
   const svgRef = useRef(null);
   const canvasContainerRef = useRef(null);
 
-  // Node position overrides: { [nodeId]: { x, y } }
-  const [nodePositions, setNodePositions] = useState({});
-  const velocitiesRef = useRef({});
+  // Physics Simulation Buffers in Refs
+  const simNodesRef = useRef([]);
+  const simLinksRef = useRef([]);
+  const alphaRef = useRef(1.0);
   const animFrameRef = useRef(null);
+  const [simPositions, setSimPositions] = useState({});
 
   const records = dataset?.records || [];
 
@@ -171,7 +187,7 @@ export default function TopologyView({
     { id: 'BATCH_MLCC_B018', batch_id: 'MLCC_B018', name: 'LOT MLCC_B018', x: 280, y: 190, color: '#f97316' },
     { id: 'BATCH_MLCC_B019', batch_id: 'MLCC_B019', name: 'LOT MLCC_B019', x: 720, y: 190, color: '#fb923c' },
     { id: 'BATCH_MLCC_B020', batch_id: 'MLCC_B020', name: 'LOT MLCC_B020', x: 280, y: 470, color: '#f59e0b' },
-    { id: 'BATCH_MLCC_B021', batch_id: 'MLCC_B021', name: 'LOT MLCC_B021', x: 720, y: 470, color: '#94a3b8' }
+    { id: 'BATCH_MLCC_B021', batch_id: 'MLCC_B021', name: 'LOT MLCC_B021', x: 720, y: 470, color: '#10b981' }
   ], []);
 
   // 3. Classify Each Component's Active Mechanisms & Connections
@@ -224,7 +240,8 @@ export default function TopologyView({
           baseY: h.y,
           color: h.color,
           icon: h.icon,
-          size: 26
+          size: 26,
+          mass: 5.5
         });
       });
 
@@ -236,14 +253,14 @@ export default function TopologyView({
 
         const isNominal = comp.activeHubIds.includes('HUB_NOMINAL');
         const ring = Math.floor(idx % 3);
-        const radius = isNominal ? (60 + ring * 26) : (comp.isCompound ? 32 + ring * 15 : 52 + ring * 22);
+        const radius = isNominal ? (65 + ring * 26) : (comp.isCompound ? 34 + ring * 15 : 54 + ring * 22);
         const angle = (idx * 2.39996);
 
         const x = Math.max(70, Math.min(930, avgX + Math.cos(angle) * radius));
         const y = Math.max(70, Math.min(570, avgY + Math.sin(angle) * radius));
 
         const baseSize = nodeSizing === 'risk'
-          ? (comp.recommendation === 'ENGINEER_REVIEW' ? 13 : (comp.recommendation === 'RETEST' ? 11 : 9))
+          ? (comp.recommendation === 'ENGINEER_REVIEW' ? 13.5 : (comp.recommendation === 'RETEST' ? 11 : 9))
           : 9.5;
 
         nodes.push({
@@ -257,7 +274,8 @@ export default function TopologyView({
           activeHubIds: comp.activeHubIds,
           baseX: x,
           baseY: y,
-          size: baseSize
+          size: baseSize,
+          mass: 1.0
         });
 
         comp.activeHubIds.forEach(hid => {
@@ -290,7 +308,8 @@ export default function TopologyView({
           baseY: b.y,
           color: b.color,
           icon: Layers,
-          size: 24
+          size: 24,
+          mass: 5.5
         });
       });
 
@@ -324,7 +343,8 @@ export default function TopologyView({
             activeHubIds: [batchHub.id],
             baseX: x,
             baseY: y,
-            size: baseSize
+            size: baseSize,
+            mass: 1.0
           });
 
           edges.push({
@@ -361,7 +381,7 @@ export default function TopologyView({
         const y = 520 - normY * 380;
 
         const baseSize = nodeSizing === 'risk'
-          ? (comp.recommendation === 'ENGINEER_REVIEW' ? 13 : 9)
+          ? (comp.recommendation === 'ENGINEER_REVIEW' ? 13.5 : 9)
           : 9.5;
 
         nodes.push({
@@ -375,7 +395,8 @@ export default function TopologyView({
           activeHubIds: [],
           baseX: x,
           baseY: y,
-          size: baseSize
+          size: baseSize,
+          mass: 1.0
         });
       });
 
@@ -413,21 +434,198 @@ export default function TopologyView({
     return { nodes, edges };
   }, [activeMode, FAILURE_HUBS, BATCH_HUBS, componentsClassification, records, nodeSizing]);
 
-  // Reset node positions whenever activeMode changes
+  // Initialize simulation buffers whenever baseGraphData changes
   useEffect(() => {
-    setNodePositions({});
-    velocitiesRef.current = {};
-  }, [activeMode]);
+    simNodesRef.current = baseGraphData.nodes.map(n => ({
+      id: n.id,
+      type: n.type,
+      x: n.baseX,
+      y: n.baseY,
+      baseX: n.baseX,
+      baseY: n.baseY,
+      vx: (Math.random() - 0.5) * 2,
+      vy: (Math.random() - 0.5) * 2,
+      mass: n.mass || 1.0,
+      hash: Math.random() * 50,
+      fx: null,
+      fy: null,
+      prevX: n.baseX,
+      prevY: n.baseY
+    }));
+
+    simLinksRef.current = baseGraphData.edges.map(e => ({
+      source: e.source,
+      target: e.target,
+      isCompound: e.isCompound
+    }));
+
+    alphaRef.current = 1.0; // Heat up simulation
+  }, [baseGraphData]);
+
+  // Obsidian-Grade Fluid Physics Simulation Engine Loop
+  useEffect(() => {
+    let running = true;
+    let lastTime = performance.now();
+
+    const tickSimulation = (now) => {
+      if (!running) return;
+
+      const dt = Math.min((now - lastTime) / 1000, 0.05);
+      lastTime = now;
+
+      if (isPhysicsActive) {
+        const nodes = simNodesRef.current;
+        const links = simLinksRef.current;
+        const nodeMap = new Map();
+        nodes.forEach(n => nodeMap.set(n.id, n));
+
+        const {
+          repelStrength,
+          linkDistance,
+          linkStrength,
+          centerGravity,
+          viscousFriction,
+          ambientDrift,
+          maxVelocity
+        } = physicsParams;
+
+        const currentAlpha = alphaRef.current;
+
+        if (currentAlpha > 0.001 || ambientDrift) {
+          const t = now * 0.0015;
+
+          // 1. Elastic Hooke's Law Spring Attraction along Edges
+          for (let i = 0; i < links.length; i++) {
+            const link = links[i];
+            const u = nodeMap.get(link.source);
+            const v = nodeMap.get(link.target);
+            if (!u || !v) continue;
+
+            const dx = v.x - u.x;
+            const dy = v.y - u.y;
+            const dist = Math.hypot(dx, dy) || 1;
+            const targetDist = link.isCompound ? linkDistance * 0.75 : linkDistance;
+            const displacement = dist - targetDist;
+            const springForce = displacement * linkStrength;
+
+            const fx = (dx / dist) * springForce;
+            const fy = (dy / dist) * springForce;
+
+            if (u.fx === null) {
+              u.vx += fx / u.mass;
+              u.vy += fy / u.mass;
+            }
+            if (v.fx === null) {
+              v.vx -= fx / v.mass;
+              v.vy -= fy / v.mass;
+            }
+          }
+
+          // 2. N-Body Coulomb Repulsion (Pushes close nodes smoothly apart)
+          const nLen = nodes.length;
+          for (let i = 0; i < nLen; i++) {
+            const u = nodes[i];
+            for (let j = i + 1; j < nLen; j++) {
+              const v = nodes[j];
+              const dx = v.x - u.x;
+              const dy = v.y - u.y;
+              const distSq = dx * dx + dy * dy + 36;
+
+              if (distSq < 90000) { // Interaction radius ~300px
+                const dist = Math.sqrt(distSq);
+                const repForce = repelStrength / distSq;
+                const rx = (dx / dist) * repForce;
+                const ry = (dy / dist) * repForce;
+
+                if (u.fx === null) {
+                  u.vx -= rx / u.mass;
+                  u.vy -= ry / u.mass;
+                }
+                if (v.fx === null) {
+                  v.vx += rx / v.mass;
+                  v.vy += ry / v.mass;
+                }
+              }
+            }
+          }
+
+          // 3. Center Gravity & Boundary Attraction (Pull to 500, 320)
+          for (let i = 0; i < nLen; i++) {
+            const u = nodes[i];
+            if (u.fx !== null) continue;
+
+            const cx = 500 - u.x;
+            const cy = 320 - u.y;
+            u.vx += cx * centerGravity;
+            u.vy += cy * centerGravity;
+
+            // Ambient gentle cosmic drift (Obsidian-style living graph)
+            if (ambientDrift) {
+              const waveX = Math.sin(t + u.hash) * 0.16;
+              const waveY = Math.cos(t * 0.8 + u.hash * 1.4) * 0.16;
+              u.vx += waveX;
+              u.vy += waveY;
+            }
+
+            // Damping & Friction
+            u.vx *= viscousFriction;
+            u.vy *= viscousFriction;
+
+            // Velocity Clamping
+            const speed = Math.hypot(u.vx, u.vy);
+            if (speed > maxVelocity) {
+              u.vx = (u.vx / speed) * maxVelocity;
+              u.vy = (u.vy / speed) * maxVelocity;
+            }
+
+            // Position Integration
+            u.x += u.vx * Math.max(currentAlpha, 0.15);
+            u.y += u.vy * Math.max(currentAlpha, 0.15);
+
+            // Bounding box soft cushion
+            u.x = Math.max(35, Math.min(965, u.x));
+            u.y = Math.max(35, Math.min(605, u.y));
+          }
+
+          // Alpha Cooling
+          alphaRef.current = Math.max(ambientDrift ? 0.07 : 0.0005, currentAlpha * 0.99);
+
+          // Update position map for SVG elements
+          const posMap = {};
+          nodes.forEach(n => {
+            posMap[n.id] = { x: n.x, y: n.y };
+          });
+          setSimPositions(posMap);
+        }
+      }
+
+      animFrameRef.current = requestAnimationFrame(tickSimulation);
+    };
+
+    animFrameRef.current = requestAnimationFrame(tickSimulation);
+
+    return () => {
+      running = false;
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    };
+  }, [isPhysicsActive, physicsParams]);
+
+  // Re-heat simulation function (Obsidian Jolt)
+  const reheatSimulation = useCallback(() => {
+    alphaRef.current = 1.0;
+    simNodesRef.current.forEach(n => {
+      n.vx += (Math.random() - 0.5) * 8;
+      n.vy += (Math.random() - 0.5) * 8;
+    });
+  }, []);
 
   // Helper to get active position of a node
   const getNodePos = useCallback((node) => {
     if (!node) return { x: 500, y: 320 };
-    const override = nodePositions[node.id];
-    if (override) return override;
-    return { x: node.baseX, y: node.baseY };
-  }, [nodePositions]);
+    return simPositions[node.id] || { x: node.baseX, y: node.baseY };
+  }, [simPositions]);
 
-  // Dynamic Graph Nodes & Edges with active positions
+  // Dynamic Graph Nodes & Edges synced with physics positions
   const currentNodes = useMemo(() => {
     return baseGraphData.nodes.map(n => {
       const pos = getNodePos(n);
@@ -459,116 +657,6 @@ export default function TopologyView({
     });
   }, [baseGraphData.edges, nodeMap]);
 
-  // Spring Physics Simulation Loop
-  useEffect(() => {
-    if (!isPhysicsActive) {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-      return;
-    }
-
-    let running = true;
-
-    const simulateStep = () => {
-      if (!running) return;
-
-      setNodePositions(prev => {
-        const next = { ...prev };
-        const v = velocitiesRef.current;
-
-        // Initialize positions and velocities
-        currentNodes.forEach(node => {
-          if (!next[node.id]) next[node.id] = { x: node.baseX, y: node.baseY };
-          if (!v[node.id]) v[node.id] = { vx: 0, vy: 0 };
-        });
-
-        // 1. Spring forces along edges
-        currentEdges.forEach(edge => {
-          const sPos = next[edge.source];
-          const tPos = next[edge.target];
-          if (!sPos || !tPos) return;
-
-          const dx = tPos.x - sPos.x;
-          const dy = tPos.y - sPos.y;
-          const dist = Math.hypot(dx, dy) || 1;
-          const restDist = edge.isCompound ? 55 : 85;
-          const force = (dist - restDist) * 0.025;
-
-          const fx = (dx / dist) * force;
-          const fy = (dy / dist) * force;
-
-          if (edge.source !== draggedNodeId && !edge.source.startsWith('HUB_') && !edge.source.startsWith('BATCH_')) {
-            v[edge.source].vx += fx;
-            v[edge.source].vy += fy;
-          }
-          if (edge.target !== draggedNodeId && !edge.target.startsWith('HUB_') && !edge.target.startsWith('BATCH_')) {
-            v[edge.target].vx -= fx;
-            v[edge.target].vy -= fy;
-          }
-        });
-
-        // 2. Node repulsion
-        for (let i = 0; i < currentNodes.length; i++) {
-          const a = currentNodes[i];
-          const aPos = next[a.id];
-          if (!aPos) continue;
-
-          for (let j = i + 1; j < currentNodes.length; j++) {
-            const b = currentNodes[j];
-            const bPos = next[b.id];
-            if (!bPos) continue;
-
-            const dx = bPos.x - aPos.x;
-            const dy = bPos.y - aPos.y;
-            const distSq = dx * dx + dy * dy || 1;
-
-            if (distSq < 10000) { // Within 100px
-              const dist = Math.sqrt(distSq);
-              const rep = 40 / (distSq + 10);
-              const rx = (dx / dist) * rep;
-              const ry = (dy / dist) * rep;
-
-              if (a.id !== draggedNodeId && a.type !== 'hub') {
-                v[a.id].vx -= rx;
-                v[a.id].vy -= ry;
-              }
-              if (b.id !== draggedNodeId && b.type !== 'hub') {
-                v[b.id].vx += rx;
-                v[b.id].vy += ry;
-              }
-            }
-          }
-        }
-
-        // 3. Center gravity & boundary clamping
-        currentNodes.forEach(node => {
-          if (node.id === draggedNodeId || node.type === 'hub') return;
-          const pos = next[node.id];
-          if (!pos) return;
-
-          // Pull to base position gently
-          const pullX = (node.baseX - pos.x) * 0.015;
-          const pullY = (node.baseY - pos.y) * 0.015;
-          v[node.id].vx = (v[node.id].vx + pullX) * 0.85;
-          v[node.id].vy = (v[node.id].vy + pullY) * 0.85;
-
-          pos.x = Math.max(50, Math.min(950, pos.x + v[node.id].vx));
-          pos.y = Math.max(50, Math.min(590, pos.y + v[node.id].vy));
-        });
-
-        return next;
-      });
-
-      animFrameRef.current = requestAnimationFrame(simulateStep);
-    };
-
-    animFrameRef.current = requestAnimationFrame(simulateStep);
-
-    return () => {
-      running = false;
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-    };
-  }, [isPhysicsActive, currentNodes, currentEdges, draggedNodeId]);
-
   // Filtered nodes logic
   const filteredNodeIds = useMemo(() => {
     const ids = new Set();
@@ -597,9 +685,8 @@ export default function TopologyView({
     return componentsClassification.find(c => c.id === selectedComponentId);
   }, [componentsClassification, selectedComponentId]);
 
-  // Canvas Mouse & Drag Handlers
+  // Canvas Mouse & Drag Handlers with Obsidian-style elastic fling
   const handleCanvasMouseDown = (e) => {
-    // If clicked on node or button, don't drag canvas
     if (e.target.closest('.interactive-node') || e.target.closest('button') || e.target.closest('input')) return;
     setIsSmoothTransition(false);
     setIsDraggingCanvas(true);
@@ -620,10 +707,20 @@ export default function TopologyView({
       setSelectedHubId(node.id);
     }
 
+    const simNode = simNodesRef.current.find(n => n.id === node.id);
+    if (simNode) {
+      simNode.fx = simNode.x;
+      simNode.fy = simNode.y;
+      simNode.prevX = simNode.x;
+      simNode.prevY = simNode.y;
+    }
+    alphaRef.current = 0.9; // Re-heat physics during drag
+
     const currentPos = getNodePos(node);
     dragStartRef.current = {
       clientX: e.clientX,
       clientY: e.clientY,
+      nodeId: node.id,
       origX: currentPos.x,
       origY: currentPos.y
     };
@@ -633,13 +730,20 @@ export default function TopologyView({
     if (draggedNodeId) {
       const dx = (e.clientX - dragStartRef.current.clientX) / transform.scale;
       const dy = (e.clientY - dragStartRef.current.clientY) / transform.scale;
-      setNodePositions(prev => ({
-        ...prev,
-        [draggedNodeId]: {
-          x: Math.max(30, Math.min(970, dragStartRef.current.origX + dx)),
-          y: Math.max(30, Math.min(610, dragStartRef.current.origY + dy))
-        }
-      }));
+      const simNode = simNodesRef.current.find(n => n.id === draggedNodeId);
+      if (simNode) {
+        const nextX = Math.max(30, Math.min(970, dragStartRef.current.origX + dx));
+        const nextY = Math.max(30, Math.min(610, dragStartRef.current.origY + dy));
+        simNode.fx = nextX;
+        simNode.fy = nextY;
+        simNode.vx = (nextX - (simNode.prevX || nextX)) * 0.45;
+        simNode.vy = (nextY - (simNode.prevY || nextY)) * 0.45;
+        simNode.prevX = nextX;
+        simNode.prevY = nextY;
+        simNode.x = nextX;
+        simNode.y = nextY;
+        alphaRef.current = 0.85; // Continuous fluid response
+      }
       return;
     }
 
@@ -655,8 +759,16 @@ export default function TopologyView({
   };
 
   const handleMouseUp = () => {
+    if (draggedNodeId) {
+      const simNode = simNodesRef.current.find(n => n.id === draggedNodeId);
+      if (simNode) {
+        simNode.fx = null;
+        simNode.fy = null;
+        alphaRef.current = 0.75; // Fling inertia into surrounding springs!
+      }
+      setDraggedNodeId(null);
+    }
     setIsDraggingCanvas(false);
-    setDraggedNodeId(null);
     setIsSmoothTransition(true);
   };
 
@@ -686,12 +798,6 @@ export default function TopologyView({
     setTransform(prev => ({ ...prev, scale: Math.max(0.4, prev.scale * 0.8) }));
   };
 
-  const resetNodeLayout = () => {
-    setIsSmoothTransition(true);
-    setNodePositions({});
-    velocitiesRef.current = {};
-  };
-
   // Center on Selected Component
   const centerSelected = useCallback(() => {
     const targetNode = currentNodes.find(n => n.id === selectedComponentId);
@@ -716,7 +822,7 @@ export default function TopologyView({
     }
   };
 
-  // Minimap Navigation: clicking or dragging on minimap
+  // Minimap Navigation
   const handleMinimapClick = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = (e.clientX - rect.left) / rect.width * 1000;
@@ -744,11 +850,6 @@ export default function TopologyView({
     };
   }, [componentsClassification, currentEdges.length, filteredNodeIds]);
 
-  const hoveredNode = useMemo(() => {
-    if (!hoveredNodeId) return null;
-    return currentNodes.find(n => n.id === hoveredNodeId);
-  }, [hoveredNodeId, currentNodes]);
-
   return (
     <div className={`space-y-5 pb-12 ${isFullscreen ? 'fixed inset-0 z-50 bg-[#08090e] p-6 overflow-y-auto' : ''}`}>
       {/* 1. View Header & Context Banner */}
@@ -766,23 +867,27 @@ export default function TopologyView({
               Fault Topology &amp; Failure Cluster Map
             </h2>
             <p className="text-[12.5px] text-slate-400">
-              Interactive relationship network mapping failure modes, lot defect clustering, and tester channel affinities. Drag nodes freely or activate spring dynamics.
+              Interactive relationship network with Obsidian-grade fluid physics simulation. Nodes float in living suspension and react elastically to dragging, tension, and repulsion.
             </p>
           </div>
 
           {/* Top Quick Stats Pill Row */}
           <div className="flex flex-wrap items-center gap-2.5 font-mono text-xs">
             <div className="px-3 py-1.5 rounded-lg bg-white/[0.02] border border-white/[0.05] text-right">
-              <span className="text-[10px] text-slate-500 uppercase block">NETWORK NODES</span>
+              <span className="text-[10px] text-slate-500 uppercase block">ACTIVE NODES</span>
               <span className="text-sm font-medium text-white">{metrics.visibleNodes} Active</span>
             </div>
-            <div className="px-3 py-1.5 rounded-lg bg-orange-500/[0.06] border border-orange-500/20 text-right">
-              <span className="text-[10px] text-orange-400 uppercase block">COMPOUND RISKS</span>
-              <span className="text-sm font-medium text-orange-400">{metrics.compoundCount} Parts (≥2 Vectors)</span>
+            <div className="px-3 py-1.5 rounded-lg bg-rose-500/[0.08] border border-rose-500/25 text-right">
+              <span className="text-[10px] text-rose-400 uppercase block">CRITICAL ERRORS</span>
+              <span className="text-sm font-medium text-rose-400">
+                {componentsClassification.filter(c => c.recommendation === 'ENGINEER_REVIEW').length} Parts
+              </span>
             </div>
-            <div className="px-3 py-1.5 rounded-lg bg-white/[0.02] border border-white/[0.05] text-right">
-              <span className="text-[10px] text-slate-500 uppercase block">LOT B018 DEFECT RATE</span>
-              <span className="text-sm font-medium text-white">{metrics.b018Rate}% Flagged</span>
+            <div className="px-3 py-1.5 rounded-lg bg-emerald-500/[0.08] border border-emerald-500/25 text-right">
+              <span className="text-[10px] text-emerald-400 uppercase block">NOMINAL GOOD</span>
+              <span className="text-sm font-medium text-emerald-400">
+                {componentsClassification.filter(c => c.recommendation === 'ACCEPT').length} Parts
+              </span>
             </div>
           </div>
         </div>
@@ -1001,38 +1106,30 @@ export default function TopologyView({
                 <span>Focus</span>
               </button>
               <span className="w-px h-4 bg-white/10 mx-0.5" />
-              {/* Physics Simulation Toggle */}
+
+              {/* Obsidian-Style Forces Toggle Button */}
               <button
-                onClick={() => setIsPhysicsActive(!isPhysicsActive)}
-                title={isPhysicsActive ? "Pause Spring Simulation" : "Start Dynamic Spring Simulation"}
+                onClick={() => setShowForcesDrawer(!showForcesDrawer)}
+                title="Obsidian Graph Forces Settings"
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all cursor-pointer ${
-                  isPhysicsActive
+                  showForcesDrawer
                     ? 'bg-orange-500 text-black font-semibold shadow-[0_0_12px_rgba(249,115,22,0.4)]'
                     : 'hover:bg-white/10 text-slate-300'
                 }`}
               >
-                {isPhysicsActive ? (
-                  <>
-                    <Pause className="w-3.5 h-3.5" strokeWidth={1.5} />
-                    <span>Physics ON</span>
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-3.5 h-3.5 text-orange-400" strokeWidth={1.5} />
-                    <span>Physics</span>
-                  </>
-                )}
+                <Sliders className="w-3.5 h-3.5" strokeWidth={1.5} />
+                <span>Forces</span>
               </button>
-              {/* Reset layout */}
-              {Object.keys(nodePositions).length > 0 && (
-                <button
-                  onClick={resetNodeLayout}
-                  title="Reset Draggable Node Positions"
-                  className="px-2 py-1 rounded-lg hover:bg-white/10 text-[11px] font-mono text-slate-400 hover:text-white cursor-pointer"
-                >
-                  Reset Nodes
-                </button>
-              )}
+
+              {/* Reheat / Jolt Button */}
+              <button
+                onClick={reheatSimulation}
+                title="Jolt / Shake Graph (Obsidian Reheat)"
+                className="p-1.5 rounded-lg hover:bg-white/10 text-slate-300 hover:text-orange-400 transition-colors cursor-pointer"
+              >
+                <RefreshCw className="w-3.5 h-3.5" strokeWidth={1.5} />
+              </button>
+
               <span className="w-px h-4 bg-white/10 mx-0.5" />
               {/* Fullscreen Theater Mode */}
               <button
@@ -1044,13 +1141,179 @@ export default function TopologyView({
               </button>
             </div>
 
+            {/* Obsidian-Style Forces Floating Drawer */}
+            {showForcesDrawer && (
+              <div
+                className="absolute top-14 left-3 z-40 w-72 bg-[#0a0c13]/95 backdrop-blur-xl rounded-2xl border border-white/15 p-4 shadow-2xl shadow-black/80 space-y-3.5 text-xs font-mono animate-in fade-in zoom-in-95 duration-150"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                  <div className="flex items-center gap-1.5 text-slate-200 font-semibold tracking-wide">
+                    <Sliders className="w-3.5 h-3.5 text-orange-400" strokeWidth={1.5} />
+                    <span>GRAPH FORCES</span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 uppercase">Fluid Physics</span>
+                </div>
+
+                {/* Force 1: Repulsion */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">Repel Force</span>
+                    <span className="text-white font-medium">{physicsParams.repelStrength}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="150"
+                    max="1000"
+                    step="10"
+                    value={physicsParams.repelStrength}
+                    onChange={(e) => {
+                      setPhysicsParams(prev => ({ ...prev, repelStrength: Number(e.target.value) }));
+                      alphaRef.current = 0.8;
+                    }}
+                    className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                  />
+                </div>
+
+                {/* Force 2: Link Distance */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">Link Distance</span>
+                    <span className="text-white font-medium">{physicsParams.linkDistance}px</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="40"
+                    max="160"
+                    step="2"
+                    value={physicsParams.linkDistance}
+                    onChange={(e) => {
+                      setPhysicsParams(prev => ({ ...prev, linkDistance: Number(e.target.value) }));
+                      alphaRef.current = 0.8;
+                    }}
+                    className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                  />
+                </div>
+
+                {/* Force 3: Link Force (Spring Tension) */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">Link Force</span>
+                    <span className="text-white font-medium">{physicsParams.linkStrength.toFixed(3)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.01"
+                    max="0.25"
+                    step="0.005"
+                    value={physicsParams.linkStrength}
+                    onChange={(e) => {
+                      setPhysicsParams(prev => ({ ...prev, linkStrength: Number(e.target.value) }));
+                      alphaRef.current = 0.8;
+                    }}
+                    className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                  />
+                </div>
+
+                {/* Force 4: Center Gravity */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">Center Force</span>
+                    <span className="text-white font-medium">{physicsParams.centerGravity.toFixed(3)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.001"
+                    max="0.025"
+                    step="0.001"
+                    value={physicsParams.centerGravity}
+                    onChange={(e) => {
+                      setPhysicsParams(prev => ({ ...prev, centerGravity: Number(e.target.value) }));
+                      alphaRef.current = 0.8;
+                    }}
+                    className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                  />
+                </div>
+
+                {/* Force 5: Viscous Friction (Damping) */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">Damping / Viscosity</span>
+                    <span className="text-white font-medium">{physicsParams.viscousFriction.toFixed(3)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.80"
+                    max="0.96"
+                    step="0.005"
+                    value={physicsParams.viscousFriction}
+                    onChange={(e) => {
+                      setPhysicsParams(prev => ({ ...prev, viscousFriction: Number(e.target.value) }));
+                      alphaRef.current = 0.8;
+                    }}
+                    className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                  />
+                </div>
+
+                {/* Ambient Drift Toggle */}
+                <div className="pt-2 border-t border-white/10 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-slate-300">
+                    <Wind className="w-3.5 h-3.5 text-orange-400" strokeWidth={1.5} />
+                    <span>Ambient Breathing Float</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setPhysicsParams(prev => ({ ...prev, ambientDrift: !prev.ambientDrift }));
+                      alphaRef.current = 0.8;
+                    }}
+                    className={`w-8 h-4.5 rounded-full transition-colors relative cursor-pointer p-0.5 ${
+                      physicsParams.ambientDrift ? 'bg-orange-500' : 'bg-white/10'
+                    }`}
+                  >
+                    <div
+                      className={`w-3.5 h-3.5 rounded-full bg-white transition-transform ${
+                        physicsParams.ambientDrift ? 'translate-x-3.5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Footer Buttons */}
+                <div className="pt-2 flex items-center justify-between gap-2">
+                  <button
+                    onClick={() => {
+                      setPhysicsParams({
+                        repelStrength: 480,
+                        linkDistance: 82,
+                        linkStrength: 0.085,
+                        centerGravity: 0.007,
+                        viscousFriction: 0.895,
+                        ambientDrift: true,
+                        maxVelocity: 12
+                      });
+                      reheatSimulation();
+                    }}
+                    className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white text-[10px] cursor-pointer"
+                  >
+                    Reset Defaults
+                  </button>
+                  <button
+                    onClick={reheatSimulation}
+                    className="px-3 py-1 rounded bg-orange-500/20 text-orange-300 border border-orange-500/30 text-[10.5px] font-semibold cursor-pointer"
+                  >
+                    Jolt / Shake
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Interaction Hint Badge */}
             <div className="absolute top-3 right-3 z-20 hidden md:flex items-center gap-1.5 bg-[#0b0c13]/85 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/[0.08] text-[10.5px] font-mono text-slate-400">
               <Move className="w-3 h-3 text-orange-400" strokeWidth={1.5} />
-              <span>Drag canvas to pan • Drag any node to reposition</span>
+              <span>Fluid rubber-band dragging • Drag canvas to pan</span>
             </div>
 
-            {/* Canvas Legend Overlay */}
+            {/* Canvas Legend Overlay with Red for Error and Green for Good */}
             <div className="absolute bottom-3 left-3 z-20 hidden sm:flex items-center gap-3 bg-[#0b0c13]/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/[0.08] text-[11px] font-mono">
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_#ef4444]" />
@@ -1077,21 +1340,18 @@ export default function TopologyView({
               className="absolute bottom-3 right-3 z-20 w-36 h-24 bg-[#090b10]/90 backdrop-blur-md rounded-xl border border-white/15 p-1 cursor-crosshair overflow-hidden shadow-2xl hidden md:block"
             >
               <svg viewBox="0 0 1000 640" className="w-full h-full">
-                {/* Mini radar grid */}
                 <rect width="1000" height="640" fill="transparent" />
                 <circle cx="500" cy="320" r="280" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="4" />
-                {/* Mini nodes */}
                 {currentNodes.map(n => (
                   <circle
                     key={`mini-${n.id}`}
                     cx={n.x}
                     cy={n.y}
                     r={n.type === 'hub' ? 14 : 7}
-                    fill={n.type === 'hub' ? '#ffffff' : (THEME_COLORS[n.recommendation]?.base || '#94a3b8')}
+                    fill={n.type === 'hub' ? '#ffffff' : (THEME_COLORS[n.recommendation]?.base || '#10b981')}
                     opacity={n.id === selectedComponentId ? 1 : 0.6}
                   />
                 ))}
-                {/* Viewport Frame Indicator */}
                 <rect
                   x={Math.max(0, -transform.x / transform.scale)}
                   y={Math.max(0, -transform.y / transform.scale)}
@@ -1129,10 +1389,15 @@ export default function TopologyView({
                     <stop offset="60%" stopColor="#f97316" stopOpacity="0.25" />
                     <stop offset="100%" stopColor="#f97316" stopOpacity="0" />
                   </radialGradient>
-                  <radialGradient id="glow-gold" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.8" />
-                    <stop offset="60%" stopColor="#f59e0b" stopOpacity="0.2" />
-                    <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
+                  <radialGradient id="glow-green" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="#10b981" stopOpacity="0.8" />
+                    <stop offset="60%" stopColor="#10b981" stopOpacity="0.25" />
+                    <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+                  </radialGradient>
+                  <radialGradient id="glow-red" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="#ef4444" stopOpacity="0.8" />
+                    <stop offset="60%" stopColor="#ef4444" stopOpacity="0.25" />
+                    <stop offset="100%" stopColor="#ef4444" stopOpacity="0" />
                   </radialGradient>
 
                   {/* Hub Gradients */}
@@ -1176,7 +1441,8 @@ export default function TopologyView({
 
                         const isConnectedToHover = hoveredNodeId && (edge.source === hoveredNodeId || edge.target === hoveredNodeId);
                         const isConnectedToSelected = selectedComponentId && (edge.source === selectedComponentId || edge.target === selectedComponentId);
-                        const isHighlighted = isConnectedToHover || isConnectedToSelected;
+                        const isConnectedToDrag = draggedNodeId && (edge.source === draggedNodeId || edge.target === draggedNodeId);
+                        const isHighlighted = isConnectedToHover || isConnectedToSelected || isConnectedToDrag;
 
                         if (edgeMode === 'selected' && !isHighlighted) return null;
 
@@ -1188,8 +1454,8 @@ export default function TopologyView({
                             x2={edge.targetX}
                             y2={edge.targetY}
                             stroke={isHighlighted ? '#f97316' : edge.color}
-                            strokeWidth={isHighlighted ? 2.5 : (edge.isCompound ? 1.2 : 0.7)}
-                            strokeOpacity={isHighlighted ? 0.95 : (hoveredNodeId ? 0.08 : (edge.isCompound ? 0.45 : 0.22))}
+                            strokeWidth={isHighlighted ? 2.5 : (edge.isCompound ? 1.2 : 0.75)}
+                            strokeOpacity={isHighlighted ? 0.95 : (hoveredNodeId ? 0.08 : (edge.isCompound ? 0.45 : 0.25))}
                             strokeDasharray={isHighlighted ? '5 5' : (edge.isCompound ? '3 3' : 'none')}
                             className={isHighlighted ? 'animate-pulse' : ''}
                           />
@@ -1301,9 +1567,9 @@ export default function TopologyView({
                           {isBeingDragged && (
                             <circle
                               r={node.size + 16}
-                              fill="rgba(249, 115, 22, 0.2)"
+                              fill="rgba(249, 115, 22, 0.25)"
                               stroke="#f97316"
-                              strokeWidth="1.5"
+                              strokeWidth="1.6"
                             />
                           )}
 
@@ -1341,7 +1607,7 @@ export default function TopologyView({
                           {/* Inner Socket Glyph / Center Dot */}
                           <circle
                             r={isSelected ? 3.5 : 2}
-                            fill={node.recommendation === 'ACCEPT' ? '#1e293b' : '#08090e'}
+                            fill={node.recommendation === 'ACCEPT' ? '#064e3b' : (node.recommendation === 'ENGINEER_REVIEW' ? '#450a0a' : '#08090e')}
                           />
 
                           {/* Node Hover Tooltip or Constant Label */}
@@ -1398,7 +1664,9 @@ export default function TopologyView({
             {/* Selected Component Header */}
             <div>
               <div className="flex items-center justify-between gap-2 mb-1.5">
-                <span className="text-base font-bold text-white font-mono tracking-wide">
+                <span className={`text-base font-bold font-mono tracking-wide ${
+                  selectedRecord.recommendation === 'ENGINEER_REVIEW' ? 'text-rose-300' : (selectedRecord.recommendation === 'ACCEPT' ? 'text-emerald-300' : 'text-white')
+                }`}>
                   {selectedRecord.component_id}
                 </span>
                 <DecisionBadge decision={selectedRecord.recommendation} size="sm" />
@@ -1437,19 +1705,21 @@ export default function TopologyView({
             <div className="grid grid-cols-2 gap-2 text-xs font-mono">
               <div className="p-2.5 rounded bg-white/[0.02] border border-white/[0.04]">
                 <span className="text-[9.5px] text-slate-500 uppercase block">24h Leakage</span>
-                <span className="text-sm font-medium text-white">{selectedRecord.latest_value} µA</span>
+                <span className={`text-sm font-medium ${selectedRecord.latest_value >= (selectedRecord.limits?.applicable_limit || 0.25) ? 'text-rose-400 font-bold' : (selectedRecord.latest_value < 0.1 ? 'text-emerald-400' : 'text-white')}`}>
+                  {selectedRecord.latest_value} µA
+                </span>
                 <span className="text-[10px] text-slate-500 block">0h: {selectedRecord.initial_value} µA</span>
               </div>
               <div className="p-2.5 rounded bg-white/[0.02] border border-white/[0.04]">
                 <span className="text-[9.5px] text-slate-500 uppercase block">168h Forecast</span>
-                <span className="text-sm font-medium text-orange-400">
+                <span className={`text-sm font-medium ${selectedRecord.forecast?.predicted_to_cross_limit ? 'text-rose-400 font-bold' : (selectedRecord.recommendation === 'ACCEPT' ? 'text-emerald-400' : 'text-orange-400')}`}>
                   {selectedRecord.forecast?.predicted_final_value} µA
                 </span>
                 <span className="text-[10px] text-slate-500 block">Spec: {selectedRecord.limits?.applicable_limit} µA</span>
               </div>
               <div className="p-2.5 rounded bg-white/[0.02] border border-white/[0.04]">
                 <span className="text-[9.5px] text-slate-500 uppercase block">Peer Robust Z</span>
-                <span className="text-sm font-medium text-white">
+                <span className={`text-sm font-medium ${Math.abs(selectedRecord.peers?.current_batch_robust_z || 0) >= 2.0 ? 'text-rose-400 font-bold' : 'text-white'}`}>
                   {formatZ(selectedRecord.peers?.current_batch_robust_z)}
                 </span>
                 <span className="text-[10px] text-slate-500 block">vs {selectedRecord.peers?.sample_size} peers</span>
@@ -1500,7 +1770,7 @@ export default function TopologyView({
               </span>
             </div>
             <p className="text-[11.5px] text-slate-300 leading-relaxed">
-              Anomaly concentration is <strong className="text-white">60% higher in Lot MLCC_B018</strong> than tester channels, indicating a probable <strong className="text-orange-300">Raw Material / Firing Lot Defect</strong> rather than a chamber socket artifact.
+              Anomaly concentration is <strong className="text-rose-400">60% higher in Lot MLCC_B018</strong> than tester channels, indicating a probable <strong className="text-rose-300">Raw Material / Firing Lot Defect</strong> rather than a chamber socket artifact.
             </p>
           </SquircleCard>
         </div>
