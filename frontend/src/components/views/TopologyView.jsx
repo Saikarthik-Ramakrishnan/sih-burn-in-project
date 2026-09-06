@@ -99,11 +99,11 @@ export default function TopologyView({
   const [isPhysicsActive, setIsPhysicsActive] = useState(true);
   const [showForcesDrawer, setShowForcesDrawer] = useState(false);
   const [physicsParams, setPhysicsParams] = useState({
-    repelStrength: 480,       // Obsidian repel force (n-body anti-gravity)
-    linkDistance: 82,          // Resting length of springs
-    linkStrength: 0.085,       // Elastic spring tension
-    centerGravity: 0.007,      // Center pull
-    viscousFriction: 0.895,    // Fluid damping / viscosity
+    repelStrength: 1500,      // Obsidian repel force (n-body anti-gravity) - spaced out
+    linkDistance: 145,         // Resting length of springs - spacious breathing room
+    linkStrength: 0.075,       // Elastic spring tension
+    centerGravity: 0.005,      // Gentle center pull
+    viscousFriction: 0.885,    // Fluid damping / viscosity
     ambientDrift: true,        // Obsidian-style gentle cosmic breathing motion
     maxVelocity: 12
   });
@@ -128,7 +128,7 @@ export default function TopologyView({
 
   const records = dataset?.records || [];
 
-  // 1. Mechanism Hub Definitions for Mode 1
+  // 1. Mechanism Hub Definitions for Mode 1 - Spatially distributed
   const FAILURE_HUBS = useMemo(() => [
     {
       id: 'HUB_LIMIT',
@@ -136,7 +136,7 @@ export default function TopologyView({
       short: 'LIMIT BREACH',
       desc: 'Projected 168h leakage crosses 0.25 µA spec',
       x: 500,
-      y: 110,
+      y: 90,
       color: '#ef4444',
       icon: AlertOctagon
     },
@@ -145,8 +145,8 @@ export default function TopologyView({
       name: 'THERMAL RUNAWAY DRIFT',
       short: 'RAPID DRIFT',
       desc: 'Hourly leakage slope ≥ 0.0025 µA/h',
-      x: 230,
-      y: 270,
+      x: 185,
+      y: 250,
       color: '#f97316',
       icon: Flame
     },
@@ -155,8 +155,8 @@ export default function TopologyView({
       name: 'BATCH NORM DEVIATION',
       short: 'BATCH OUTLIER',
       desc: 'Robust Z-score ≥ 2.0σ vs peer median',
-      x: 770,
-      y: 270,
+      x: 815,
+      y: 250,
       color: '#f59e0b',
       icon: TrendingUp
     },
@@ -165,8 +165,8 @@ export default function TopologyView({
       name: 'SUB-THRESHOLD ANOMALY',
       short: 'LATENT RISK',
       desc: 'Within spec limit, but unusual pattern',
-      x: 350,
-      y: 490,
+      x: 310,
+      y: 520,
       color: '#eab308',
       icon: Sparkles
     },
@@ -175,19 +175,19 @@ export default function TopologyView({
       name: 'NOMINAL BASELINE',
       short: 'NOMINAL COHORT',
       desc: 'Stable trajectory conforming to lot bounds',
-      x: 650,
-      y: 490,
+      x: 690,
+      y: 520,
       color: '#10b981',
       icon: CheckCircle2
     }
   ], []);
 
-  // 2. Batch Hubs for Mode 2
+  // 2. Batch Hubs for Mode 2 - Spatially distributed
   const BATCH_HUBS = useMemo(() => [
-    { id: 'BATCH_MLCC_B018', batch_id: 'MLCC_B018', name: 'LOT MLCC_B018', x: 280, y: 190, color: '#f97316' },
-    { id: 'BATCH_MLCC_B019', batch_id: 'MLCC_B019', name: 'LOT MLCC_B019', x: 720, y: 190, color: '#fb923c' },
-    { id: 'BATCH_MLCC_B020', batch_id: 'MLCC_B020', name: 'LOT MLCC_B020', x: 280, y: 470, color: '#f59e0b' },
-    { id: 'BATCH_MLCC_B021', batch_id: 'MLCC_B021', name: 'LOT MLCC_B021', x: 720, y: 470, color: '#10b981' }
+    { id: 'BATCH_MLCC_B018', batch_id: 'MLCC_B018', name: 'LOT MLCC_B018', x: 235, y: 165, color: '#f97316' },
+    { id: 'BATCH_MLCC_B019', batch_id: 'MLCC_B019', name: 'LOT MLCC_B019', x: 765, y: 165, color: '#fb923c' },
+    { id: 'BATCH_MLCC_B020', batch_id: 'MLCC_B020', name: 'LOT MLCC_B020', x: 235, y: 495, color: '#f59e0b' },
+    { id: 'BATCH_MLCC_B021', batch_id: 'MLCC_B021', name: 'LOT MLCC_B021', x: 765, y: 495, color: '#10b981' }
   ], []);
 
   // 3. Classify Each Component's Active Mechanisms & Connections
@@ -240,28 +240,28 @@ export default function TopologyView({
           baseY: h.y,
           color: h.color,
           icon: h.icon,
-          size: 26,
-          mass: 5.5
+          size: 28,
+          mass: 6.0
         });
       });
 
-      // 2. Position Component Nodes based on connected hubs
+      // 2. Position Component Nodes based on connected hubs with increased spatial buffer
       componentsClassification.forEach((comp, idx) => {
         const connectedHubs = comp.activeHubIds.map(hid => hubMap.get(hid)).filter(Boolean);
         const avgX = connectedHubs.reduce((acc, h) => acc + h.x, 0) / (connectedHubs.length || 1);
         const avgY = connectedHubs.reduce((acc, h) => acc + h.y, 0) / (connectedHubs.length || 1);
 
         const isNominal = comp.activeHubIds.includes('HUB_NOMINAL');
-        const ring = Math.floor(idx % 3);
-        const radius = isNominal ? (65 + ring * 26) : (comp.isCompound ? 34 + ring * 15 : 54 + ring * 22);
+        const ring = Math.floor(idx % 4);
+        const radius = isNominal ? (115 + ring * 40) : (comp.isCompound ? 72 + ring * 28 : 96 + ring * 32);
         const angle = (idx * 2.39996);
 
-        const x = Math.max(70, Math.min(930, avgX + Math.cos(angle) * radius));
-        const y = Math.max(70, Math.min(570, avgY + Math.sin(angle) * radius));
+        const x = Math.max(75, Math.min(925, avgX + Math.cos(angle) * radius));
+        const y = Math.max(65, Math.min(575, avgY + Math.sin(angle) * radius));
 
         const baseSize = nodeSizing === 'risk'
-          ? (comp.recommendation === 'ENGINEER_REVIEW' ? 13.5 : (comp.recommendation === 'RETEST' ? 11 : 9))
-          : 9.5;
+          ? (comp.recommendation === 'ENGINEER_REVIEW' ? 14.5 : (comp.recommendation === 'RETEST' ? 12.5 : (comp.recommendation === 'MONITOR' ? 11.5 : 10.5)))
+          : 11.5;
 
         nodes.push({
           type: 'component',
@@ -308,8 +308,8 @@ export default function TopologyView({
           baseY: b.y,
           color: b.color,
           icon: Layers,
-          size: 24,
-          mass: 5.5
+          size: 26,
+          mass: 6.0
         });
       });
 
@@ -321,16 +321,17 @@ export default function TopologyView({
         const batchComps = componentsClassification.filter(c => c.batch_id === bId);
         batchComps.forEach((comp, bIdx) => {
           const isFlagged = comp.recommendation !== 'ACCEPT';
-          const ringRadius = isFlagged ? 115 : 75;
-          const totalInRing = batchComps.length;
+          const ringTier = Math.floor(bIdx / 5);
+          const ringRadius = (isFlagged ? 135 : 95) + ringTier * 34;
+          const totalInRing = Math.max(1, batchComps.length);
           const angle = (bIdx / totalInRing) * 2 * Math.PI - (Math.PI / 2);
 
-          const x = batchHub.x + Math.cos(angle) * ringRadius;
-          const y = batchHub.y + Math.sin(angle) * ringRadius;
+          const x = Math.max(65, Math.min(935, batchHub.x + Math.cos(angle) * ringRadius));
+          const y = Math.max(65, Math.min(575, batchHub.y + Math.sin(angle) * ringRadius));
 
           const baseSize = nodeSizing === 'risk'
-            ? (isFlagged ? 12 : 8.5)
-            : 9.5;
+            ? (isFlagged ? 13.5 : 10.5)
+            : 11.5;
 
           nodes.push({
             type: 'component',
@@ -377,12 +378,12 @@ export default function TopologyView({
         const normX = ((r.initial_value || 0.02) - minX) / (maxX - minX || 1);
         const normY = ((r.slope_per_hour || 0) - minY) / (maxY - minY || 1);
 
-        const x = 160 + normX * 680;
-        const y = 520 - normY * 380;
+        const x = Math.max(75, Math.min(925, 140 + normX * 720));
+        const y = Math.max(70, Math.min(570, 530 - normY * 400));
 
         const baseSize = nodeSizing === 'risk'
-          ? (comp.recommendation === 'ENGINEER_REVIEW' ? 13.5 : 9)
-          : 9.5;
+          ? (comp.recommendation === 'ENGINEER_REVIEW' ? 14.5 : (comp.recommendation === 'RETEST' ? 12.5 : 10.5))
+          : 11.5;
 
         nodes.push({
           type: 'component',
@@ -504,7 +505,7 @@ export default function TopologyView({
             const dx = v.x - u.x;
             const dy = v.y - u.y;
             const dist = Math.hypot(dx, dy) || 1;
-            const targetDist = link.isCompound ? linkDistance * 0.75 : linkDistance;
+            const targetDist = link.isCompound ? linkDistance * 0.82 : linkDistance;
             const displacement = dist - targetDist;
             const springForce = displacement * linkStrength;
 
@@ -521,7 +522,7 @@ export default function TopologyView({
             }
           }
 
-          // 2. N-Body Coulomb Repulsion (Pushes close nodes smoothly apart)
+          // 2. N-Body Coulomb Repulsion (Pushes nodes smoothly apart)
           const nLen = nodes.length;
           for (let i = 0; i < nLen; i++) {
             const u = nodes[i];
@@ -529,9 +530,9 @@ export default function TopologyView({
               const v = nodes[j];
               const dx = v.x - u.x;
               const dy = v.y - u.y;
-              const distSq = dx * dx + dy * dy + 36;
+              const distSq = dx * dx + dy * dy + 80;
 
-              if (distSq < 90000) { // Interaction radius ~300px
+              if (distSq < 202500) { // Interaction radius ~450px
                 const dist = Math.sqrt(distSq);
                 const repForce = repelStrength / distSq;
                 const rx = (dx / dist) * repForce;
@@ -544,6 +545,41 @@ export default function TopologyView({
                 if (v.fx === null) {
                   v.vx += rx / v.mass;
                   v.vy += ry / v.mass;
+                }
+              }
+            }
+          }
+
+          // 2.5. Collision Prevention & Minimum Separation Distance Enforcement
+          for (let i = 0; i < nLen; i++) {
+            const u = nodes[i];
+            const uRadius = u.type === 'hub' ? 38 : (u.size || 12);
+            for (let j = i + 1; j < nLen; j++) {
+              const v = nodes[j];
+              const vRadius = v.type === 'hub' ? 38 : (v.size || 12);
+              const minSeparation = uRadius + vRadius + 28; // Generous distance buffer between nodes
+
+              const dx = v.x - u.x;
+              const dy = v.y - u.y;
+              const dist = Math.hypot(dx, dy) || 0.1;
+
+              if (dist < minSeparation) {
+                const overlap = minSeparation - dist;
+                const sepStrength = Math.min(overlap * 0.45, 8);
+                const nx = (dx / dist) * sepStrength;
+                const ny = (dy / dist) * sepStrength;
+
+                if (u.fx === null) {
+                  u.vx -= nx / (u.mass || 1);
+                  u.vy -= ny / (u.mass || 1);
+                  u.x -= nx * 0.5;
+                  u.y -= ny * 0.5;
+                }
+                if (v.fx === null) {
+                  v.vx += nx / (v.mass || 1);
+                  v.vy += ny / (v.mass || 1);
+                  v.x += nx * 0.5;
+                  v.y += ny * 0.5;
                 }
               }
             }
@@ -583,8 +619,8 @@ export default function TopologyView({
             u.y += u.vy * Math.max(currentAlpha, 0.15);
 
             // Bounding box soft cushion
-            u.x = Math.max(35, Math.min(965, u.x));
-            u.y = Math.max(35, Math.min(605, u.y));
+            u.x = Math.max(50, Math.min(950, u.x));
+            u.y = Math.max(50, Math.min(590, u.y));
           }
 
           // Alpha Cooling
@@ -1039,7 +1075,7 @@ export default function TopologyView({
               onClick={() => setNodeSizing(nodeSizing === 'risk' ? 'uniform' : 'risk')}
               className="px-2 py-0.5 rounded text-[10.5px] bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 text-slate-300 cursor-pointer"
             >
-              {nodeSizing === 'risk' ? 'Weighted by Risk' : 'Uniform 9px'}
+              {nodeSizing === 'risk' ? 'Weighted by Risk' : 'Uniform 11.5px'}
             </button>
 
             <span className="text-slate-600">•</span>
@@ -1163,9 +1199,9 @@ export default function TopologyView({
                   </div>
                   <input
                     type="range"
-                    min="150"
-                    max="1000"
-                    step="10"
+                    min="400"
+                    max="3500"
+                    step="50"
                     value={physicsParams.repelStrength}
                     onChange={(e) => {
                       setPhysicsParams(prev => ({ ...prev, repelStrength: Number(e.target.value) }));
@@ -1183,9 +1219,9 @@ export default function TopologyView({
                   </div>
                   <input
                     type="range"
-                    min="40"
-                    max="160"
-                    step="2"
+                    min="60"
+                    max="280"
+                    step="5"
                     value={physicsParams.linkDistance}
                     onChange={(e) => {
                       setPhysicsParams(prev => ({ ...prev, linkDistance: Number(e.target.value) }));
@@ -1283,11 +1319,11 @@ export default function TopologyView({
                   <button
                     onClick={() => {
                       setPhysicsParams({
-                        repelStrength: 480,
-                        linkDistance: 82,
-                        linkStrength: 0.085,
-                        centerGravity: 0.007,
-                        viscousFriction: 0.895,
+                        repelStrength: 1500,
+                        linkDistance: 145,
+                        linkStrength: 0.075,
+                        centerGravity: 0.005,
+                        viscousFriction: 0.885,
                         ambientDrift: true,
                         maxVelocity: 12
                       });
@@ -1383,34 +1419,125 @@ export default function TopologyView({
                 className="w-full h-full overflow-visible"
               >
                 <defs>
-                  {/* Glowing Halos */}
-                  <radialGradient id="glow-ember" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stopColor="#f97316" stopOpacity="0.8" />
-                    <stop offset="60%" stopColor="#f97316" stopOpacity="0.25" />
-                    <stop offset="100%" stopColor="#f97316" stopOpacity="0" />
-                  </radialGradient>
-                  <radialGradient id="glow-green" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stopColor="#10b981" stopOpacity="0.8" />
-                    <stop offset="60%" stopColor="#10b981" stopOpacity="0.25" />
-                    <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
-                  </radialGradient>
-                  <radialGradient id="glow-red" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stopColor="#ef4444" stopOpacity="0.8" />
-                    <stop offset="60%" stopColor="#ef4444" stopOpacity="0.25" />
-                    <stop offset="100%" stopColor="#ef4444" stopOpacity="0" />
+                  {/* Liquid Orb Glow Filters */}
+                  <filter id="orb-ambient-glow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+
+                  <filter id="orb-liquid-glow" x="-30%" y="-30%" width="160%" height="160%">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+
+                  <filter id="orb-subtle-glow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+
+                  {/* Component Liquid Orb Gradients: 3D Spherical Liquid Physics with Off-Center Highlights */}
+                  
+                  {/* ACCEPT (Emerald / Jade Liquid Orb) */}
+                  <radialGradient id="liquid-orb-accept" cx="30%" cy="26%" r="72%" fx="25%" fy="20%">
+                    <stop offset="0%" stopColor="#ecfdf5" stopOpacity="1" />
+                    <stop offset="18%" stopColor="#6ee7b7" stopOpacity="0.95" />
+                    <stop offset="55%" stopColor="#10b981" stopOpacity="0.9" />
+                    <stop offset="85%" stopColor="#047857" stopOpacity="0.95" />
+                    <stop offset="100%" stopColor="#064e3b" stopOpacity="1" />
                   </radialGradient>
 
-                  {/* Hub Gradients */}
-                  <linearGradient id="hubGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#1e2235" />
-                    <stop offset="100%" stopColor="#0d0f1a" />
+                  {/* ENGINEER_REVIEW (Ruby / Crimson Glowing Liquid Orb) */}
+                  <radialGradient id="liquid-orb-review" cx="30%" cy="26%" r="72%" fx="25%" fy="20%">
+                    <stop offset="0%" stopColor="#fff1f2" stopOpacity="1" />
+                    <stop offset="18%" stopColor="#fda4af" stopOpacity="0.95" />
+                    <stop offset="55%" stopColor="#f43f5e" stopOpacity="0.9" />
+                    <stop offset="85%" stopColor="#be123c" stopOpacity="0.95" />
+                    <stop offset="100%" stopColor="#881337" stopOpacity="1" />
+                  </radialGradient>
+
+                  {/* RETEST (Tangerine / Solar Flare Liquid Orb) */}
+                  <radialGradient id="liquid-orb-retest" cx="30%" cy="26%" r="72%" fx="25%" fy="20%">
+                    <stop offset="0%" stopColor="#fff7ed" stopOpacity="1" />
+                    <stop offset="18%" stopColor="#fdba74" stopOpacity="0.95" />
+                    <stop offset="55%" stopColor="#f97316" stopOpacity="0.9" />
+                    <stop offset="85%" stopColor="#c2410c" stopOpacity="0.95" />
+                    <stop offset="100%" stopColor="#7c2d12" stopOpacity="1" />
+                  </radialGradient>
+
+                  {/* MONITOR (Golden Topaz / Amber Liquid Orb) */}
+                  <radialGradient id="liquid-orb-monitor" cx="30%" cy="26%" r="72%" fx="25%" fy="20%">
+                    <stop offset="0%" stopColor="#fefce8" stopOpacity="1" />
+                    <stop offset="18%" stopColor="#fde047" stopOpacity="0.95" />
+                    <stop offset="55%" stopColor="#eab308" stopOpacity="0.9" />
+                    <stop offset="85%" stopColor="#a16207" stopOpacity="0.95" />
+                    <stop offset="100%" stopColor="#713f12" stopOpacity="1" />
+                  </radialGradient>
+
+                  {/* Hub Liquid Gradients */}
+                  <radialGradient id="liquid-hub-limit" cx="32%" cy="28%" r="70%" fx="28%" fy="22%">
+                    <stop offset="0%" stopColor="#fee2e2" />
+                    <stop offset="25%" stopColor="#f87171" />
+                    <stop offset="60%" stopColor="#ef4444" />
+                    <stop offset="90%" stopColor="#450a0a" />
+                    <stop offset="100%" stopColor="#991b1b" />
+                  </radialGradient>
+                  <radialGradient id="liquid-hub-drift" cx="32%" cy="28%" r="70%" fx="28%" fy="22%">
+                    <stop offset="0%" stopColor="#ffedd5" />
+                    <stop offset="25%" stopColor="#fb923c" />
+                    <stop offset="60%" stopColor="#f97316" />
+                    <stop offset="90%" stopColor="#431407" />
+                    <stop offset="100%" stopColor="#9a3412" />
+                  </radialGradient>
+                  <radialGradient id="liquid-hub-outlier" cx="32%" cy="28%" r="70%" fx="28%" fy="22%">
+                    <stop offset="0%" stopColor="#fef3c7" />
+                    <stop offset="25%" stopColor="#fbbf24" />
+                    <stop offset="60%" stopColor="#f59e0b" />
+                    <stop offset="90%" stopColor="#451a03" />
+                    <stop offset="100%" stopColor="#92400e" />
+                  </radialGradient>
+                  <radialGradient id="liquid-hub-latent" cx="32%" cy="28%" r="70%" fx="28%" fy="22%">
+                    <stop offset="0%" stopColor="#fef9c3" />
+                    <stop offset="25%" stopColor="#facc15" />
+                    <stop offset="60%" stopColor="#eab308" />
+                    <stop offset="90%" stopColor="#422006" />
+                    <stop offset="100%" stopColor="#854d0e" />
+                  </radialGradient>
+                  <radialGradient id="liquid-hub-nominal" cx="32%" cy="28%" r="70%" fx="28%" fy="22%">
+                    <stop offset="0%" stopColor="#d1fae5" />
+                    <stop offset="25%" stopColor="#34d399" />
+                    <stop offset="60%" stopColor="#10b981" />
+                    <stop offset="90%" stopColor="#022c22" />
+                    <stop offset="100%" stopColor="#065f46" />
+                  </radialGradient>
+                  <radialGradient id="liquid-hub-batch" cx="32%" cy="28%" r="70%" fx="28%" fy="22%">
+                    <stop offset="0%" stopColor="#e0e7ff" />
+                    <stop offset="25%" stopColor="#818cf8" />
+                    <stop offset="60%" stopColor="#6366f1" />
+                    <stop offset="90%" stopColor="#1e1b4b" />
+                    <stop offset="100%" stopColor="#3730a3" />
+                  </radialGradient>
+
+                  {/* Specular Curved Droplet Highlight */}
+                  <linearGradient id="specular-glare" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#ffffff" stopOpacity="0.88" />
+                    <stop offset="65%" stopColor="#ffffff" stopOpacity="0.25" />
+                    <stop offset="100%" stopColor="#ffffff" stopOpacity="0.0" />
                   </linearGradient>
 
-                  {/* Filter for subtle glow */}
-                  <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="3" result="blur" />
-                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                  </filter>
+                  {/* Subsurface Caustic Internal Bounce */}
+                  <radialGradient id="caustic-bounce" cx="50%" cy="100%" r="60%">
+                    <stop offset="0%" stopColor="#ffffff" stopOpacity="0.5" />
+                    <stop offset="100%" stopColor="#ffffff" stopOpacity="0.0" />
+                  </radialGradient>
                 </defs>
 
                 {/* Transformed Content Group with Smooth Transition */}
@@ -1464,12 +1591,21 @@ export default function TopologyView({
                     </g>
                   )}
 
-                  {/* 2. Hub Nodes Layer */}
+                  {/* 2. Hub Nodes Layer - Glowing Liquid Stations */}
                   <g className="hubs-layer">
                     {currentNodes.filter(n => n.type === 'hub').map(hub => {
                       const isSelected = selectedHubId === hub.id;
                       const Icon = hub.icon || Network;
                       const isHovered = hoveredNodeId === hub.id;
+
+                      let hubGradId = 'liquid-hub-nominal';
+                      if (hub.id === 'HUB_LIMIT') hubGradId = 'liquid-hub-limit';
+                      else if (hub.id === 'HUB_DRIFT') hubGradId = 'liquid-hub-drift';
+                      else if (hub.id === 'HUB_OUTLIER') hubGradId = 'liquid-hub-outlier';
+                      else if (hub.id === 'HUB_LATENT') hubGradId = 'liquid-hub-latent';
+                      else if (hub.id.startsWith('BATCH_')) hubGradId = 'liquid-hub-batch';
+
+                      const hubRadius = hub.size || 28;
 
                       return (
                         <g
@@ -1481,51 +1617,114 @@ export default function TopologyView({
                           onMouseLeave={() => setHoveredNodeId(null)}
                           className="interactive-node cursor-move group"
                         >
-                          {/* Radial Hub Glow */}
+                          {/* Outer Rotating Celestial Orbit Ring */}
                           <circle
-                            r="38"
+                            r={hubRadius + 14}
                             fill="none"
                             stroke={hub.color}
                             strokeWidth="1.5"
-                            strokeOpacity={isSelected || isHovered ? 0.9 : 0.25}
-                            strokeDasharray="4 4"
+                            strokeOpacity={isSelected || isHovered ? 0.95 : 0.3}
+                            strokeDasharray="5 4"
                             className={isHovered ? 'animate-spin' : ''}
                             style={{ animationDuration: '8s' }}
                           />
 
-                          {/* Hub Base Body */}
-                          <rect
-                            x="-24"
-                            y="-24"
-                            width="48"
-                            height="48"
-                            rx="12"
-                            fill="url(#hubGrad)"
+                          {/* Ambient Volumetric Caustic Glow */}
+                          <circle
+                            r={hubRadius * 1.75}
+                            fill={hub.color}
+                            opacity={isSelected ? 0.45 : (isHovered ? 0.35 : 0.22)}
+                            filter="url(#orb-ambient-glow)"
+                            pointerEvents="none"
+                          />
+
+                          {/* Dark Absorption Backing Disc */}
+                          <circle
+                            r={hubRadius}
+                            fill="#05070d"
+                            opacity="0.8"
+                          />
+
+                          {/* Liquid Orb Hub Sphere Body */}
+                          <circle
+                            r={hubRadius}
+                            fill={`url(#${hubGradId})`}
                             stroke={isSelected ? '#ffffff' : hub.color}
-                            strokeWidth={isSelected ? 2 : 1.5}
+                            strokeWidth={isSelected ? 2.5 : 1.6}
+                            strokeOpacity={0.9}
+                            filter="url(#orb-liquid-glow)"
                             className="transition-transform duration-200 group-hover:scale-105"
                           />
 
-                          <circle cx="0" cy="0" r="10" fill={hub.color} fillOpacity="0.15" />
-                          <circle cx="0" cy="0" r="3.5" fill={hub.color} />
+                          {/* Internal Caustic Reflex */}
+                          <ellipse
+                            cx={0}
+                            cy={hubRadius * 0.42}
+                            rx={hubRadius * 0.62}
+                            ry={hubRadius * 0.26}
+                            fill="url(#caustic-bounce)"
+                            opacity="0.6"
+                            pointerEvents="none"
+                          />
 
-                          {/* Hub Label */}
-                          <text
-                            y="40"
+                          {/* Top Specular Glare */}
+                          <ellipse
+                            cx={-hubRadius * 0.3}
+                            cy={-hubRadius * 0.32}
+                            rx={hubRadius * 0.45}
+                            ry={hubRadius * 0.22}
+                            transform={`rotate(-25 ${-hubRadius * 0.3} ${-hubRadius * 0.32})`}
+                            fill="url(#specular-glare)"
+                            pointerEvents="none"
+                          />
+
+                          {/* Specular Hotspot Pinpoint */}
+                          <circle
+                            cx={-hubRadius * 0.38}
+                            cy={-hubRadius * 0.4}
+                            r={2.5}
                             fill="#ffffff"
-                            fontSize="11"
-                            fontWeight="600"
-                            textAnchor="middle"
-                            className="font-mono tracking-wider pointer-events-none"
-                          >
-                            {hub.short}
-                          </text>
+                            opacity="0.95"
+                            pointerEvents="none"
+                          />
+
+                          {/* Hub Icon Centered Inside the Glowing Liquid Core */}
+                          <g transform="translate(-10, -10)" pointerEvents="none">
+                            <Icon size={20} color="#ffffff" className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" strokeWidth={2} />
+                          </g>
+
+                          {/* Hub Label Badge Underneath */}
+                          <g transform={`translate(0, ${hubRadius + 15})`} className="pointer-events-none">
+                            <rect
+                              x="-50"
+                              y="-10"
+                              width="100"
+                              height="18"
+                              rx="5"
+                              fill="#0a0c14"
+                              fillOpacity="0.88"
+                              stroke={hub.color}
+                              strokeWidth="0.8"
+                              strokeOpacity="0.6"
+                            />
+                            <text
+                              x="0"
+                              y="3"
+                              fill="#ffffff"
+                              fontSize="10"
+                              fontWeight="600"
+                              textAnchor="middle"
+                              className="font-mono tracking-wider"
+                            >
+                              {hub.short}
+                            </text>
+                          </g>
                         </g>
                       );
                     })}
                   </g>
 
-                  {/* 3. Component Nodes Layer */}
+                  {/* 3. Component Nodes Layer - Glowing Liquid Orbs */}
                   <g className="components-layer">
                     {currentNodes.filter(n => n.type === 'component').map(node => {
                       const isVisible = filteredNodeIds.has(node.id);
@@ -1535,6 +1734,17 @@ export default function TopologyView({
                       const isHovered = node.id === hoveredNodeId;
                       const isBeingDragged = node.id === draggedNodeId;
                       const isMuted = hoveredNodeId && hoveredNodeId !== node.id && !node.activeHubIds.includes(hoveredNodeId);
+
+                      const orbGradientId =
+                        node.recommendation === 'ENGINEER_REVIEW'
+                          ? 'liquid-orb-review'
+                          : node.recommendation === 'RETEST'
+                          ? 'liquid-orb-retest'
+                          : node.recommendation === 'MONITOR'
+                          ? 'liquid-orb-monitor'
+                          : 'liquid-orb-accept';
+
+                      const R = node.size;
 
                       return (
                         <g
@@ -1548,71 +1758,127 @@ export default function TopologyView({
                           onMouseEnter={() => setHoveredNodeId(node.id)}
                           onMouseLeave={() => setHoveredNodeId(null)}
                           opacity={isMuted ? 0.15 : 1}
-                          className="interactive-node cursor-move transition-opacity duration-150"
+                          className="interactive-node cursor-move transition-opacity duration-150 group"
                         >
-                          {/* Pulsing Selection Halo */}
+                          {/* 1. Volumetric Caustic Halo Atmosphere */}
+                          <circle
+                            r={R * 2.2}
+                            fill={node.theme.halo}
+                            opacity={isSelected ? 0.95 : (isHovered ? 0.85 : 0.42)}
+                            filter="url(#orb-ambient-glow)"
+                            pointerEvents="none"
+                          />
+
+                          {/* 2. Pulsing Selection Halo */}
                           {isSelected && (
                             <circle
-                              r={node.size + 11}
+                              r={R + 10}
                               fill="none"
                               stroke="#f97316"
-                              strokeWidth="1.8"
-                              strokeDasharray="3 3"
+                              strokeWidth="2"
+                              strokeDasharray="4 3"
                               className="animate-spin"
                               style={{ animationDuration: '6s' }}
                             />
                           )}
 
-                          {/* Drag elevation halo */}
+                          {/* 3. Drag Elevation Halo */}
                           {isBeingDragged && (
                             <circle
-                              r={node.size + 16}
-                              fill="rgba(249, 115, 22, 0.25)"
+                              r={R + 15}
+                              fill="rgba(249, 115, 22, 0.22)"
                               stroke="#f97316"
-                              strokeWidth="1.6"
+                              strokeWidth="1.8"
+                              strokeDasharray="3 3"
                             />
                           )}
 
-                          {/* Hover Expansion Halo */}
+                          {/* 4. Hover Expansion Ripple */}
                           {isHovered && !isSelected && (
                             <circle
-                              r={node.size + 7}
+                              r={R + 7}
                               fill="none"
                               stroke={node.theme.border}
-                              strokeWidth="1.5"
-                              strokeOpacity="0.8"
+                              strokeWidth="1.6"
+                              strokeOpacity="0.85"
+                              className="animate-pulse"
                             />
                           )}
 
-                          {/* Multi-Threat Halo for Compound Outliers */}
+                          {/* 5. Compound Multi-Threat Ring */}
                           {node.isCompound && (
                             <circle
-                              r={node.size + 4.5}
-                              fill={node.theme.glow}
+                              r={R + 4.5}
+                              fill="none"
                               stroke={node.theme.border}
-                              strokeWidth="0.8"
-                              strokeOpacity="0.5"
+                              strokeWidth="1.2"
+                              strokeOpacity="0.6"
+                              strokeDasharray="3 2"
                             />
                           )}
 
-                          {/* Core Node Disc */}
+                          {/* 6. Dark Sub-Orb Absorption Core */}
                           <circle
-                            r={node.size}
-                            fill={node.theme.base}
+                            r={R}
+                            fill="#05070d"
+                            opacity="0.85"
+                          />
+
+                          {/* 7. Glowing Liquid Orb Body */}
+                          <circle
+                            r={R}
+                            fill={`url(#${orbGradientId})`}
                             stroke={isSelected ? '#ffffff' : node.theme.border}
-                            strokeWidth={isSelected ? 2.2 : 1.2}
-                            filter="url(#softGlow)"
+                            strokeWidth={isSelected ? 2.4 : 1.3}
+                            strokeOpacity={isSelected ? 1 : 0.85}
+                            filter="url(#orb-liquid-glow)"
+                            className="transition-transform duration-200 group-hover:scale-110"
                           />
 
-                          {/* Inner Socket Glyph / Center Dot */}
+                          {/* 8. Bottom Internal Caustic Bounce (Liquid Refraction) */}
+                          <ellipse
+                            cx={0}
+                            cy={R * 0.42}
+                            rx={R * 0.62}
+                            ry={R * 0.26}
+                            fill="url(#caustic-bounce)"
+                            opacity="0.65"
+                            pointerEvents="none"
+                          />
+
+                          {/* 9. Top-Left Liquid Specular Glare (Droplet Reflection) */}
+                          <ellipse
+                            cx={-R * 0.3}
+                            cy={-R * 0.32}
+                            rx={R * 0.45}
+                            ry={R * 0.22}
+                            transform={`rotate(-25 ${-R * 0.3} ${-R * 0.32})`}
+                            fill="url(#specular-glare)"
+                            pointerEvents="none"
+                          />
+
+                          {/* 10. Specular Micro-Hotspot Pinpoint */}
                           <circle
-                            r={isSelected ? 3.5 : 2}
-                            fill={node.recommendation === 'ACCEPT' ? '#064e3b' : (node.recommendation === 'ENGINEER_REVIEW' ? '#450a0a' : '#08090e')}
+                            cx={-R * 0.38}
+                            cy={-R * 0.4}
+                            r={Math.max(1, R * 0.12)}
+                            fill="#ffffff"
+                            opacity="0.95"
+                            pointerEvents="none"
                           />
 
-                          {/* Node Hover Tooltip or Constant Label */}
+                          {/* 11. Inner Floating Luminous Core */}
+                          <circle
+                            r={isSelected ? 3.5 : 1.8}
+                            fill="#ffffff"
+                            opacity={isSelected ? 0.95 : 0.6}
+                            filter="url(#orb-subtle-glow)"
+                            pointerEvents="none"
+                          />
+
+                          {/* 12. Node Hover Tooltip or Constant Label */}
                           {(showLabels === 'all' || isHovered || isSelected) && (
-                            <g transform="translate(0, -18)" className="pointer-events-none">
+                            <g transform={`translate(0, ${-R - 14})`} className="pointer-events-none">
                               <rect
                                 x="-46"
                                 y="-16"
