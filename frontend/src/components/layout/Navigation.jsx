@@ -8,7 +8,8 @@ import {
   Cpu,
   UploadCloud,
   ChevronRight,
-  Network
+  Network,
+  HelpCircle
 } from 'lucide-react';
 
 export default function Navigation({
@@ -164,6 +165,26 @@ export default function Navigation({
 
       {/* Bottom: Status & Quick Action */}
       <div className="p-2.5 border-t border-white/[0.05] space-y-2">
+        {/* Help Entry: Guide & Glossary */}
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('open-onboarding'))}
+          className={`
+            w-full flex items-center justify-center gap-2 h-9 rounded-lg text-xs font-mono transition-all cursor-pointer text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent hover:border-white/[0.08]
+            ${isExpanded ? 'px-3 justify-start' : 'p-2'}
+          `}
+          title={!isExpanded ? 'Guide & Glossary' : undefined}
+        >
+          <HelpCircle className="w-4 h-4 shrink-0 text-orange-400/80" strokeWidth={1.5} />
+          <span
+            className={`
+              transition-opacity duration-200 overflow-hidden whitespace-nowrap
+              ${isExpanded ? 'opacity-100 max-w-full' : 'opacity-0 max-w-0 hidden'}
+            `}
+          >
+            Guide &amp; Glossary
+          </span>
+        </button>
+
         {onOpenUpload && (
           <button
             onClick={onOpenUpload}
