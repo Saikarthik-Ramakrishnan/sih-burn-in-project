@@ -2,7 +2,7 @@
 
 Burn-in screening for electronic components: parts are held at elevated temperature and voltage for 168 h and measured at fixed checkpoints. This system uses the 0 h and 24 h leakage-current readings to (1) detect components whose early behaviour deviates from their batch peers and (2) forecast the 168 h leakage with a calibrated prediction interval. Components are ranked into ACCEPT, MONITOR, RETEST or ENGINEER_REVIEW.
 
-Pilot profile: X7R multilayer ceramic capacitors, `leakage_ua` in µA, four fictional part profiles. Training, calibration and test data are synthetic and split by whole batch. On the untouched test batches the release forecaster `xgboost_v2` scores a normalized MAE of 0.136; the persistence baseline scores 0.153. Field accuracy on measured hardware has not been established.
+The pilot targets X7R ceramic capacitors, measuring leakage current in µA. All training and test data are synthetic. On held-out test batches the forecaster predicts the 168 h leakage with a mean error of 13.6 % of the part's limit, compared with 15.3 % for simply carrying the 24 h reading forward. Performance on measured hardware is still to be validated.
 
 Stack: Python 3.12 core (numpy, pandas, scikit-learn, XGBoost), FastAPI backend, React + Vite dashboard.
 
