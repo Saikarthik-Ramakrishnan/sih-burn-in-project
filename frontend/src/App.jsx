@@ -10,6 +10,7 @@ import ChamberView from './components/views/ChamberView';
 import ExportView from './components/views/ExportView';
 import UploadModal from './components/upload/UploadModal';
 import OnboardingFlow from './components/onboarding/OnboardingFlow';
+import CommandPalette from './components/common/CommandPalette';
 import DEMO_DATASET from './lib/demoData';
 import { checkHealth, downloadSampleCsv, screenUpload } from './lib/api';
 import { enrichResponse } from './lib/enrich';
@@ -22,8 +23,21 @@ export default function App() {
   );
   const [activeFilter, setActiveFilter] = useState('ALL');
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [backendReady, setBackendReady] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Global keyboard shortcut for Command Palette (Cmd+K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Probe backend liveness and readiness on startup
   useEffect(() => {
@@ -109,6 +123,7 @@ export default function App() {
         setActiveTab={setActiveTab}
         counts={counts}
         onOpenUpload={() => setIsUploadOpen(true)}
+        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         backendReady={backendReady}
       />
 
@@ -120,6 +135,7 @@ export default function App() {
           dataset={dataset}
           onOpenUpload={() => setIsUploadOpen(true)}
           onReloadDemo={handleReloadDemo}
+          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
           isSubmitting={isSubmitting}
         />
 
@@ -200,6 +216,19 @@ export default function App() {
         onOpenUpload={() => setIsUploadOpen(true)}
         dataset={dataset}
         backendReady={backendReady}
+      />
+
+      {/* Futuristic Command Palette (Cmd+K / Ctrl+K) */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        dataset={dataset}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onInspectComponent={handleInspectComponent}
+        onFilterByDecision={handleFilterByDecision}
+        onOpenUpload={() => setIsUploadOpen(true)}
+        onReloadDemo={handleReloadDemo}
       />
     </div>
   );

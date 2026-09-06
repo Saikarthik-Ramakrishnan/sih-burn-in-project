@@ -1,5 +1,5 @@
 import React from 'react';
-import { UploadCloud, RefreshCcw, ShieldCheck, Database } from 'lucide-react';
+import { UploadCloud, RefreshCcw, ShieldCheck, Database, Search } from 'lucide-react';
 import LeakageLensLogo from '../common/LeakageLensLogo';
 
 export default function Header({
@@ -7,6 +7,7 @@ export default function Header({
   dataset,
   onOpenUpload,
   onReloadDemo,
+  onOpenCommandPalette,
   isSubmitting
 }) {
   const modelName = dataset?.model_info?.selected_model || 'xgboost_v2';
@@ -61,6 +62,19 @@ export default function Header({
             <Database className="w-3 h-3 text-slate-500" strokeWidth={1.5} />
             <span>{provenance.toUpperCase()}</span>
           </div>
+
+          {/* Quick Command Palette Button */}
+          <button
+            onClick={onOpenCommandPalette}
+            title="Open Command Palette (Ctrl+K or ⌘K)"
+            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] hover:border-orange-500/30 text-xs text-slate-400 hover:text-white transition-all cursor-pointer font-mono group"
+          >
+            <Search className="w-3.5 h-3.5 text-slate-400 group-hover:text-orange-400 transition-colors" strokeWidth={1.5} />
+            <span className="hidden md:inline text-[11px] text-slate-300">Search</span>
+            <kbd className="px-1.5 py-0.5 rounded bg-black/40 border border-white/10 text-[9.5px] text-slate-400 group-hover:text-orange-300">
+              Ctrl+K
+            </kbd>
+          </button>
 
           {/* Quick Reload Sample */}
           <button

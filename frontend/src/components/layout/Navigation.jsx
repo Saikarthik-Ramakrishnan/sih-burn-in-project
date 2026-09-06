@@ -8,7 +8,8 @@ import {
   UploadCloud,
   ChevronRight,
   Network,
-  HelpCircle
+  HelpCircle,
+  Search
 } from 'lucide-react';
 import LeakageLensLogo from '../common/LeakageLensLogo';
 
@@ -17,6 +18,7 @@ export default function Navigation({
   setActiveTab,
   counts = {},
   onOpenUpload,
+  onOpenCommandPalette,
   backendReady
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -160,6 +162,33 @@ export default function Navigation({
 
       {/* Bottom: Status & Quick Actions */}
       <div className="p-2 border-t border-white/[0.05] space-y-1.5">
+        {/* Command Palette Trigger */}
+        {onOpenCommandPalette && (
+          <button
+            onClick={onOpenCommandPalette}
+            className={`
+              relative w-full flex items-center h-10 px-2.5 rounded-lg text-xs font-mono transition-all duration-150 cursor-pointer group
+              text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent hover:border-white/[0.06]
+            `}
+            title={!isExpanded ? 'Command Palette (Ctrl+K)' : undefined}
+          >
+            <div className="w-5 flex items-center justify-center shrink-0">
+              <Search className="w-4 h-4 text-slate-400 group-hover:text-orange-400 transition-colors" strokeWidth={1.5} />
+            </div>
+            <div
+              className={`
+                flex-1 flex items-center justify-between ml-3 transition-opacity duration-200 overflow-hidden whitespace-nowrap
+                ${isExpanded ? 'opacity-100 max-w-full' : 'opacity-0 max-w-0 pointer-events-none'}
+              `}
+            >
+              <span className="truncate tracking-tight font-medium">Quick Search</span>
+              <span className="ml-2 px-1.5 py-0.2 rounded text-[9px] font-mono shrink-0 bg-white/[0.05] text-slate-400 border border-white/[0.08] group-hover:text-orange-300">
+                Ctrl+K
+              </span>
+            </div>
+          </button>
+        )}
+
         {/* Help Entry: Guide & Glossary */}
         <button
           onClick={() => window.dispatchEvent(new CustomEvent('open-onboarding'))}
