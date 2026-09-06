@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import SquircleCard from '../common/SquircleCard';
 import DecisionBadge from '../common/DecisionBadge';
+import LeakageLensLogo from '../common/LeakageLensLogo';
 import {
   Network,
   Activity,
@@ -874,9 +875,9 @@ export default function TopologyView({
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+              <LeakageLensLogo className="w-4 h-4" showGlow />
               <span className="text-[10.5px] font-mono font-medium text-orange-400 uppercase tracking-wider">
-                NEURAL FAULT TOPOLOGY // MULTI-FACTOR CORRELATION
+                LEAKAGE LENS // NEURAL FAULT TOPOLOGY
               </span>
             </div>
             <h2 className="text-lg font-semibold text-white tracking-tight flex items-center gap-2">

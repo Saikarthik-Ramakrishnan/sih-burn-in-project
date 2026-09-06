@@ -13,6 +13,7 @@ import {
   Search,
   Database
 } from 'lucide-react';
+import LeakageLensLogo from '../common/LeakageLensLogo';
 
 export default function GlossaryDrawer({ isOpen, onClose, prefersReducedMotion }) {
   const [activeCategory, setActiveCategory] = useState('all');
@@ -207,13 +208,18 @@ export default function GlossaryDrawer({ isOpen, onClose, prefersReducedMotion }
         {/* Drawer Header */}
         <div className="p-5 border-b border-white/[0.06] flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center shrink-0">
-              <BookOpen className="w-4 h-4" strokeWidth={1.5} />
+            <div className="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(249,115,22,0.15)]">
+              <LeakageLensLogo className="w-5 h-5" showGlow />
             </div>
             <div>
-              <h2 id="glossary-title" className="text-sm font-semibold text-white tracking-tight">
-                Technical Glossary &amp; API Contract
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 id="glossary-title" className="text-sm font-semibold text-white tracking-tight">
+                  Technical Glossary &amp; API Contract
+                </h2>
+                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-orange-500/15 text-orange-300 border border-orange-500/25">
+                  LEAKAGE LENS
+                </span>
+              </div>
               <p className="text-[11px] text-slate-400">
                 Definitions, statistical conventions, and error models
               </p>

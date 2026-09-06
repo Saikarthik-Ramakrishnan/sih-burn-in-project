@@ -1,5 +1,6 @@
 import React from 'react';
 import SquircleCard from '../common/SquircleCard';
+import LeakageLensLogo from '../common/LeakageLensLogo';
 import {
   FileSpreadsheet,
   FileCode,
@@ -151,14 +152,26 @@ export default function ExportView({ dataset }) {
         </SquircleCard>
       </div>
 
-      {/* Compliance Note */}
-      <SquircleCard className="p-4 font-mono text-xs text-slate-400 space-y-1.5">
-        <span className="text-slate-300 font-semibold block uppercase text-[11px]">
-          Standard Traceability Notice:
-        </span>
-        <p className="leading-relaxed text-[11px]">
-          Exported records adhere to SIH26170 standard field definitions. Every forecast includes its model version identifier (<strong className="text-white">xgboost_v2</strong>) and bundle id (<strong className="text-white">b5553f6f7032092e-s26170</strong>). All reported prediction intervals represent nominal coverage calibrated offline on held-out whole-batch splits.
-        </p>
+      {/* Compliance Note with Leakage Lens Official Seal */}
+      <SquircleCard className="p-4 font-mono text-xs text-slate-400">
+        <div className="flex items-start gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/25 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(249,115,22,0.15)] mt-0.5">
+            <LeakageLensLogo className="w-6 h-6" showGlow />
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-slate-200 font-semibold uppercase text-[11px]">
+                Leakage Lens Verified Audit &amp; Traceability
+              </span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-orange-500/15 text-orange-300 border border-orange-500/25">
+                SIH26170
+              </span>
+            </div>
+            <p className="leading-relaxed text-[11px] text-slate-400">
+              Exported records adhere to SIH26170 standard field definitions. Every forecast includes its model version identifier (<strong className="text-white">xgboost_v2</strong>) and bundle id (<strong className="text-white">b5553f6f7032092e-s26170</strong>). All reported prediction intervals represent nominal coverage calibrated offline on held-out whole-batch splits.
+            </p>
+          </div>
+        </div>
       </SquircleCard>
     </div>
   );

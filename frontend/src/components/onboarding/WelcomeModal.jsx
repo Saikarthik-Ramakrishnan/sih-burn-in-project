@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { Cpu, BookOpen, ArrowRight, X, ShieldAlert, Layers } from 'lucide-react';
+import { BookOpen, ArrowRight, X, ShieldAlert, Layers } from 'lucide-react';
+import LeakageLensLogo from '../common/LeakageLensLogo';
 
 export default function WelcomeModal({
   onStart,
@@ -59,8 +60,8 @@ export default function WelcomeModal({
         {/* Header */}
         <div className="flex items-start justify-between pb-4 border-b border-white/[0.06] mb-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center shrink-0">
-              <Cpu className="w-5 h-5" strokeWidth={1.5} />
+            <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(249,115,22,0.15)]">
+              <LeakageLensLogo className="w-6 h-6" showGlow />
             </div>
             <div>
               <div className="flex items-center gap-2">

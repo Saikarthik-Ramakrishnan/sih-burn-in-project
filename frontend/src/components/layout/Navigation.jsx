@@ -5,12 +5,12 @@ import {
   LineChart,
   ThermometerSnowflake,
   FileSpreadsheet,
-  Cpu,
   UploadCloud,
   ChevronRight,
   Network,
   HelpCircle
 } from 'lucide-react';
+import LeakageLensLogo from '../common/LeakageLensLogo';
 
 export default function Navigation({
   activeTab,
@@ -74,8 +74,8 @@ export default function Navigation({
       {/* Top: Brand & Logo */}
       <div className="p-3 border-b border-white/[0.05]">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center shrink-0">
-            <Cpu className="w-5 h-5" strokeWidth={1.5} />
+          <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(249,115,22,0.15)] group cursor-pointer">
+            <LeakageLensLogo className="w-6 h-6" showGlow animated />
           </div>
 
           <div
