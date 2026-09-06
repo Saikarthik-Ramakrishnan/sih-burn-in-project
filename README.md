@@ -1,12 +1,24 @@
 # SIH26170: early anomaly detection for component burn-in
 
-Burn-in runs electronic parts hot and under voltage for a week. This project reads only the first two measurements (0 h and 24 h), flags parts that behave oddly next to their batch mates, and forecasts each part's leakage at 168 h with a calibrated interval. It ships as a Python core, a FastAPI backend and a React dashboard.
+Burn-in screening for electronic components: parts are held at elevated temperature and voltage for 168 h and measured at fixed checkpoints. This system uses the 0 h and 24 h leakage-current readings to (1) detect components whose early behaviour deviates from their batch peers and (2) forecast the 168 h leakage with a calibrated prediction interval. Components are ranked into ACCEPT, MONITOR, RETEST or ENGINEER_REVIEW.
 
-Pilot scope: X7R ceramic capacitors, leakage current in µA. All data are synthetic, so the results demonstrate the pipeline; field accuracy remains to be established on measured hardware. The release forecaster `xgboost_v2` reaches normalized MAE 0.136 on untouched test batches, compared with 0.153 for persistence.
+Pilot profile: X7R multilayer ceramic capacitors, `leakage_ua` in µA, four fictional part profiles. Training, calibration and test data are synthetic and split by whole batch. On the untouched test batches the release forecaster `xgboost_v2` scores a normalized MAE of 0.136; the persistence baseline scores 0.153. Field accuracy on measured hardware has not been established.
+
+Stack: Python 3.12 core (numpy, pandas, scikit-learn, XGBoost), FastAPI backend, React + Vite dashboard.
 
 ## About the Project
 
-An engineer uploads a CSV of 0 h and 24 h readings. The backend validates it, builds batch-relative features, scores each part with a median/MAD baseline and an Isolation Forest, forecasts the 168 h value with `xgboost_v2`, attaches a calibrated interval and TreeSHAP explanation, and returns one of ACCEPT, MONITOR, RETEST or ENGINEER_REVIEW per part. The dashboard renders that response. Models are trained offline from whole-batch splits and load once at startup; a request only runs inference.
+Input: a long-format CSV with one row per component per checkpoint (identity columns, `hours`, `measurement_value`, `upper_limit`, `profile_id`).
+
+Processing, per upload:
+
+1. Validate the file and keep exactly the 0 h and 24 h rows per component.
+2. Build features: level, change, slope, fraction of limit, and robust z-scores against the other parts in the same batch.
+3. Anomaly score: median/MAD baseline combined with an Isolation Forest.
+4. Forecast: `xgboost_v2` predicts the 168 h value as a correction on top of the 24 h value, with a stratified conformal interval and a one-sided 90 % upper bound.
+5. Decision: the shared rule turns anomaly flag, forecast and upper bound into one recommendation per part, with reason codes and TreeSHAP contributions.
+
+Output: one JSON record per component plus unscored records, decision counts and warnings. Models are trained offline and loaded once at startup; a request runs inference only.
 
 ## Quick start
 
