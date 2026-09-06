@@ -175,7 +175,7 @@ export default function Navigation({
                   : 'p-2 text-orange-400 hover:bg-orange-500/10 border border-transparent hover:border-orange-500/20'
               }
             `}
-            title={!isExpanded ? 'Screen CSV' : undefined}
+            title={!isExpanded ? 'Upload CSV' : undefined}
           >
             <UploadCloud className="w-4 h-4 shrink-0" strokeWidth={1.5} />
             <span
@@ -184,7 +184,7 @@ export default function Navigation({
                 ${isExpanded ? 'opacity-100 max-w-full' : 'opacity-0 max-w-0 hidden'}
               `}
             >
-              Screen CSV
+              Upload CSV
             </span>
           </button>
         )}

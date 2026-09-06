@@ -74,7 +74,7 @@ export default function Header({
             className="btn-primary flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-mono"
           >
             <UploadCloud className="w-3.5 h-3.5" strokeWidth={1.5} />
-            <span>Screen CSV</span>
+            <span>Upload CSV</span>
           </button>
         </div>
       </div>
