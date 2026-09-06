@@ -2,7 +2,7 @@
 
 Burn-in screening for electronic components: parts are held at elevated temperature and voltage for 168 h and measured at fixed checkpoints. This system uses the 0 h and 24 h leakage-current readings to (1) detect components that are drifting differently from the rest of their batch and (2) forecast the 168 h leakage with a calibrated prediction interval. Components are ranked into ACCEPT, MONITOR, RETEST or ENGINEER_REVIEW.
 
-The pilot targets X7R ceramic capacitors, measuring leakage current in µA. All training and test data are synthetic. On held-out test batches the forecaster predicts the 168 h leakage with a mean error of 13.6 % of the part's limit, compared with 15.3 % for simply carrying the 24 h reading forward. Performance on measured hardware is still to be validated.
+The pilot targets X7R ceramic capacitors, measuring leakage current in µA. All training and test data are synthetic. On test batches the forecaster predicts the 168 h leakage with a mean error of 13.6 % of the part's limit, compared with 15.3 % for simply carrying the 24 h reading forward. Performance on measured hardware is still to be validated.
 
 Stack: Python 3.12 core (numpy, pandas, scikit-learn, XGBoost), FastAPI backend, React + Vite dashboard.
 
