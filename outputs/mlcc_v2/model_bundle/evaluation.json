@@ -279,11 +279,11 @@
         }
       },
       "xgboost_v2": {
-        "mae_normalized": 0.1362063710624498,
-        "mae_ua": 0.07263401205636107,
-        "interval_coverage": 0.91625,
-        "mean_interval_width_normalized": 0.6911092498951433,
-        "mean_interval_width_ua": 0.4044495096396175,
+        "mae_normalized": 0.13481433602655338,
+        "mae_ua": 0.07151982074880453,
+        "interval_coverage": 0.9154166666666667,
+        "mean_interval_width_normalized": 0.6904618114704837,
+        "mean_interval_width_ua": 0.4037016190347659,
         "observed_final_crossing": {
           "tp": 43,
           "fn": 123,
@@ -305,46 +305,46 @@
         "by_profile": {
           "SIM_X7R_100N_50V": {
             "components": 600,
-            "mae_normalized": 0.12772775094226232,
-            "mae_ua": 0.03193193773556558,
+            "mae_normalized": 0.12622774846293755,
+            "mae_ua": 0.03155693711573439,
             "interval_coverage": 0.9316666666666666,
-            "mean_interval_width_ua": 0.17839644627098103
+            "mean_interval_width_ua": 0.17880798447384155
           },
           "SIM_X7R_10N_50V": {
             "components": 600,
-            "mae_normalized": 0.17639093319414703,
-            "mae_ua": 0.021166911983297645,
+            "mae_normalized": 0.1757141828358608,
+            "mae_ua": 0.021085701940303295,
             "interval_coverage": 0.8783333333333333,
-            "mean_interval_width_ua": 0.08224291212157091
+            "mean_interval_width_ua": 0.08217652330782575
           },
           "SIM_X7R_1U_25V": {
             "components": 600,
-            "mae_normalized": 0.12580273606804274,
-            "mae_ua": 0.08806191524762992,
-            "interval_coverage": 0.93,
-            "mean_interval_width_ua": 0.4876468535898257
+            "mae_normalized": 0.1251223211840988,
+            "mae_ua": 0.08758562482886914,
+            "interval_coverage": 0.9266666666666666,
+            "mean_interval_width_ua": 0.48595430666653555
           },
           "SIM_X7R_4U7_16V": {
             "components": 600,
-            "mae_normalized": 0.11490406404534705,
-            "mae_ua": 0.14937528325895116,
+            "mae_normalized": 0.11219309162331638,
+            "mae_ua": 0.14585101911031131,
             "interval_coverage": 0.925,
-            "mean_interval_width_ua": 0.8695118265760922
+            "mean_interval_width_ua": 0.8678676616908609
           }
         },
         "stratified_interval": {
           "method": "stratified_asymmetric_split_conformal_signed_residual",
           "reported_interval": "[one-sided lower, one-sided upper], nominal two-sided 0.8 with a 0.9 one-sided upper bound",
-          "coverage": 0.8270833333333333,
-          "upper_bound_coverage": 0.9195833333333333,
-          "two_sided_90_coverage": 0.9154166666666667,
-          "mean_width_normalized": 0.5180065249249931,
-          "median_width_ua": 0.30786169134244096,
-          "coverage_healthy": 0.9001593202336696,
-          "coverage_nonhealthy": 0.5609284332688588,
-          "per_batch_coverage_min": 0.77,
-          "per_batch_coverage_max": 0.885,
-          "share_upper_at_or_above_limit": 0.08541666666666667
+          "coverage": 0.83,
+          "upper_bound_coverage": 0.9191666666666667,
+          "two_sided_90_coverage": 0.9170833333333334,
+          "mean_width_normalized": 0.5286841216622213,
+          "median_width_ua": 0.31601920044591664,
+          "coverage_healthy": 0.9049389272437599,
+          "coverage_nonhealthy": 0.5570599613152805,
+          "per_batch_coverage_min": 0.775,
+          "per_batch_coverage_max": 0.92,
+          "share_upper_at_or_above_limit": 0.085
         }
       }
     },

@@ -66,6 +66,12 @@ RESIDUAL_XGB_FEATURES = MODEL_FEATURE_COLUMNS + ["initial_fraction_of_limit"]
 RESIDUAL_XGB_FEATURE_INDEX = [FORECAST_COLUMNS.index(column) for column in RESIDUAL_XGB_FEATURES]
 PERSISTENCE_COLUMN_INDEX = FORECAST_COLUMNS.index("limit_fraction")
 SLOPE_Z_COLUMN_INDEX = FORECAST_COLUMNS.index("slope_batch_robust_z")
+CURRENT_Z_COLUMN_INDEX = FORECAST_COLUMNS.index("current_batch_robust_z")
+# Gate: parts whose 24 h level and drift both sit within this many robust standard
+# deviations of their batch keep the persistence forecast (no learned correction).
+# Chosen on whole-batch training folds (pooled MAE 0.1415 vs 0.1429, healthy-part
+# MAE 0.0128 vs 0.0165); a transparent rule with no fitted parameter.
+RESIDUAL_XGB_GATE_Z = 2.0
 RESIDUAL_XGB_PARAMS = {
     "n_estimators": 350, "max_depth": 3, "learning_rate": 0.04, "min_child_weight": 12,
     "subsample": 0.9, "colsample_bytree": 0.9, "reg_lambda": 10.0,
@@ -104,14 +110,27 @@ class ResidualOverPersistenceXGB:
 
     def predict(self, matrix: np.ndarray) -> np.ndarray:
         features, margin = self._split(matrix)
-        return np.asarray(self.model.predict(features, base_margin=margin), dtype=float)
+        corrected = np.asarray(self.model.predict(features, base_margin=margin), dtype=float)
+        return np.where(self.quiet(matrix), margin, corrected)
+
+    @staticmethod
+    def quiet(matrix: np.ndarray) -> np.ndarray:
+        """True where both batch robust z-scores are inside the gate (persistence is used)."""
+        full = np.nan_to_num(np.asarray(matrix, dtype=float), nan=0.0)
+        return (np.abs(full[:, SLOPE_Z_COLUMN_INDEX]) < RESIDUAL_XGB_GATE_Z) & (np.abs(full[:, CURRENT_Z_COLUMN_INDEX]) < RESIDUAL_XGB_GATE_Z)
 
     def contributions(self, matrix: np.ndarray) -> np.ndarray:
-        """TreeSHAP contributions (last column = bias, which includes the persistence margin)."""
+        """TreeSHAP contributions (last column = bias, which includes the persistence
+        margin). For gated parts the tree contributions are zeroed so the explanation
+        sums to the persistence forecast actually reported."""
         from xgboost import DMatrix
 
         features, margin = self._split(matrix)
-        return self.model.get_booster().predict(DMatrix(features, base_margin=margin), pred_contribs=True)
+        contributions = self.model.get_booster().predict(DMatrix(features, base_margin=margin), pred_contribs=True)
+        quiet = self.quiet(matrix)
+        contributions[quiet, :-1] = 0.0
+        contributions[quiet, -1] = margin[quiet]
+        return contributions
 
     def get_booster(self):
         return self.model.get_booster()
@@ -167,6 +186,9 @@ def stratified_interval_margins(residuals: np.ndarray, slope_batch_robust_z: np.
                 bounds, pooled_fallback = signed_conformal_bounds(member, alpha), False
             except ValueError:
                 pass
+        # The point forecast always lies inside its own interval: lower margins are
+        # capped at zero and upper margins floored at zero.
+        bounds = {name: (min(value, 0.0) if name.startswith("lower") else max(value, 0.0)) for name, value in bounds.items()}
         margins[str(k)] = {**bounds, "calibration_components": int(len(member)), "pooled_fallback": pooled_fallback}
     return margins
 
@@ -550,7 +572,7 @@ def screen_readings(
                 "out_of_training_range_features": outside_range,
                 "prediction_readiness_warning": "Forecast extrapolates beyond observed training conditions; validation and interval coverage do not transfer" if outside_range else None,
                 "xgboost_explanation": {
-                    "explains": explanation_text,
+                    "explains": explanation_text + ("; this part sits inside the quiet gate, so the forecast is the 24 h value with no learned correction" if active_model == RESIDUAL_XGB_NAME and bool(bundle.models[RESIDUAL_XGB_NAME].quiet(matrix[position:position + 1])[0]) else ""),
                     "is_active_forecast": active_model in ("xgboost", RESIDUAL_XGB_NAME),
                     "explained_model": RESIDUAL_XGB_NAME if active_model == RESIDUAL_XGB_NAME else "xgboost",
                     "base_value_ua": explanation_base,
@@ -778,6 +800,7 @@ def train_bundle(
                                         "note": "Signed-residual (observed - forecast) quantiles per slope-z stratum on the calibration batches; lower bounds clipped at zero; used only when xgboost_v2 is the active forecast"},
                          "limitation": "Device dependence within batches limits exchangeability; nominal coverage is not a guarantee. Synthetic empirical coverage is not real-world validation."},
             "forecast_v2": {"model": RESIDUAL_XGB_NAME, "features": RESIDUAL_XGB_FEATURES, "objective": RESIDUAL_XGB_PARAMS["objective"], "target": "observed final_value / upper_limit with base_margin = 24 h value / upper_limit (correction over persistence)", "params": RESIDUAL_XGB_PARAMS,
+                            "gate": {"rule": "persistence forecast when |slope_batch_robust_z| and |current_batch_robust_z| are both below the threshold", "threshold": RESIDUAL_XGB_GATE_Z},
                             "artifact": RESIDUAL_XGB_FILE, "provenance": "Claude forecasting v2 (training-only whole-batch experiment, 2026-09-06); see docs/CLAUDE_FORECAST_V2_HANDOFF.md"},
             "versions": {package: importlib.metadata.version(package) for package in ("numpy", "pandas", "scikit-learn", "xgboost", "skops")},
             "anomaly": {"contamination": 0.1, "robust_threshold": 3.5, "score_semantics": "Ranking score; not a failure probability", "fit_scope": "Training batches only; batch peer statistics recomputed from the uploaded 0/24 readings"},

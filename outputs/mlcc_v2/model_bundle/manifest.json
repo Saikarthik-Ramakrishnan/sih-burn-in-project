@@ -49,7 +49,7 @@
       "ridge": 0.2471702596509216,
       "hist_gradient_boosting": 0.2222735424999301,
       "xgboost": 0.2182574541086695,
-      "xgboost_v2": 0.1638865636907845
+      "xgboost_v2": 0.16254234744668844
     },
     "fit_batch_ids": [
       "MLCC_B003",
@@ -185,7 +185,7 @@
       "ridge": 0.4914596714672988,
       "hist_gradient_boosting": 0.466078527917826,
       "xgboost": 0.4385577782669393,
-      "xgboost_v2": 0.5337742507655242
+      "xgboost_v2": 0.5395869974784616
     },
     "stratified": {
       "model": "xgboost_v2",
@@ -198,10 +198,10 @@
       "min_stratum_components": 20,
       "margins": {
         "0": {
-          "lower_two_sided": -0.026501316723200385,
-          "upper_two_sided": 0.9176102156610937,
-          "lower": -0.019108240884224498,
-          "upper": 0.4206941753192627,
+          "lower_two_sided": -0.020471582695599982,
+          "upper_two_sided": 0.9233300567184616,
+          "lower": -0.014072529104166676,
+          "upper": 0.43738347153285717,
           "calibration_components": 2207,
           "pooled_fallback": false
         },
@@ -255,6 +255,10 @@
       "tree_method": "hist",
       "base_score": 0.0
     },
+    "gate": {
+      "rule": "persistence forecast when |slope_batch_robust_z| and |current_batch_robust_z| are both below the threshold",
+      "threshold": 2.0
+    },
     "artifact": "xgboost_v2.ubj",
     "provenance": "Claude forecasting v2 (training-only whole-batch experiment, 2026-09-06); see docs/CLAUDE_FORECAST_V2_HANDOFF.md"
   },
@@ -297,9 +301,9 @@
     "Candidate hyperparameters were fixed before test evaluation"
   ],
   "artifact_sha256": {
-    "state.skops": "0af2f22df591d60f7c900cfe5b66467273a073071c479046e366ef160c0cbb05",
+    "state.skops": "357c61969dfafc87bb4a5641eabd4ef6468b27014a54a6de76d9930959d95a40",
     "xgboost.json": "151681b067f7904c15a1fb2ce7d58572c765cdb1ae2612a182be103f4ae9ed8a",
     "xgboost_v2.ubj": "7bf6d10c87fd6e7eb39a7c7f4d89df908d3e4395d4d637def1672384c355b9a6",
-    "evaluation.json": "e679e04e908493288142be131d29460d858cd0c8aa7fc5f9a793572c79e7053f"
+    "evaluation.json": "f04a9b05928cdf93a12cc1fb29769a4fff2707974bacb54a252a43b294cbfaf5"
   }
 }

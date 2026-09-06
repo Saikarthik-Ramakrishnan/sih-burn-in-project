@@ -264,3 +264,22 @@ def test_v1_bundle_without_v2_model_still_loads(trained_bundle, tmp_path: Path) 
     assert RESIDUAL_XGB_NAME not in legacy.models
     early, _ = make_split("legacy", 1)
     assert screen_readings(early, legacy, forecast_model="xgboost")["metadata"]["selected_model"] == "xgboost"
+
+
+def test_v2_gate_keeps_persistence_for_quiet_parts(trained_bundle) -> None:
+    from sih26170.mlcc_prototype import CURRENT_Z_COLUMN_INDEX, PERSISTENCE_COLUMN_INDEX, RESIDUAL_XGB_GATE_Z, SLOPE_Z_COLUMN_INDEX
+    _, bundle, _ = trained_bundle
+    model = bundle.models[RESIDUAL_XGB_NAME]
+    early, _ = make_split("gate", 1)
+    features, _, _ = prepare_early_features(early)
+    matrix = bundle.imputer.transform(features[FORECAST_COLUMNS])
+    quiet = model.quiet(matrix)
+    predicted = model.predict(matrix)
+    np.testing.assert_allclose(predicted[quiet], matrix[quiet, PERSISTENCE_COLUMN_INDEX])
+    forced = matrix.copy(); forced[:, SLOPE_Z_COLUMN_INDEX] = 0.0; forced[:, CURRENT_Z_COLUMN_INDEX] = 0.0
+    np.testing.assert_allclose(model.predict(forced), forced[:, PERSISTENCE_COLUMN_INDEX])
+    loud = matrix.copy(); loud[:, SLOPE_Z_COLUMN_INDEX] = RESIDUAL_XGB_GATE_Z + 1
+    assert not model.quiet(loud).any()
+    contributions = model.contributions(matrix)
+    np.testing.assert_allclose(contributions.sum(axis=1), predicted, rtol=1e-5, atol=1e-6)
+    assert bundle.manifest["forecast_v2"]["gate"]["threshold"] == RESIDUAL_XGB_GATE_Z

@@ -1,10 +1,9 @@
 .venv/
 __pycache__/
+*.py[cod]
 .pytest_cache/
-*.pyc
-*.egg-info/
-dist/
-build/
-.DS_Store
-node_modules/
 .env
+frontend/node_modules/
+frontend/dist/
+src/*.egg-info/
+.pytest_cache/

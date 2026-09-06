@@ -513,11 +513,27 @@ def decode_prediction(raw: np.ndarray, target: str) -> np.ndarray:
     return np.maximum(decoded, 0.0)
 
 
+# Reserved configuration keys that are not XGBoost hyperparameters.
+BAG_SEEDS_KEY = "bag_seeds"      # int: average this many models fitted with different seeds
+GATE_Z_KEY = "gate_slope_z"      # float: fall back to persistence when |slope z| and |current z| are below it
+
+
 def make_xgboost(config: CandidateConfig, seed: int, n_jobs: int = 2):
     from xgboost import XGBRegressor
 
-    params = {**V1_XGB_PARAMS, **config.params}
+    params = {k: v for k, v in {**V1_XGB_PARAMS, **config.params}.items() if k not in (BAG_SEEDS_KEY, GATE_Z_KEY)}
     return XGBRegressor(objective=config.objective, random_state=seed, n_jobs=n_jobs, **params)
+
+
+class BaggedRegressor:
+    """Average of several XGBoost regressors fitted with different seeds."""
+
+    def __init__(self, members):
+        self.members = list(members)
+
+    def predict(self, X, base_margin=None):
+        preds = [m.predict(X) if base_margin is None else m.predict(X, base_margin=base_margin) for m in self.members]
+        return np.mean(preds, axis=0)
 
 
 @dataclass
@@ -535,7 +551,12 @@ class FittedModel:
         matrix = impute(feature_matrix(features, self.config.feature_columns), self.medians)
         _, margin = target_encoding(None, persistence, self.config.target)
         raw = self.booster.predict(matrix) if margin is None else self.booster.predict(matrix, base_margin=margin)
-        return decode_prediction(raw, self.config.target)
+        decoded = decode_prediction(raw, self.config.target)
+        gate = self.config.params.get(GATE_Z_KEY)
+        if gate is not None:
+            quiet = (pd.to_numeric(features["slope_batch_robust_z"], errors="coerce").abs().fillna(0).to_numpy() < gate) & (pd.to_numeric(features["current_batch_robust_z"], errors="coerce").abs().fillna(0).to_numpy() < gate)
+            decoded = np.where(quiet, decode_prediction(persistence, "normalized"), decoded)
+        return decoded
 
 
 def fit_model(config: CandidateConfig, features: pd.DataFrame, y: np.ndarray, *, seed: int, n_jobs: int = 2) -> FittedModel:
@@ -547,16 +568,20 @@ def fit_model(config: CandidateConfig, features: pd.DataFrame, y: np.ndarray, *,
     label, margin = target_encoding(y, persistence_forecast(features), config.target)
     if label is None or not np.isfinite(label).all():
         raise ValueError("training labels must be finite after target encoding")
-    model = make_xgboost(config, seed, n_jobs)
     X = impute(matrix, medians)
-    if margin is None:
-        model.fit(X, label)
-    else:
-        # With base_margin the margin replaces the intercept; fix base_score so the
-        # saved model is unambiguous even if someone predicts without the margin.
-        model.set_params(base_score=0.0)
-        model.fit(X, label, base_margin=margin)
-    return FittedModel(config, medians, model)
+    bags = int(config.params.get(BAG_SEEDS_KEY, 1))
+    members = []
+    for k in range(bags):
+        model = make_xgboost(config, seed + k, n_jobs)
+        if margin is None:
+            model.fit(X, label)
+        else:
+            # With base_margin the margin replaces the intercept; fix base_score so the
+            # saved model is unambiguous even if someone predicts without the margin.
+            model.set_params(base_score=0.0)
+            model.fit(X, label, base_margin=margin)
+        members.append(model)
+    return FittedModel(config, medians, members[0] if bags == 1 else BaggedRegressor(members))
 
 
 # --------------------------------------------------------------------------- #

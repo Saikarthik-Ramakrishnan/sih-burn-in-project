@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
-  "request_id": "b2f3ea569f204a7891ed66b425514277",
-  "generated_at": "2026-09-06T00:13:38.496752Z",
-  "duration_ms": 850.845,
+  "request_id": "5a4fa2ce04f94319bdb0fbfab87f0804",
+  "generated_at": "2026-09-06T01:28:08.404872Z",
+  "duration_ms": 866.729,
   "input_source": "upload",
   "filename": "sample_early.csv",
   "profile_id": "mlcc_x7r_leakage_ua",
