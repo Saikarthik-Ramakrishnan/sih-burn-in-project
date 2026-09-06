@@ -94,160 +94,54 @@ export default function OverviewView({
         </div>
       </SquircleCard>
 
-      {/* 2. Asymmetric Semiconductor Qualification Cockpit (Eliminates generic AI 4-card template) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Left: Industrial Yield & Disposition Console (7 cols) */}
-        <SquircleCard elevated fiducials className="lg:col-span-7 p-5 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/[0.05] pb-3.5">
-            <div>
-              <div className="flex items-center gap-2 mb-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
-                <span className="text-[10px] font-mono uppercase tracking-wider text-orange-400">
-                  DISPOSITION METRICS // BATCH TOTAL {totalComponents}
-                </span>
-              </div>
-              <h2 className="text-base font-semibold text-white tracking-tight">
-                Semiconductor Qualification Yield
-              </h2>
-            </div>
+      {/* 2. Primary 4 Decision Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        {cards.map((card) => {
+          const Icon = card.icon;
+          const pct = totalComponents > 0 ? (card.count / totalComponents) : 0;
 
-            <div className="flex items-center gap-3">
-              <div className="text-right">
-                <div className="text-2xl font-bold text-white tracking-tight">
-                  {formatPercent((decisions.ACCEPT || 0) / (totalComponents || 1))}
-                </div>
-                <div className="text-[10px] font-mono text-slate-400 uppercase">
-                  Nominal Pass Rate
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Interactive Multi-Segmented Yield Tape (Design Spell) */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
-              <span>POPULATION DISTRIBUTION</span>
-              <span>{decisions.ACCEPT || 0} PASS · {(totalComponents - (decisions.ACCEPT || 0))} FLAGGED</span>
-            </div>
-
-            <div className="h-2.5 w-full bg-white/[0.04] rounded-full overflow-hidden flex p-0.5 gap-0.5 border border-white/[0.06]">
-              <div
-                title={`ACCEPT: ${decisions.ACCEPT} units (${formatPercent((decisions.ACCEPT || 0) / totalComponents)})`}
-                style={{ width: `${((decisions.ACCEPT || 0) / totalComponents) * 100}%` }}
-                className="h-full bg-white/40 hover:bg-white/60 rounded-sm transition-all cursor-pointer"
-                onClick={() => onFilterByDecision('ACCEPT')}
-              />
-              <div
-                title={`MONITOR: ${decisions.MONITOR} units`}
-                style={{ width: `${Math.max(((decisions.MONITOR || 0) / totalComponents) * 100, 3)}%` }}
-                className="h-full bg-orange-400/80 hover:bg-orange-300 rounded-sm transition-all cursor-pointer"
-                onClick={() => onFilterByDecision('MONITOR')}
-              />
-              <div
-                title={`RETEST: ${decisions.RETEST} units`}
-                style={{ width: `${Math.max(((decisions.RETEST || 0) / totalComponents) * 100, 3)}%` }}
-                className="h-full bg-orange-500 hover:bg-orange-400 rounded-sm transition-all cursor-pointer"
-                onClick={() => onFilterByDecision('RETEST')}
-              />
-              <div
-                title={`ENGINEER REVIEW: ${decisions.ENGINEER_REVIEW} units`}
-                style={{ width: `${Math.max(((decisions.ENGINEER_REVIEW || 0) / totalComponents) * 100, 3)}%` }}
-                className="h-full bg-red-500/80 hover:bg-red-400 rounded-sm transition-all cursor-pointer"
-                onClick={() => onFilterByDecision('ENGINEER_REVIEW')}
-              />
-            </div>
-          </div>
-
-          {/* Precision Interactive Disposition Buttons */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
-            {cards.map((card) => {
-              const Icon = card.icon;
-              const isFlagged = card.key !== 'ACCEPT';
-
-              return (
-                <button
-                  key={card.key}
-                  onClick={() => onFilterByDecision(card.key)}
-                  className={`
-                    p-3 rounded-xl text-left transition-all duration-150 cursor-pointer border
-                    ${
-                      isFlagged
-                        ? 'bg-orange-500/[0.04] border-orange-500/20 hover:border-orange-500/40 hover:bg-orange-500/[0.08]'
-                        : 'bg-white/[0.02] border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.04]'
-                    }
-                  `}
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-mono text-slate-400 truncate">
-                      {card.title}
-                    </span>
-                    <Icon className={`w-3.5 h-3.5 ${isFlagged ? 'text-orange-400' : 'text-slate-400'}`} strokeWidth={1.5} />
-                  </div>
-                  <div className="text-xl font-bold text-white font-mono">
-                    {card.count}
-                  </div>
-                  <div className="text-[10px] font-mono text-slate-500 mt-0.5">
-                    {formatPercent(totalComponents > 0 ? card.count / totalComponents : 0)}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </SquircleCard>
-
-        {/* Right: HTOL Stress & Chamber Life Consumption Meter (5 cols) */}
-        <SquircleCard elevated fiducials className="lg:col-span-5 p-5 flex flex-col justify-between space-y-4">
-          <div>
-            <div className="flex items-center justify-between border-b border-white/[0.05] pb-3 mb-3.5">
+          return (
+            <SquircleCard
+              key={card.key}
+              onClick={() => onFilterByDecision(card.key)}
+              className="p-4 flex flex-col justify-between group cursor-pointer hover:border-orange-500/25 transition-colors"
+            >
               <div>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block">
-                  CHAMBER TEST FIXTURE #01
-                </span>
-                <h3 className="text-base font-semibold text-white tracking-tight">
-                  HTOL Stress Acceleration
-                </h3>
-              </div>
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-orange-500/10 text-orange-300 border border-orange-500/20">
-                ACTIVE TEST RACK
-              </span>
-            </div>
+                <div className="flex items-center justify-between mb-2.5">
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400">
+                    {card.title}
+                  </span>
+                  <Icon className="w-4 h-4 text-slate-500 group-hover:text-orange-400 transition-colors" strokeWidth={1.5} />
+                </div>
 
-            {/* Test Stress Horizon Progress */}
-            <div className="space-y-2 mb-4">
-              <div className="flex items-center justify-between text-xs font-mono">
-                <span className="text-slate-400">Burn-In Duration Elapsed</span>
-                <span className="text-white font-semibold">24.0h / 168.0h (14.3%)</span>
-              </div>
-              <div className="h-2 w-full bg-white/[0.04] rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-orange-500 to-amber-300 rounded-full" style={{ width: '14.3%' }} />
-              </div>
-              <div className="flex items-center justify-between text-[10px] font-mono text-slate-500">
-                <span>0.0h Baseline</span>
-                <span className="text-orange-400 font-medium">T24 Cutoff Checkpoint</span>
-                <span>168.0h Standard</span>
-              </div>
-            </div>
+                <div className="flex items-baseline gap-2 mb-2">
+                  <span className="text-2xl font-display font-semibold text-white tracking-tight">
+                    {card.count}
+                  </span>
+                  <span className="text-xs font-mono text-slate-400">
+                    ({formatPercent(pct)})
+                  </span>
+                </div>
 
-            {/* Chamber Stress Vector Readouts */}
-            <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-              <div className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                <span className="text-[9px] text-slate-500 uppercase block">THERMAL BIAS</span>
-                <span className="text-sm font-semibold text-white">125.0 °C</span>
-                <span className="text-[9px] text-slate-500 block mt-0.5">±0.3°C stability</span>
-              </div>
-              <div className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                <span className="text-[9px] text-slate-500 uppercase block">ELECTRICAL STRESS</span>
-                <span className="text-sm font-semibold text-orange-400">45.7 V DC</span>
-                <span className="text-[9px] text-slate-500 block mt-0.5">0.914x Rated (50V)</span>
-              </div>
-            </div>
-          </div>
+                <div className="w-full h-1 bg-white/[0.04] rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-orange-500/75 rounded-full transition-all duration-500"
+                    style={{ width: `${Math.max(pct * 100, 3)}%` }}
+                  />
+                </div>
 
-          <div className="pt-2 border-t border-white/[0.04] flex items-center justify-between text-[11px] font-mono text-slate-400">
-            <span>SAVINGS REALIZED:</span>
-            <span className="text-white font-semibold">+144.0 Chamber Hours / Part</span>
-          </div>
-        </SquircleCard>
+                <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed mt-2.5">
+                  {card.description}
+                </p>
+              </div>
+
+              <div className="mt-3 pt-2.5 border-t border-white/[0.04] flex items-center justify-between text-[10px] font-mono text-slate-500 group-hover:text-orange-400 transition-colors">
+                <span>FILTER COMPONENTS</span>
+                <ArrowRight className="w-3 h-3 transform group-hover:translate-x-1 transition-transform" strokeWidth={1.5} />
+              </div>
+            </SquircleCard>
+          );
+        })}
       </div>
 
       {/* 3. Core Differentiator: "Within Limits But Unusual" Spotlight */}

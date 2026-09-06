@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   LayoutDashboard,
   Grid3X3,
@@ -7,9 +7,9 @@ import {
   FileSpreadsheet,
   Cpu,
   UploadCloud,
-  ChevronRight
+  ChevronRight,
+  Network
 } from 'lucide-react';
-import { playMechanicalClick, playTick } from '../../lib/audioEffects';
 
 export default function Navigation({
   activeTab,
@@ -25,55 +25,39 @@ export default function Navigation({
       id: 'overview',
       label: 'Screening Overview',
       icon: LayoutDashboard,
-      shortcut: '1',
       badge: null
     },
     {
       id: 'components',
       label: 'Component Matrix',
       icon: Grid3X3,
-      shortcut: '2',
       badge: counts.total ? `${counts.total}` : null
+    },
+    {
+      id: 'topology',
+      label: 'Fault Topology',
+      icon: Network,
+      badge: 'CLUSTERS'
     },
     {
       id: 'inspector',
       label: 'Telemetry Inspector',
       icon: LineChart,
-      shortcut: '3',
       badge: counts.anomalies > 0 ? `${counts.anomalies}` : null
     },
     {
       id: 'chamber',
       label: 'Chamber & Stress',
       icon: ThermometerSnowflake,
-      shortcut: '4',
       badge: '125°C'
     },
     {
       id: 'export',
       label: 'Audit & Export',
       icon: FileSpreadsheet,
-      shortcut: '5',
       badge: null
     }
   ];
-
-  // Keyboard navigation shortcuts [1] to [5] (Design Spell)
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      // Don't trigger if user is typing in an input
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
-
-      const matchedTab = tabs.find(t => t.shortcut === e.key);
-      if (matchedTab) {
-        e.preventDefault();
-        playMechanicalClick();
-        setActiveTab(matchedTab.id);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setActiveTab]);
 
   return (
     <aside
@@ -123,10 +107,7 @@ export default function Navigation({
           return (
             <button
               key={tab.id}
-              onClick={() => {
-                playMechanicalClick();
-                setActiveTab(tab.id);
-              }}
+              onClick={() => setActiveTab(tab.id)}
               className={`
                 relative w-full flex items-center h-10 px-3 rounded-lg text-xs transition-all duration-150 cursor-pointer group
                 ${
@@ -135,7 +116,7 @@ export default function Navigation({
                     : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.03] border border-transparent'
                 }
               `}
-              title={!isExpanded ? `${tab.label} [${tab.shortcut}]` : undefined}
+              title={!isExpanded ? tab.label : undefined}
             >
               {/* Active Indicator Bar */}
               {isActive && (
@@ -152,17 +133,14 @@ export default function Navigation({
                 />
               </div>
 
-              {/* Label, Shortcut & Badge (shown when expanded) */}
+              {/* Label & Badge (shown when expanded) */}
               <div
                 className={`
                   flex-1 flex items-center justify-between ml-3 transition-opacity duration-200 overflow-hidden whitespace-nowrap
                   ${isExpanded ? 'opacity-100 max-w-full' : 'opacity-0 max-w-0 pointer-events-none'}
                 `}
               >
-                <div className="flex items-center gap-2 truncate">
-                  <span className="truncate tracking-tight">{tab.label}</span>
-                  <span className="text-[9px] font-mono text-slate-500 opacity-60">[{tab.shortcut}]</span>
-                </div>
+                <span className="truncate tracking-tight">{tab.label}</span>
 
                 {tab.badge && (
                   <span

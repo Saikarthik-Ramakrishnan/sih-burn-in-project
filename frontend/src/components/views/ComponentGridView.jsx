@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import SquircleCard from '../common/SquircleCard';
 import DecisionBadge from '../common/DecisionBadge';
 import {
@@ -12,11 +12,9 @@ import {
   Flame,
   ShieldAlert,
   SlidersHorizontal,
-  ChevronRight,
-  Crosshair
+  ChevronRight
 } from 'lucide-react';
 import { formatUnit, formatPercent, formatZ, getThermalColor } from '../../lib/utils';
-import { playMechanicalClick, playTick } from '../../lib/audioEffects';
 
 export default function ComponentGridView({
   dataset,
@@ -29,34 +27,8 @@ export default function ComponentGridView({
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState('board_position');
   const [sortAsc, setSortAsc] = useState(true);
-  const [hoveredRecord, setHoveredRecord] = useState(null);
 
   const records = dataset?.records || [];
-
-  // Arrow Key navigation for 8x8 physical socket board (Design Spell)
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
-      if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
-
-      const idx = records.findIndex(r => r.component_id === selectedComponentId);
-      if (idx === -1) return;
-
-      let nextIdx = idx;
-      if (e.key === 'ArrowLeft' && idx > 0) nextIdx = idx - 1;
-      else if (e.key === 'ArrowRight' && idx < records.length - 1) nextIdx = idx + 1;
-      else if (e.key === 'ArrowUp' && idx >= 8) nextIdx = idx - 8;
-      else if (e.key === 'ArrowDown' && idx + 8 < records.length) nextIdx = idx + 8;
-
-      if (nextIdx !== idx && records[nextIdx]) {
-        e.preventDefault();
-        playTick();
-        setSelectedComponentId(records[nextIdx].component_id);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [records, selectedComponentId, setSelectedComponentId]);
 
   // Filter records
   const filteredRecords = useMemo(() => {
@@ -348,136 +320,64 @@ export default function ComponentGridView({
           </SquircleCard>
         </div>
 
-        {/* Right Column: Physical Semiconductor Fixture Map (5 cols) */}
+        {/* Right Column: Spatial Fixture Map (5 cols) */}
         <div className="xl:col-span-5 space-y-4">
-          <SquircleCard elevated fiducials className="p-4 flex flex-col justify-between">
+          <SquircleCard elevated className="p-4 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-orange-400" />
                   <h3 className="text-xs font-mono uppercase tracking-wider text-slate-300">
-                    Chamber Rack Fixture // 64 Sockets
+                    Spatial Burn-In Matrix
                   </h3>
                 </div>
-                <span className="text-[10px] font-mono text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20">
-                  HTOL 8×8 RACK
+                <span className="text-[10px] font-mono text-slate-400 bg-white/[0.03] px-2 py-0.5 rounded border border-white/[0.06]">
+                  64 Sockets (8×8)
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 mb-2.5 leading-relaxed">
-                Physical test board socket layout. Use <kbd className="px-1 py-0.2 rounded bg-white/10 text-white font-mono text-[9px]">Arrow Keys</kbd> to step between active sockets.
+              <p className="text-[11px] text-slate-400 mb-3 leading-relaxed">
+                Leakage density across physical test fixture sockets relative to 0.25 µA limit.
               </p>
 
-              {/* Floating Real-Time Micro-HUD (Design Spell) */}
-              {hoveredRecord ? (
-                <div className="mb-2.5 p-2 rounded-lg bg-[#141624] border border-orange-500/30 text-xs font-mono text-white flex items-center justify-between shadow-lg animate-in fade-in duration-100">
-                  <div className="flex items-center gap-2">
-                    <Crosshair className="w-3.5 h-3.5 text-orange-400 animate-spin-slow" strokeWidth={1.5} />
-                    <div>
-                      <span className="text-orange-400 font-bold">{hoveredRecord.component_id}</span>
-                      <span className="text-[10px] text-slate-400 block">
-                        Socket #{hoveredRecord.context?.board_position} · {hoveredRecord.latest_value} µA
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Micro Sparkline */}
-                  <div className="flex items-center gap-2">
-                    <svg width="44" height="20" className="overflow-visible">
-                      <path
-                        d={`M 2 16 L 22 ${16 - Math.min((hoveredRecord.latest_value / 0.25) * 14, 14)} L 42 ${16 - Math.min((hoveredRecord.forecast?.predicted_final_value / 0.25) * 14, 14)}`}
-                        fill="none"
-                        stroke="#f97316"
-                        strokeWidth="1.5"
-                      />
-                      <circle cx="2" cy="16" r="2" fill="#fff" />
-                      <circle cx="22" cy={16 - Math.min((hoveredRecord.latest_value / 0.25) * 14, 14)} r="2" fill="#f97316" />
-                      <circle cx="42" cy={16 - Math.min((hoveredRecord.forecast?.predicted_final_value / 0.25) * 14, 14)} r="2" fill="#f97316" />
-                    </svg>
-                    <span className="text-[10px] text-slate-400">
-                      Z: {formatZ(hoveredRecord.peers?.current_batch_robust_z)}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div className="mb-2.5 px-2.5 py-1.5 rounded-lg bg-white/[0.015] border border-white/[0.04] text-[10px] font-mono text-slate-500 flex items-center justify-between">
-                  <span>HOVER SOCKET FOR MICRO-HUD</span>
-                  <span>KEYS [← ↑ → ↓]</span>
-                </div>
-              )}
-
-              {/* Physical HTOL Socket Fixture with Coordinate Rails */}
-              <div className="p-2.5 rounded-lg bg-black/40 border border-white/[0.06] relative">
-                {/* Top Column Rail: 01 to 08 */}
-                <div className="flex items-center mb-1 text-center text-[9px] font-mono text-slate-500 pl-4">
+              {/* 8x8 Tactile Squircle Matrix */}
+              <div className="p-2.5 rounded-lg bg-white/[0.015] border border-white/[0.04]">
+                {/* Column Headers */}
+                <div className="grid grid-cols-8 gap-1 mb-1 text-center text-[9px] font-mono text-slate-500">
                   {['01', '02', '03', '04', '05', '06', '07', '08'].map(c => (
-                    <span key={c} className="flex-1 text-center">{c}</span>
+                    <span key={c}>{c}</span>
                   ))}
                 </div>
 
-                {/* Grid Rows with Left Row Rail (A to H) */}
-                <div className="space-y-1">
-                  {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map((rowLetter, rowIdx) => {
-                    const rowRecords = records.slice(rowIdx * 8, (rowIdx + 1) * 8);
+                {/* 8x8 Grid of Sockets */}
+                <div className="grid grid-cols-8 gap-1">
+                  {records.map((r, i) => {
+                    const isSelected = r.component_id === selectedComponentId;
+                    const limitFraction = r.limits?.limit_fraction || 0;
+                    const style = getThermalColor(limitFraction);
 
                     return (
-                      <div key={rowLetter} className="flex items-center gap-1">
-                        {/* Row Coordinate Letter */}
-                        <span className="w-3 text-center text-[9px] font-mono text-slate-500 shrink-0">
-                          {rowLetter}
+                      <button
+                        key={r.component_id}
+                        onClick={() => setSelectedComponentId(r.component_id)}
+                        title={`Socket #${r.context?.board_position || i+1}: ${r.component_id} (${r.latest_value} µA)`}
+                        className={`
+                          relative aspect-square rounded-lg flex flex-col items-center justify-center p-0.5 cursor-pointer transition-all duration-100
+                          ${style.bg}
+                          ${isSelected ? 'ring-1.5 ring-orange-400 scale-105 z-10' : 'hover:scale-105'}
+                          border ${isSelected ? 'border-orange-400' : style.border}
+                        `}
+                      >
+                        <span className={`text-[8px] font-mono ${style.text}`}>
+                          {String(r.context?.board_position || (i + 1)).padStart(2, '0')}
                         </span>
-
-                        {/* 8 Sockets for this Row */}
-                        <div className="grid grid-cols-8 gap-1 flex-1">
-                          {rowRecords.map((r, colIdx) => {
-                            const i = rowIdx * 8 + colIdx;
-                            const isSelected = r.component_id === selectedComponentId;
-                            const limitFraction = r.limits?.limit_fraction || 0;
-                            const style = getThermalColor(limitFraction);
-
-                            return (
-                              <button
-                                key={r.component_id}
-                                onClick={() => {
-                                  playMechanicalClick();
-                                  setSelectedComponentId(r.component_id);
-                                }}
-                                onMouseEnter={() => {
-                                  playTick();
-                                  setHoveredRecord(r);
-                                }}
-                                onMouseLeave={() => setHoveredRecord(null)}
-                                title={`Socket ${rowLetter}${colIdx+1} (Pos #${r.context?.board_position || i+1}): ${r.component_id} (${r.latest_value} µA)`}
-                                className={`
-                                  relative aspect-square rounded flex flex-col items-center justify-center p-0.5 cursor-pointer
-                                  transition-all duration-100 select-none group/socket
-                                  ${style.bg}
-                                  ${
-                                    isSelected
-                                      ? 'ring-2 ring-orange-400 scale-110 z-20 shadow-[0_0_12px_rgba(249,115,22,0.5)]'
-                                      : 'hover:scale-105 active:scale-95'
-                                  }
-                                  border ${isSelected ? 'border-orange-400' : style.border}
-                                `}
-                              >
-                                {/* Gold Corner Pin Accents (Semiconductor DIP Socket Detail) */}
-                                <span className="absolute top-0.5 left-0.5 w-0.5 h-0.5 rounded-full bg-amber-400/40 opacity-50" />
-                                <span className="absolute top-0.5 right-0.5 w-0.5 h-0.5 rounded-full bg-amber-400/40 opacity-50" />
-
-                                <span className={`text-[8px] font-mono ${style.text}`}>
-                                  {String(r.context?.board_position || (i + 1)).padStart(2, '0')}
-                                </span>
-                                <span className={`w-1 h-1 rounded-full mt-0.5 ${style.dot}`} />
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                        <span className={`w-1 h-1 rounded-full mt-0.5 ${style.dot}`} />
+                      </button>
                     );
                   })}
                 </div>
 
                 {/* Thermal Scale Legend */}
-                <div className="mt-3 pt-2 border-t border-white/[0.04] flex flex-wrap items-center justify-between text-[9px] font-mono text-slate-400 gap-1.5 pl-3">
+                <div className="mt-3 pt-2 border-t border-white/[0.04] flex flex-wrap items-center justify-between text-[9px] font-mono text-slate-400 gap-1.5">
                   <div className="flex items-center gap-1">
                     <span className="w-2 h-2 rounded bg-white/[0.03] border border-white/[0.06]" />
                     <span>&lt;0.05 µA</span>
@@ -495,7 +395,7 @@ export default function ComponentGridView({
                     <span>0.20 µA</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded bg-orange-500 shadow-[0_0_6px_rgba(249,115,22,0.8)]" />
+                    <span className="w-2 h-2 rounded bg-orange-500" />
                     <span className="text-orange-300">≥0.25 µA</span>
                   </div>
                 </div>

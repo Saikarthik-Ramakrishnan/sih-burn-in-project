@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import SquircleCard from '../common/SquircleCard';
 import DecisionBadge from '../common/DecisionBadge';
 import TrajectoryChart from '../charts/TrajectoryChart';
@@ -16,11 +16,9 @@ import {
   CheckCircle,
   AlertOctagon,
   ChevronLeft,
-  ChevronRight,
-  ShieldCheck
+  ChevronRight
 } from 'lucide-react';
 import { formatPercent, formatZ, exportToCsv } from '../../lib/utils';
-import { playMechanicalClick, playSweepChime } from '../../lib/audioEffects';
 
 export default function ComponentDetailView({
   dataset,
@@ -31,26 +29,6 @@ export default function ComponentDetailView({
   const records = dataset?.records || [];
   const currentIndex = records.findIndex(r => r.component_id === selectedComponentId);
   const record = records[currentIndex !== -1 ? currentIndex : 0] || records[0];
-
-  const toggleOutcome = () => {
-    const next = !showOutcome;
-    if (next) playSweepChime();
-    else playMechanicalClick();
-    setShowOutcome(next);
-  };
-
-  // Keyboard shortcut: [R] to toggle 168h reveal
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
-      if (e.key === 'r' || e.key === 'R') {
-        e.preventDefault();
-        toggleOutcome();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showOutcome]);
 
   if (!record) {
     return (
@@ -159,43 +137,35 @@ export default function ComponentDetailView({
                 </p>
               </div>
 
-              {/* Reveal Outcome Action Toggle (Design Spell) */}
+              {/* Reveal Outcome Action Toggle */}
               <button
-                onClick={toggleOutcome}
+                onClick={() => setShowOutcome(!showOutcome)}
                 className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
                   showOutcome
-                    ? 'btn-secondary text-orange-300 border-orange-500/30 shadow-[0_0_15px_rgba(249,115,22,0.2)]'
+                    ? 'btn-secondary text-orange-300 border-orange-500/30'
                     : 'btn-primary'
                 }`}
-                title="Keyboard shortcut: [R]"
               >
                 {showOutcome ? <EyeOff className="w-3.5 h-3.5" strokeWidth={1.5} /> : <Eye className="w-3.5 h-3.5" strokeWidth={1.5} />}
-                <span>{showOutcome ? 'Hide 168h Telemetry' : 'Reveal 168h Outcome [R]'}</span>
+                <span>{showOutcome ? 'Hide Recorded 168h' : 'Reveal 168h Outcome'}</span>
               </button>
             </div>
 
             {/* Trajectory SVG Chart */}
             <TrajectoryChart record={record} showOutcome={showOutcome} height={280} />
 
-            {/* Outcome Verification Banner (Mil-Spec Aerospace Calibration Stamp) */}
+            {/* Outcome Verification Banner */}
             {showOutcome && (
-              <div className="mt-4 p-3.5 rounded-xl bg-[#111320] border border-orange-500/30 text-xs font-mono text-slate-300 flex flex-wrap items-center justify-between gap-3 shadow-[0_4px_20px_rgba(0,0,0,0.5)] animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="flex items-center gap-2.5">
-                  <ShieldCheck className="w-4 h-4 text-orange-400 flex-shrink-0" strokeWidth={1.5} />
-                  <div>
-                    <span className="text-white font-medium block">
-                      Observed 168h leakage: <strong className="text-orange-300">{record.observed_168h} µA</strong> (Forecast: {record.forecast.predicted_final_value} µA, Residual Error Δ: {Math.abs(record.observed_168h - record.forecast.predicted_final_value).toFixed(4)} µA)
-                    </span>
-                    <span className="text-[10px] text-slate-500 block">
-                      MIL-STD-883 HTOL PROTOCOL VERIFIED // BLIND SAMPLING INTEGRITY CONFIRMED
-                    </span>
-                  </div>
-                </div>
+              <div className="mt-4 p-3 rounded-lg bg-orange-500/[0.04] border border-orange-500/20 text-xs font-mono text-slate-300 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-1 rounded text-[10px] font-bold bg-white/[0.04] border border-white/[0.1] text-orange-300 tracking-wider">
-                    {record.crossed_applicable_limit ? 'EXCURSION DETECTED' : 'SPEC COMPLIANT'}
+                  <CheckCircle className="w-4 h-4 text-orange-400 flex-shrink-0" strokeWidth={1.5} />
+                  <span>
+                    Observed 168h leakage: <strong className="text-white">{record.observed_168h} µA</strong> (Forecast: {record.forecast.predicted_final_value} µA, Δ: {Math.abs(record.observed_168h - record.forecast.predicted_final_value).toFixed(4)} µA).
                   </span>
                 </div>
+                <span className="px-2 py-0.5 rounded text-[10px] bg-white/[0.04] border border-white/[0.08] text-slate-300">
+                  {record.crossed_applicable_limit ? 'CROSSED LIMIT' : 'WITHIN SPEC'}
+                </span>
               </div>
             )}
           </SquircleCard>

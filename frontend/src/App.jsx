@@ -4,6 +4,7 @@ import Header from './components/layout/Header';
 import Navigation from './components/layout/Navigation';
 import OverviewView from './components/views/OverviewView';
 import ComponentGridView from './components/views/ComponentGridView';
+import TopologyView from './components/views/TopologyView';
 import ComponentDetailView from './components/views/ComponentDetailView';
 import ChamberView from './components/views/ChamberView';
 import ExportView from './components/views/ExportView';
@@ -137,6 +138,15 @@ export default function App() {
               onInspectComponent={handleInspectComponent}
               activeFilter={activeFilter}
               setActiveFilter={setActiveFilter}
+            />
+          )}
+
+          {activeTab === 'topology' && (
+            <TopologyView
+              dataset={dataset}
+              selectedComponentId={selectedComponentId}
+              setSelectedComponentId={setSelectedComponentId}
+              onInspectComponent={handleInspectComponent}
             />
           )}
 
