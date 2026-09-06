@@ -926,7 +926,7 @@ export default function TopologyView({
                 </h3>
               </div>
               <span className="text-[11px] font-mono text-slate-500">
-                SOCKET #{selectedRecord.context?.board_position || '01'}
+                {selectedRecord.context?.board_position != null ? `SOCKET #${selectedRecord.context.board_position}` : 'SOCKET N/A'}
               </span>
             </div>
 
@@ -941,7 +941,7 @@ export default function TopologyView({
               <div className="text-xs font-mono text-slate-400 flex items-center gap-2">
                 <span>Batch: <strong className="text-slate-200 font-normal">{selectedRecord.batch_id}</strong></span>
                 <span>•</span>
-                <span>Ch: <strong className="text-slate-200 font-normal">{selectedRecord.context?.tester_channel}</strong></span>
+                <span>Ch: <strong className="text-slate-200 font-normal">{selectedRecord.context?.tester_channel ?? 'N/A'}</strong></span>
               </div>
             </div>
 

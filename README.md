@@ -42,7 +42,7 @@ Start here and work deeper:
 | [Model bundle](outputs/mlcc_v2/START_HERE.md) | What the release bundle contains and how it was trained and tested |
 | [Datasets](outputs/mlcc_v1/README.md) | The synthetic data, its splits and column meanings |
 | [Forecasting experiment](outputs/claude_forecast_v2/README.md) | Why v1 lost to persistence and how v2 was chosen |
-| [Dashboard](my-app/README.md) | React + Vite front end and its field dictionary |
+| [Dashboard](frontend/README.md) | React + Vite front end: run it, live sample screening, the bundled demo subset |
 
 Start with the documentation for an overview of the system, then follow the Quick Start to run it.
 

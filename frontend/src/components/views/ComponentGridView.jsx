@@ -233,7 +233,7 @@ export default function ComponentGridView({
                       >
                         {/* Position */}
                         <td className="py-2.5 px-3.5 text-slate-500">
-                          #{String(record.context?.board_position || '00').padStart(2, '0')}
+                          {record.context?.board_position != null ? `#${String(record.context.board_position).padStart(2, '0')}` : 'N/A'}
                         </td>
 
                         {/* ID & Batch */}
@@ -243,7 +243,7 @@ export default function ComponentGridView({
                               {record.component_id}
                             </span>
                             <span className="text-[10px] text-slate-500">
-                              {record.batch_id} • Ch.{record.context?.tester_channel}
+                              {record.batch_id} • Ch.{record.context?.tester_channel ?? 'N/A'}
                             </span>
                           </div>
                         </td>
@@ -359,7 +359,7 @@ export default function ComponentGridView({
                       <button
                         key={r.component_id}
                         onClick={() => setSelectedComponentId(r.component_id)}
-                        title={`Socket #${r.context?.board_position || i+1}: ${r.component_id} (${r.latest_value} µA)`}
+                        title={`${r.context?.board_position != null ? `Socket #${r.context.board_position}` : 'Position N/A'}: ${r.component_id} (${r.latest_value} µA)`}
                         className={`
                           relative aspect-square rounded-lg flex flex-col items-center justify-center p-0.5 cursor-pointer transition-all duration-100
                           ${style.bg}
@@ -368,7 +368,7 @@ export default function ComponentGridView({
                         `}
                       >
                         <span className={`text-[8px] font-mono ${style.text}`}>
-                          {String(r.context?.board_position || (i + 1)).padStart(2, '0')}
+                          {r.context?.board_position != null ? String(r.context.board_position).padStart(2, '0') : '–'}
                         </span>
                         <span className={`w-1 h-1 rounded-full mt-0.5 ${style.dot}`} />
                       </button>
@@ -409,7 +409,7 @@ export default function ComponentGridView({
                   <div className="flex items-center gap-1.5 font-mono text-xs">
                     <span className="text-slate-500">LOCKED:</span>
                     <strong className="text-orange-400 font-medium">{selectedRecord.component_id}</strong>
-                    <span className="text-[10px] text-slate-500">(Pos #{selectedRecord.context?.board_position})</span>
+                    <span className="text-[10px] text-slate-500">(Pos {selectedRecord.context?.board_position != null ? `#${selectedRecord.context.board_position}` : 'N/A'})</span>
                   </div>
                   <DecisionBadge decision={selectedRecord.recommendation} size="sm" />
                 </div>
@@ -429,7 +429,7 @@ export default function ComponentGridView({
                   </div>
                   <div className="p-2 rounded bg-white/[0.02]">
                     <span className="text-[10px] text-slate-400 block">Channel</span>
-                    <span className="text-slate-300 font-medium">CH-{selectedRecord.context?.tester_channel}</span>
+                    <span className="text-slate-300 font-medium">{selectedRecord.context?.tester_channel != null ? `CH-${selectedRecord.context.tester_channel}` : 'N/A'}</span>
                   </div>
                 </div>
 

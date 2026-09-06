@@ -246,7 +246,7 @@ export default function OverviewView({
               </h3>
             </div>
             <p className="text-[11px] text-slate-400 leading-relaxed">
-              Equipped with <strong className="text-white font-normal">xgboost_v2</strong>, validated offline on whole-batch splits with split-conformal calibration.
+              Forecasts from <strong className="text-white font-normal">{dataset?.model_info?.selected_model || "N/A"}</strong>, validated offline on whole-batch splits with split-conformal calibration.
             </p>
           </div>
 

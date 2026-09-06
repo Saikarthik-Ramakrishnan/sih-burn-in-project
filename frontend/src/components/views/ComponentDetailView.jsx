@@ -265,11 +265,11 @@ export default function ComponentDetailView({
             <div className="grid grid-cols-2 gap-1.5 text-[11px]">
               <div className="p-2 rounded bg-white/[0.02]">
                 <span className="text-slate-500 block text-[9px]">SOCKET</span>
-                <span className="text-white font-medium">#{record.context?.board_position}</span>
+                <span className="text-white font-medium">{record.context?.board_position != null ? `#${record.context.board_position}` : 'N/A'}</span>
               </div>
               <div className="p-2 rounded bg-white/[0.02]">
                 <span className="text-slate-500 block text-[9px]">CHANNEL</span>
-                <span className="text-white font-medium">CH-{record.context?.tester_channel}</span>
+                <span className="text-white font-medium">{record.context?.tester_channel != null ? `CH-${record.context.tester_channel}` : 'N/A'}</span>
               </div>
               <div className="p-2 rounded bg-white/[0.02]">
                 <span className="text-slate-500 block text-[9px]">TEMP</span>

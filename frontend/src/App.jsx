@@ -10,7 +10,8 @@ import ChamberView from './components/views/ChamberView';
 import ExportView from './components/views/ExportView';
 import UploadModal from './components/upload/UploadModal';
 import DEMO_DATASET from './lib/demoData';
-import { checkHealth } from './lib/api';
+import { checkHealth, downloadSampleCsv, screenUpload } from './lib/api';
+import { enrichResponse } from './lib/enrich';
 
 export default function App() {
   const [dataset, setDataset] = useState(DEMO_DATASET);
@@ -55,38 +56,40 @@ export default function App() {
   };
 
   const handleUploadSuccess = (newResponse) => {
-    // Normalize or use backend response
+    // Records are used exactly as the backend returned them. Metadata the CSV did
+    // not supply stays absent and renders as N/A; outcome fields come only from
+    // the response's own evaluation section.
     if (newResponse && newResponse.records) {
-      // If records don't have board_positions, ensure they are indexed
-      const enrichedRecords = newResponse.records.map((r, i) => ({
-        ...r,
-        context: {
-          ...r.context,
-          board_position: r.context?.board_position || (i + 1),
-          tester_channel: r.context?.tester_channel || ((i % 16) + 1)
-        },
-        within_limit_but_unusual: r.within_limit_but_unusual ?? (r.limits?.applicable_limit && r.latest_value < r.limits.applicable_limit && r.anomaly?.is_anomaly)
-      }));
-
-      const unusualCount = enrichedRecords.filter(r => r.within_limit_but_unusual).length;
-
-      setDataset({
-        ...newResponse,
-        records: enrichedRecords,
-        within_limits_but_unusual_count: unusualCount
-      });
-
-      if (enrichedRecords.length > 0) {
-        setSelectedComponentId(enrichedRecords[0].component_id);
+      const enriched = enrichResponse(newResponse);
+      setDataset(enriched);
+      if (enriched.records.length > 0) {
+        setSelectedComponentId(enriched.records[0].component_id);
       }
     }
     setActiveTab('overview');
   };
 
-  const handleReloadDemo = () => {
+  // "Sample Data": fetch the backend's sample CSV (early readings plus 168 h rows)
+  // and screen it through the live model. The bundled fixture, itself a subset of
+  // a genuine v2 response, is used only when the backend is unreachable.
+  const handleReloadDemo = async () => {
+    setActiveFilter('ALL');
+    if (backendReady) {
+      try {
+        setIsSubmitting(true);
+        const csv = await downloadSampleCsv();
+        const file = new File([csv], 'sample.csv', { type: 'text/csv' });
+        const response = await screenUpload(file, null, null);
+        handleUploadSuccess(response);
+        return;
+      } catch (err) {
+        console.warn('Live sample screening failed; showing the bundled demo subset instead.', err);
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
     setDataset(DEMO_DATASET);
     setSelectedComponentId(DEMO_DATASET.records[0].component_id);
-    setActiveFilter('ALL');
   };
 
   const counts = {
