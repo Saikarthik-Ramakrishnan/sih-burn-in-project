@@ -19,7 +19,7 @@ export default function Header({
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-sm font-semibold tracking-tight text-white flex items-center gap-2">
-              Burn-In Sentinel
+              Leakage Lens
               <span className="text-[10px] font-mono font-medium px-1.5 py-0.2 rounded bg-orange-500/10 text-orange-300 border border-orange-500/20">
                 SIH26170
               </span>

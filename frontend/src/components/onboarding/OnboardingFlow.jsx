@@ -4,7 +4,7 @@ import CalloutCard from './CalloutCard';
 import SpotlightOverlay from './SpotlightOverlay';
 import GlossaryDrawer from './GlossaryDrawer';
 
-const STORAGE_KEY = 'burn_in_sentinel_onboarding_dismissed';
+const STORAGE_KEY = 'leakage_lens_onboarding_dismissed';
 
 export default function OnboardingFlow({
   activeTab,
@@ -35,7 +35,9 @@ export default function OnboardingFlow({
   // First-run automatic detection (1280px+ and not previously dismissed)
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const isDismissed = localStorage.getItem(STORAGE_KEY) === 'true';
+      const isDismissed =
+        localStorage.getItem(STORAGE_KEY) === 'true' ||
+        localStorage.getItem('burn_in_sentinel_onboarding_dismissed') === 'true';
       if (!isDismissed && window.innerWidth >= 1280) {
         setIsOpen(true);
         setCurrentStep(0);

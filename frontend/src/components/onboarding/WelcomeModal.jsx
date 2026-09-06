@@ -68,7 +68,7 @@ export default function WelcomeModal({
                   id="welcome-modal-title"
                   className="text-base font-semibold tracking-tight text-white"
                 >
-                  Burn-In Sentinel
+                  Leakage Lens
                 </h2>
                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-300 border border-orange-500/25">
                   ONBOARDING
@@ -98,7 +98,7 @@ export default function WelcomeModal({
               Function &amp; Scope
             </span>
             <p>
-              Burn-In Sentinel analyzes 0 h and 24 h leakage readings across every part in a burn-in batch,
+              Leakage Lens analyzes 0 h and 24 h leakage readings across every part in a burn-in batch,
               identifies parts drifting differently from their batch peers, forecasts leakage at 168 h with a calibrated
               conformal interval, and assigns one of four screening recommendations per part.
             </p>

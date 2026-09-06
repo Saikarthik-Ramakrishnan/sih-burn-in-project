@@ -86,7 +86,7 @@ export default function Navigation({
           >
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-semibold tracking-tight text-white">
-                Burn-In Sentinel
+                Leakage Lens
               </span>
               <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-orange-500/15 text-orange-300 border border-orange-500/25">
                 SIH26170
