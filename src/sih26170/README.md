@@ -10,7 +10,7 @@ The science lives here; the API only calls it.
 | `forecast_v2.py` | The whole-batch experiment runner that produced `xgboost_v2`, plus a standalone frozen candidate |
 | `api/`, `prediction/` | FastAPI backend and the bundle adapter (see `docs/backend/README.md`) |
 
-Rules that every module keeps: only 0 h and 24 h observations reach a model, labels join on the four identity columns and never on row order, whole batches stay together in every split, and nothing fits during a request.
+Rules that every module keeps: only 0 h and 24 h observations reach a model, labels join on the four identity columns, whole batches stay together in every split, and every request runs inference only.
 
 ```python
 from sih26170.mlcc_prototype import load_bundle, screen_readings

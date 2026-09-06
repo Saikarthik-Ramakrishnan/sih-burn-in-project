@@ -1,4 +1,4 @@
-# MLCC prototype v2 bundle — start here
+# MLCC prototype v2 bundle: start here
 
 `outputs/mlcc_v2/model_bundle/` is the release bundle as of 2026-09-06. It was
 trained by `scripts/train_mlcc_prototype.py --dataset-dir outputs/mlcc_v1
