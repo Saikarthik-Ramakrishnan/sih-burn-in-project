@@ -28,81 +28,94 @@ export function formatZ(zScore, precision = 2) {
 export const DECISION_CONFIG = {
   ACCEPT: {
     label: 'ACCEPT',
-    badgeClass: 'bg-white/[0.04] text-slate-300 border-white/[0.1] backdrop-blur-md',
-    dotClass: 'bg-slate-400',
-    cardBorder: 'hover:border-white/20',
-    gradientText: 'from-slate-200 to-slate-400',
+    badgeClass: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/35 backdrop-blur-md font-semibold',
+    dotClass: 'bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.7)]',
+    cardBorder: 'hover:border-emerald-500/40',
+    gradientText: 'from-emerald-400 to-teal-300',
+    textColor: 'text-emerald-400',
+    colorHex: '#10b981',
     description: 'Nominal drift trajectory; within verified statistical bounds.'
   },
   MONITOR: {
     label: 'MONITOR',
-    badgeClass: 'bg-orange-500/[0.08] text-orange-200 border-orange-500/25 backdrop-blur-md',
-    dotClass: 'bg-orange-400',
-    cardBorder: 'hover:border-orange-500/30',
-    gradientText: 'from-orange-200 to-amber-300',
+    badgeClass: 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30 backdrop-blur-md font-medium',
+    dotClass: 'bg-yellow-400 shadow-[0_0_6px_rgba(234,179,8,0.5)]',
+    cardBorder: 'hover:border-yellow-500/35',
+    gradientText: 'from-yellow-200 to-amber-300',
+    textColor: 'text-yellow-400',
+    colorHex: '#eab308',
     description: 'Elevated rate of drift or forecast interval approaches threshold.'
   },
   RETEST: {
     label: 'RETEST',
-    badgeClass: 'bg-orange-500/[0.15] text-orange-300 border-orange-500/35 backdrop-blur-md font-medium',
-    dotClass: 'bg-orange-400',
-    cardBorder: 'hover:border-orange-500/40',
-    gradientText: 'from-orange-300 to-amber-400',
+    badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-500/35 backdrop-blur-md font-medium',
+    dotClass: 'bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.6)]',
+    cardBorder: 'hover:border-amber-500/40',
+    gradientText: 'from-amber-300 to-orange-400',
+    textColor: 'text-amber-400',
+    colorHex: '#f59e0b',
     description: 'Significant peer anomaly (score ≥ 0.8) or projected limit breach.'
   },
   ENGINEER_REVIEW: {
     label: 'ENGINEER REVIEW',
-    badgeClass: 'bg-orange-500/25 text-orange-400 border-orange-500/50 backdrop-blur-md font-bold',
-    dotClass: 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]',
-    cardBorder: 'hover:border-orange-500/60',
-    gradientText: 'from-orange-400 to-amber-400',
-    description: 'Immediate inspection needed: active limit breach or confirmed anomaly.'
+    badgeClass: 'bg-rose-500/20 text-rose-300 border-rose-500/50 backdrop-blur-md font-bold',
+    dotClass: 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]',
+    cardBorder: 'hover:border-rose-500/60',
+    gradientText: 'from-rose-400 to-red-500',
+    textColor: 'text-rose-400',
+    colorHex: '#ef4444',
+    description: 'Critical defect / error: active limit breach or confirmed anomaly.'
   }
 };
 
 export function getThermalColor(limitFraction) {
   if (limitFraction >= 1.0) {
+    // Error / Limit Breach -> RED
     return {
-      bg: 'bg-orange-500 text-black font-bold',
-      border: 'border-orange-400',
-      text: 'text-black font-bold',
-      shadow: 'shadow-[0_0_12px_rgba(249,115,22,0.5)]',
-      dot: 'bg-black'
+      bg: 'bg-rose-500 text-white font-bold',
+      border: 'border-rose-400',
+      text: 'text-white font-bold',
+      shadow: 'shadow-[0_0_12px_rgba(239,68,68,0.7)]',
+      dot: 'bg-white'
     };
   }
   if (limitFraction >= 0.75) {
+    // High / Near Limit -> AMBER
     return {
-      bg: 'bg-orange-600/75 text-white',
-      border: 'border-orange-500/60',
-      text: 'text-white font-semibold',
-      shadow: 'shadow-[0_0_8px_rgba(249,115,22,0.25)]',
-      dot: 'bg-orange-200'
+      bg: 'bg-amber-500/25 text-amber-300',
+      border: 'border-amber-500/50',
+      text: 'text-amber-300 font-semibold',
+      shadow: 'shadow-[0_0_8px_rgba(245,158,11,0.3)]',
+      dot: 'bg-amber-400'
     };
   }
   if (limitFraction >= 0.45) {
+    // Elevated -> YELLOW
     return {
-      bg: 'bg-orange-950/60 text-orange-200',
-      border: 'border-orange-500/30',
-      text: 'text-orange-200',
+      bg: 'bg-yellow-500/15 text-yellow-300',
+      border: 'border-yellow-500/30',
+      text: 'text-yellow-300',
       shadow: '',
-      dot: 'bg-orange-400'
+      dot: 'bg-yellow-400'
     };
   }
   if (limitFraction >= 0.2) {
+    // Healthy -> LIGHT GREEN
     return {
-      bg: 'bg-[#121522] text-slate-300',
-      border: 'border-white/[0.08]',
-      text: 'text-slate-300',
+      bg: 'bg-emerald-500/15 text-emerald-300',
+      border: 'border-emerald-500/30',
+      text: 'text-emerald-300',
       shadow: '',
-      dot: 'bg-slate-500'
+      dot: 'bg-emerald-400'
     };
   }
+  // Optimal / Going Good -> VIBRANT EMERALD GREEN
   return {
-    bg: 'bg-[#0b0d14] text-slate-500',
-    border: 'border-white/[0.04]',
-    text: 'text-slate-500',
+    bg: 'bg-emerald-500/10 text-emerald-400',
+    border: 'border-emerald-500/20',
+    text: 'text-emerald-400',
     shadow: '',
-    dot: 'bg-slate-700'
+    dot: 'bg-emerald-500'
   };
 }
 

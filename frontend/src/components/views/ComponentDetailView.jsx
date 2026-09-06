@@ -213,17 +213,25 @@ export default function ComponentDetailView({
             {/* Trajectory SVG Chart */}
             <TrajectoryChart record={record} showOutcome={showOutcome} height={280} />
 
-            {/* Outcome Verification Banner */}
+            {/* Outcome Verification Banner (Red if limit crossed, Green if within spec) */}
             {showOutcome && (
-              <div className="mt-4 p-3 rounded-lg bg-orange-500/[0.04] border border-orange-500/20 text-xs font-mono text-slate-300 flex flex-wrap items-center justify-between gap-3">
+              <div className={`mt-4 p-3 rounded-lg text-xs font-mono flex flex-wrap items-center justify-between gap-3 border ${
+                record.crossed_applicable_limit
+                  ? 'bg-rose-500/[0.08] border-rose-500/30 text-rose-200'
+                  : 'bg-emerald-500/[0.08] border-emerald-500/30 text-emerald-200'
+              }`}>
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-orange-400 flex-shrink-0" strokeWidth={1.5} />
+                  <CheckCircle className={`w-4 h-4 flex-shrink-0 ${record.crossed_applicable_limit ? 'text-rose-400' : 'text-emerald-400'}`} strokeWidth={1.5} />
                   <span>
                     Observed 168h leakage: <strong className="text-white">{record.observed_168h} µA</strong> (Forecast: {record.forecast.predicted_final_value} µA, Δ: {Math.abs(record.observed_168h - record.forecast.predicted_final_value).toFixed(4)} µA).
                   </span>
                 </div>
-                <span className="px-2 py-0.5 rounded text-[10px] bg-white/[0.04] border border-white/[0.08] text-slate-300">
-                  {record.crossed_applicable_limit ? 'CROSSED LIMIT' : 'WITHIN SPEC'}
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                  record.crossed_applicable_limit
+                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                    : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                }`}>
+                  {record.crossed_applicable_limit ? 'DEFECT // CROSSED LIMIT' : 'HEALTHY // WITHIN SPEC'}
                 </span>
               </div>
             )}
@@ -390,23 +398,31 @@ export default function ComponentDetailView({
                 </span>
                 {[
                   { id: 'ALL', label: 'All Parts' },
-                  { id: 'ENGINEER_REVIEW', label: 'Review' },
+                  { id: 'ENGINEER_REVIEW', label: 'Review (Error)' },
                   { id: 'RETEST', label: 'Retest' },
                   { id: 'MONITOR', label: 'Monitor' },
-                  { id: 'ACCEPT', label: 'Accept' }
-                ].map(filter => (
-                  <button
-                    key={filter.id}
-                    onClick={() => setFilterRisk(filter.id)}
-                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                      filterRisk === filter.id
-                        ? 'bg-orange-500/20 text-orange-300 border border-orange-500/40 font-semibold'
-                        : 'bg-white/[0.03] text-slate-400 border border-white/5 hover:text-white hover:bg-white/[0.06]'
-                    }`}
-                  >
-                    {filter.label}
-                  </button>
-                ))}
+                  { id: 'ACCEPT', label: 'Accept (Good)' }
+                ].map(filter => {
+                  let activeClass = 'bg-orange-500/20 text-orange-300 border-orange-500/40 font-semibold';
+                  if (filter.id === 'ENGINEER_REVIEW') activeClass = 'bg-rose-500/20 text-rose-300 border-rose-500/50 font-bold';
+                  else if (filter.id === 'ACCEPT') activeClass = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 font-bold';
+                  else if (filter.id === 'RETEST') activeClass = 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-medium';
+                  else if (filter.id === 'MONITOR') activeClass = 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40 font-medium';
+
+                  return (
+                    <button
+                      key={filter.id}
+                      onClick={() => setFilterRisk(filter.id)}
+                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                        filterRisk === filter.id
+                          ? activeClass
+                          : 'bg-white/[0.03] text-slate-400 border border-white/5 hover:text-white hover:bg-white/[0.06]'
+                      }`}
+                    >
+                      {filter.label}
+                    </button>
+                  );
+                })}
                 <span className="ml-auto text-[11px] text-slate-500 whitespace-nowrap pl-2">
                   {filteredRecords.length} found
                 </span>
@@ -422,6 +438,16 @@ export default function ComponentDetailView({
               ) : (
                 filteredRecords.map((item) => {
                   const isSelected = item.component_id === selectedComponentId;
+                  const isError = item.recommendation === 'ENGINEER_REVIEW';
+                  const isGood = item.recommendation === 'ACCEPT';
+                  const isRetest = item.recommendation === 'RETEST';
+
+                  let badgeColor = 'bg-white/5 text-slate-400 border border-white/10';
+                  if (isError) badgeColor = 'bg-rose-500/20 text-rose-300 border border-rose-500/40';
+                  else if (isGood) badgeColor = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+                  else if (isRetest) badgeColor = 'bg-amber-500/20 text-amber-300 border border-amber-500/40';
+                  else badgeColor = 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40';
+
                   return (
                     <div
                       key={item.component_id}
@@ -431,22 +457,22 @@ export default function ComponentDetailView({
                       }}
                       className={`p-3 rounded-xl flex items-center justify-between gap-3 cursor-pointer transition-all ${
                         isSelected
-                          ? 'bg-orange-500/10 border border-orange-500/30 text-white'
+                          ? (isError ? 'bg-rose-500/10 border border-rose-500/30' : (isGood ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-orange-500/10 border border-orange-500/30'))
                           : 'hover:bg-white/[0.04] text-slate-300 border border-transparent'
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-mono text-xs font-bold ${
-                          isSelected ? 'bg-orange-500 text-black' : 'bg-white/5 text-slate-400'
-                        }`}>
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-mono text-xs font-bold ${badgeColor}`}>
                           #{item.component_id.replace('CMP-', '')}
                         </div>
                         <div>
                           <div className="flex items-center gap-2 font-mono text-sm font-semibold text-white">
-                            <span>{item.component_id}</span>
+                            <span className={isError ? 'text-rose-300' : (isGood ? 'text-emerald-300' : 'text-white')}>
+                              {item.component_id}
+                            </span>
                             <span className="text-xs text-slate-400 font-normal">({item.batch_id})</span>
                             {isSelected && (
-                              <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                              <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-white/10 text-white border border-white/20">
                                 Current
                               </span>
                             )}
@@ -456,7 +482,9 @@ export default function ComponentDetailView({
                             <span>•</span>
                             <span>24h: {item.latest_value?.toFixed(4)} µA</span>
                             <span>•</span>
-                            <span>168h Pred: {item.forecast?.predicted_final_value?.toFixed(4)} µA</span>
+                            <span className={item.forecast?.predicted_to_cross_limit ? 'text-rose-400 font-medium' : ''}>
+                              168h Pred: {item.forecast?.predicted_final_value?.toFixed(4)} µA
+                            </span>
                           </div>
                         </div>
                       </div>

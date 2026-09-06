@@ -37,38 +37,38 @@ import {
 } from 'lucide-react';
 import { formatPercent, formatZ } from '../../lib/utils';
 
-// Color definitions matching the signature Warm Amber & Obsidian theme
+// Color definitions: Red for error/review, Amber/Yellow for caution, Green for good/accept
 const THEME_COLORS = {
   ENGINEER_REVIEW: {
-    base: '#f97316',
-    border: '#fb923c',
-    halo: 'rgba(249, 115, 22, 0.45)',
-    glow: 'rgba(249, 115, 22, 0.25)',
-    label: 'Critical Review',
+    base: '#ef4444',
+    border: '#f87171',
+    halo: 'rgba(239, 68, 68, 0.45)',
+    glow: 'rgba(239, 68, 68, 0.25)',
+    label: 'Critical Review (Error)',
     priority: 1
   },
   RETEST: {
-    base: '#f59e0b',
-    border: '#fbbf24',
-    halo: 'rgba(245, 158, 11, 0.4)',
-    glow: 'rgba(245, 158, 11, 0.2)',
+    base: '#f97316',
+    border: '#fb923c',
+    halo: 'rgba(249, 115, 22, 0.4)',
+    glow: 'rgba(249, 115, 22, 0.2)',
     label: 'Retest Required',
     priority: 2
   },
   MONITOR: {
-    base: '#fdba74',
-    border: '#fed7aa',
-    halo: 'rgba(253, 186, 116, 0.35)',
-    glow: 'rgba(253, 186, 116, 0.15)',
+    base: '#eab308',
+    border: '#fde047',
+    halo: 'rgba(234, 179, 8, 0.35)',
+    glow: 'rgba(234, 179, 8, 0.15)',
     label: 'Watchlist Drift',
     priority: 3
   },
   ACCEPT: {
-    base: '#94a3b8',
-    border: '#cbd5e1',
-    halo: 'rgba(148, 163, 184, 0.2)',
-    glow: 'rgba(148, 163, 184, 0.08)',
-    label: 'Nominal Spec',
+    base: '#10b981',
+    border: '#34d399',
+    halo: 'rgba(16, 185, 129, 0.45)',
+    glow: 'rgba(16, 185, 129, 0.25)',
+    label: 'Nominal Spec (Good)',
     priority: 4
   }
 };
@@ -121,7 +121,7 @@ export default function TopologyView({
       desc: 'Projected 168h leakage crosses 0.25 µA spec',
       x: 500,
       y: 110,
-      color: '#f97316',
+      color: '#ef4444',
       icon: AlertOctagon
     },
     {
@@ -131,7 +131,7 @@ export default function TopologyView({
       desc: 'Hourly leakage slope ≥ 0.0025 µA/h',
       x: 230,
       y: 270,
-      color: '#fb923c',
+      color: '#f97316',
       icon: Flame
     },
     {
@@ -151,7 +151,7 @@ export default function TopologyView({
       desc: 'Within spec limit, but unusual pattern',
       x: 350,
       y: 490,
-      color: '#fdba74',
+      color: '#eab308',
       icon: Sparkles
     },
     {
@@ -161,7 +161,7 @@ export default function TopologyView({
       desc: 'Stable trajectory conforming to lot bounds',
       x: 650,
       y: 490,
-      color: '#94a3b8',
+      color: '#10b981',
       icon: CheckCircle2
     }
   ], []);
@@ -842,19 +842,33 @@ export default function TopologyView({
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/[0.04] text-xs font-mono">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[11px] text-slate-500">DISPOSITION:</span>
-            {['ALL', 'ENGINEER_REVIEW', 'RETEST', 'MONITOR', 'ACCEPT'].map(disp => (
-              <button
-                key={disp}
-                onClick={() => setFilterDisposition(disp)}
-                className={`px-2.5 py-1 rounded-md text-[11px] transition-all cursor-pointer ${
-                  filterDisposition === disp
-                    ? 'bg-orange-500/20 text-orange-300 border border-orange-500/40 font-medium'
-                    : 'bg-white/[0.02] text-slate-400 hover:text-white border border-white/[0.04]'
-                }`}
-              >
-                {disp.replace('_', ' ')}
-              </button>
-            ))}
+            {[
+              { id: 'ALL', label: 'ALL' },
+              { id: 'ENGINEER_REVIEW', label: 'REVIEW (ERROR)' },
+              { id: 'RETEST', label: 'RETEST' },
+              { id: 'MONITOR', label: 'MONITOR' },
+              { id: 'ACCEPT', label: 'ACCEPT (GOOD)' }
+            ].map(disp => {
+              let activeStyle = 'bg-orange-500/20 text-orange-300 border-orange-500/40 font-medium';
+              if (disp.id === 'ENGINEER_REVIEW') activeStyle = 'bg-rose-500/20 text-rose-300 border-rose-500/50 font-bold';
+              else if (disp.id === 'ACCEPT') activeStyle = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 font-bold';
+              else if (disp.id === 'RETEST') activeStyle = 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-medium';
+              else if (disp.id === 'MONITOR') activeStyle = 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40 font-medium';
+
+              return (
+                <button
+                  key={disp.id}
+                  onClick={() => setFilterDisposition(disp.id)}
+                  className={`px-2.5 py-1 rounded-md text-[11px] transition-all cursor-pointer ${
+                    filterDisposition === disp.id
+                      ? activeStyle
+                      : 'bg-white/[0.02] text-slate-400 hover:text-white border border-white/[0.04]'
+                  }`}
+                >
+                  {disp.label}
+                </button>
+              );
+            })}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -1039,20 +1053,20 @@ export default function TopologyView({
             {/* Canvas Legend Overlay */}
             <div className="absolute bottom-3 left-3 z-20 hidden sm:flex items-center gap-3 bg-[#0b0c13]/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/[0.08] text-[11px] font-mono">
               <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_#f97316]" />
-                <span className="text-white">Review</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_#ef4444]" />
+                <span className="text-rose-300 font-medium">Review (Error)</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                <span className="text-slate-300">Retest</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
+                <span className="text-orange-300">Retest</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-orange-300" />
-                <span className="text-slate-400">Monitor</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
+                <span className="text-yellow-300">Monitor</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
-                <span className="text-slate-500">Accept</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" />
+                <span className="text-emerald-300 font-medium">Accept (Good)</span>
               </div>
             </div>
 

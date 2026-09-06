@@ -135,26 +135,26 @@ export default function TrajectoryChart({
       // Color coordination with respect to threshold limit value
       let color, border, glow, statusLabel, statusBadge;
       if (pt.value >= limit) {
-        // Limit breach
-        color = '#f97316'; // glowing signature amber
-        border = '#fb923c';
-        glow = 'rgba(249, 115, 22, 0.45)';
-        statusLabel = 'THRESHOLD BREACH';
-        statusBadge = 'bg-orange-500/20 text-orange-300 border-orange-500/40';
+        // Limit breach -> ERROR -> RED
+        color = '#ef4444'; // glowing crimson red
+        border = '#f87171';
+        glow = 'rgba(239, 68, 68, 0.45)';
+        statusLabel = 'THRESHOLD BREACH // ERROR';
+        statusBadge = 'bg-rose-500/20 text-rose-300 border-rose-500/40 font-bold';
       } else if (fraction >= 0.7) {
-        // Approaching threshold limit
-        color = '#fbbf24'; // warm gold
-        border = '#fcd34d';
-        glow = 'rgba(251, 191, 36, 0.35)';
+        // Approaching threshold limit -> CAUTION -> AMBER
+        color = '#f59e0b'; // warm amber
+        border = '#fbbf24';
+        glow = 'rgba(245, 158, 11, 0.35)';
         statusLabel = 'ELEVATED // NEAR LIMIT';
         statusBadge = 'bg-amber-500/15 text-amber-300 border-amber-500/30';
       } else {
-        // Safe nominal
-        color = '#94a3b8'; // clean slate
-        border = '#cbd5e1';
-        glow = 'rgba(148, 163, 184, 0.2)';
-        statusLabel = 'NOMINAL // SAFE SPEC';
-        statusBadge = 'bg-white/[0.04] text-slate-300 border-white/[0.08]';
+        // Safe nominal -> GOING GOOD -> GREEN
+        color = '#10b981'; // vibrant emerald green
+        border = '#34d399';
+        glow = 'rgba(16, 185, 129, 0.35)';
+        statusLabel = 'NOMINAL // GOING GOOD';
+        statusBadge = 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 font-semibold';
       }
 
       return {
@@ -273,13 +273,13 @@ export default function TrajectoryChart({
           24h CUTOFF
         </text>
 
-        {/* Specification Upper Limit Line */}
+        {/* Specification Upper Limit Line (Red Error Threshold) */}
         <line
           x1={padding.left}
           y1={getY(limit)}
           x2={width - padding.right}
           y2={getY(limit)}
-          stroke="#f97316"
+          stroke="#ef4444"
           strokeWidth="1.5"
           strokeDasharray="4 4"
           strokeOpacity="0.85"
@@ -287,7 +287,7 @@ export default function TrajectoryChart({
         <text
           x={width - padding.right + 5}
           y={getY(limit) + 3.5}
-          fill="#f97316"
+          fill="#ef4444"
           fontSize="10"
           fontWeight="600"
         >
@@ -323,46 +323,54 @@ export default function TrajectoryChart({
           strokeLinecap="round"
         />
 
-        {/* 168h Forecast Uncertainty Whisker Band */}
-        <line
-          x1={getX(168)}
-          y1={getY(predLower)}
-          x2={getX(168)}
-          y2={getY(predUpper)}
-          stroke="#f97316"
-          strokeWidth="2"
-        />
-        {/* Whisker caps */}
-        <line
-          x1={getX(168) - 5}
-          y1={getY(predLower)}
-          x2={getX(168) + 5}
-          y2={getY(predLower)}
-          stroke="#f97316"
-          strokeWidth="2"
-        />
-        <line
-          x1={getX(168) - 5}
-          y1={getY(predUpper)}
-          x2={getX(168) + 5}
-          y2={getY(predUpper)}
-          stroke="#f97316"
-          strokeWidth="2"
-        />
+        {/* 168h Forecast Uncertainty Whisker Band (Red if error/crosses, Green if good, Amber if elevated) */}
+        {(() => {
+          const isCross = predVal >= limit;
+          const isElev = !isCross && (predVal >= limit * 0.7);
+          const fColor = isCross ? '#ef4444' : (isElev ? '#f59e0b' : '#10b981');
+          return (
+            <g>
+              <line
+                x1={getX(168)}
+                y1={getY(predLower)}
+                x2={getX(168)}
+                y2={getY(predUpper)}
+                stroke={fColor}
+                strokeWidth="2"
+              />
+              <line
+                x1={getX(168) - 5}
+                y1={getY(predLower)}
+                x2={getX(168) + 5}
+                y2={getY(predLower)}
+                stroke={fColor}
+                strokeWidth="2"
+              />
+              <line
+                x1={getX(168) - 5}
+                y1={getY(predUpper)}
+                x2={getX(168) + 5}
+                y2={getY(predUpper)}
+                stroke={fColor}
+                strokeWidth="2"
+              />
 
-        {/* Static Forecast Point Text */}
-        {!hoverPoint && (
-          <text
-            x={getX(168) - 10}
-            y={getY(predVal) - 10}
-            fill="#f97316"
-            fontSize="11.5"
-            fontWeight="600"
-            textAnchor="end"
-          >
-            Forecast: {predVal.toFixed(3)} µA
-          </text>
-        )}
+              {/* Static Forecast Point Text */}
+              {!hoverPoint && (
+                <text
+                  x={getX(168) - 10}
+                  y={getY(predVal) - 10}
+                  fill={fColor}
+                  fontSize="11.5"
+                  fontWeight="600"
+                  textAnchor="end"
+                >
+                  Forecast: {predVal.toFixed(3)} µA
+                </text>
+              )}
+            </g>
+          );
+        })()}
 
         {/* Outcome Reveal Overlay Path (if enabled) */}
         {showOutcome && outcomeTraj.length > 0 && (

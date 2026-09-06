@@ -33,31 +33,47 @@ export default function OverviewView({
   const cards = [
     {
       key: 'ACCEPT',
-      title: 'ACCEPT',
+      title: 'ACCEPT (GOOD)',
       count: decisions.ACCEPT || 0,
       icon: CheckCircle2,
-      description: 'Nominal drift trajectory; within verified statistical batch bounds.'
+      description: 'Nominal drift trajectory; within verified statistical batch bounds.',
+      iconColor: 'text-emerald-400',
+      barColor: 'bg-emerald-500',
+      hoverBorder: 'hover:border-emerald-500/40',
+      hoverText: 'group-hover:text-emerald-400'
     },
     {
       key: 'MONITOR',
       title: 'MONITOR',
       count: decisions.MONITOR || 0,
       icon: AlertTriangle,
-      description: 'Elevated rate of drift or forecast interval approaches threshold.'
+      description: 'Elevated rate of drift or forecast interval approaches threshold.',
+      iconColor: 'text-yellow-400',
+      barColor: 'bg-yellow-500',
+      hoverBorder: 'hover:border-yellow-500/40',
+      hoverText: 'group-hover:text-yellow-400'
     },
     {
       key: 'RETEST',
       title: 'RETEST',
       count: decisions.RETEST || 0,
       icon: RefreshCw,
-      description: 'Significant peer anomaly (score ≥ 0.8) or projected limit breach.'
+      description: 'Significant peer anomaly (score ≥ 0.8) or projected limit breach.',
+      iconColor: 'text-amber-400',
+      barColor: 'bg-amber-500',
+      hoverBorder: 'hover:border-amber-500/40',
+      hoverText: 'group-hover:text-amber-400'
     },
     {
       key: 'ENGINEER_REVIEW',
-      title: 'ENGINEER REVIEW',
+      title: 'REVIEW (ERROR)',
       count: decisions.ENGINEER_REVIEW || 0,
       icon: AlertOctagon,
-      description: 'Immediate action: active limit breach or confirmed drift anomaly.'
+      description: 'Immediate action: active limit breach or confirmed drift anomaly.',
+      iconColor: 'text-rose-400',
+      barColor: 'bg-rose-500',
+      hoverBorder: 'hover:border-rose-500/50',
+      hoverText: 'group-hover:text-rose-400'
     }
   ];
 
@@ -104,14 +120,14 @@ export default function OverviewView({
             <SquircleCard
               key={card.key}
               onClick={() => onFilterByDecision(card.key)}
-              className="p-4 flex flex-col justify-between group cursor-pointer hover:border-orange-500/25 transition-colors"
+              className={`p-4 flex flex-col justify-between group cursor-pointer transition-all ${card.hoverBorder}`}
             >
               <div>
                 <div className="flex items-center justify-between mb-2.5">
-                  <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400">
+                  <span className={`text-[11px] font-mono uppercase tracking-wider ${card.iconColor} font-semibold`}>
                     {card.title}
                   </span>
-                  <Icon className="w-4 h-4 text-slate-500 group-hover:text-orange-400 transition-colors" strokeWidth={1.5} />
+                  <Icon className={`w-4 h-4 text-slate-500 ${card.hoverText} transition-colors`} strokeWidth={1.5} />
                 </div>
 
                 <div className="flex items-baseline gap-2 mb-2">
@@ -123,10 +139,10 @@ export default function OverviewView({
                   </span>
                 </div>
 
-                <div className="w-full h-1 bg-white/[0.04] rounded-full overflow-hidden">
+                <div className="w-full h-1.5 bg-white/[0.04] rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-orange-500/75 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.max(pct * 100, 3)}%` }}
+                    className={`h-full ${card.barColor} rounded-full transition-all duration-500`}
+                    style={{ width: `${Math.max(pct * 100, 4)}%` }}
                   />
                 </div>
 
@@ -135,7 +151,7 @@ export default function OverviewView({
                 </p>
               </div>
 
-              <div className="mt-3 pt-2.5 border-t border-white/[0.04] flex items-center justify-between text-[10px] font-mono text-slate-500 group-hover:text-orange-400 transition-colors">
+              <div className={`mt-3 pt-2.5 border-t border-white/[0.04] flex items-center justify-between text-[10px] font-mono text-slate-500 ${card.hoverText} transition-colors`}>
                 <span>FILTER COMPONENTS</span>
                 <ArrowRight className="w-3 h-3 transform group-hover:translate-x-1 transition-transform" strokeWidth={1.5} />
               </div>
