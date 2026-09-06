@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ChevronRight, ChevronLeft, X, BookOpen, ArrowRight } from 'lucide-react';
+import { ChevronRight, ChevronLeft, X, BookOpen, ArrowRight, Loader2 } from 'lucide-react';
 
 export default function CalloutCard({
   stepNumber,
@@ -13,7 +13,8 @@ export default function CalloutCard({
   onDismiss,
   onOpenGlossary,
   targetRect,
-  prefersReducedMotion
+  isLoading = false,
+  prefersReducedMotion = false
 }) {
   const cardRef = useRef(null);
   const actionButtonRef = useRef(null);
@@ -42,8 +43,11 @@ export default function CalloutCard({
 
     // If bottom doesn't have enough space, position above target
     if (top + cardHeight > viewportHeight - padding) {
-      top = Math.max(padding, targetRect.top - cardHeight - padding);
+      top = targetRect.top - cardHeight - padding;
     }
+
+    // Strict clamping vertically within viewport
+    top = Math.max(padding, Math.min(viewportHeight - cardHeight - padding, top));
 
     // Clamp horizontally within viewport
     if (left + cardWidth > viewportWidth - padding) {
@@ -56,13 +60,31 @@ export default function CalloutCard({
     setPosition({ top, left });
   }, [targetRect, stepNumber]);
 
-  // Trap focus within the card
+  // Trap focus and keyboard shortcuts within the card
   const handleKeyDown = (e) => {
     if (e.key === 'Escape') {
       e.stopPropagation();
       onDismiss();
       return;
     }
+
+    // Keyboard navigation: Enter or ArrowRight advances, ArrowLeft goes back
+    if (e.key === 'ArrowRight') {
+      if (!isLoading) {
+        e.preventDefault();
+        onAction();
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowLeft' && onPrev && stepNumber > 1) {
+      if (!isLoading) {
+        e.preventDefault();
+        onPrev();
+      }
+      return;
+    }
+
     if (e.key === 'Tab') {
       const focusable = cardRef.current?.querySelectorAll(
         'button:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -90,6 +112,7 @@ export default function CalloutCard({
       aria-labelledby="callout-heading"
       aria-describedby="callout-description"
       onKeyDown={handleKeyDown}
+      tabIndex={-1}
       style={{
         position: 'fixed',
         top: `${position.top}px`,
@@ -99,6 +122,7 @@ export default function CalloutCard({
       className={`
         z-[80] p-5 rounded-2xl bg-[#0e0f17] border border-orange-500/30
         shadow-[0_16px_48px_rgba(0,0,0,0.7),0_0_24px_rgba(249,115,22,0.15)]
+        outline-none
         ${prefersReducedMotion ? '' : 'transition-all duration-300 ease-out'}
       `}
     >
@@ -151,7 +175,8 @@ export default function CalloutCard({
             <button
               type="button"
               onClick={onPrev}
-              className="flex items-center gap-1 text-xs font-mono text-slate-400 hover:text-slate-200 transition-colors cursor-pointer px-2 py-1 rounded hover:bg-white/5"
+              disabled={isLoading}
+              className="flex items-center gap-1 text-xs font-mono text-slate-400 hover:text-slate-200 transition-colors cursor-pointer px-2 py-1 rounded hover:bg-white/5 disabled:opacity-40"
             >
               <ChevronLeft className="w-3.5 h-3.5" strokeWidth={1.5} />
               <span>Back</span>
@@ -164,10 +189,20 @@ export default function CalloutCard({
           ref={actionButtonRef}
           type="button"
           onClick={onAction}
-          className="btn-primary flex items-center gap-1.5 px-4 py-2 text-xs font-mono tracking-wide shadow-md"
+          disabled={isLoading}
+          className="btn-primary flex items-center gap-1.5 px-4 py-2 text-xs font-mono tracking-wide shadow-md disabled:opacity-60"
         >
-          <span>{actionLabel}</span>
-          <ArrowRight className="w-3.5 h-3.5" strokeWidth={1.5} />
+          {isLoading ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 animate-spin" strokeWidth={1.5} />
+              <span>Processing Sample...</span>
+            </>
+          ) : (
+            <>
+              <span>{actionLabel}</span>
+              <ArrowRight className="w-3.5 h-3.5" strokeWidth={1.5} />
+            </>
+          )}
         </button>
       </div>
     </div>

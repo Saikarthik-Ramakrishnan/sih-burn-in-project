@@ -10,7 +10,8 @@ import {
   FileSpreadsheet,
   AlertCircle,
   ShieldCheck,
-  Search
+  Search,
+  Database
 } from 'lucide-react';
 
 export default function GlossaryDrawer({ isOpen, onClose, prefersReducedMotion }) {
@@ -144,6 +145,16 @@ export default function GlossaryDrawer({ isOpen, onClose, prefersReducedMotion }
       apiField: 'model_info.model_training_data: "synthetic"'
     },
     {
+      id: 'empty_state',
+      category: 'pipeline',
+      term: 'Empty & Pre-Upload State',
+      badge: 'SYSTEM STATUS',
+      color: 'text-slate-300',
+      definition:
+        'Prior to uploading batch telemetry, the dashboard displays an empty ingestion prompt ("Upload CSV" or "Load Verified Sample"). Socket maps and topology clusters remain unpopulated until batch data is provided. API connectivity reflects "API CONNECTED" when /api/v1/health/ready passes.',
+      apiField: 'GET /api/v1/health/ready'
+    },
+    {
       id: 'input_spec',
       category: 'schema',
       term: 'Input CSV Specification',
@@ -235,7 +246,7 @@ export default function GlossaryDrawer({ isOpen, onClose, prefersReducedMotion }
           </div>
 
           <div className="flex flex-wrap gap-1.5 text-[11px] font-mono">
-            {['all', 'recommendations', 'statistics', 'pipeline', 'errors'].map((cat) => (
+            {['all', 'recommendations', 'statistics', 'pipeline', 'schema', 'errors'].map((cat) => (
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}

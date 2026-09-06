@@ -18,6 +18,7 @@ export default function OnboardingFlow({
   const [currentStep, setCurrentStep] = useState(0); // 0 = welcome, 1-5 = spotlight steps
   const [isGlossaryOpen, setIsGlossaryOpen] = useState(false);
   const [targetRect, setTargetRect] = useState(null);
+  const [isLoadingSample, setIsLoadingSample] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   // Check reduced motion preference
@@ -45,6 +46,7 @@ export default function OnboardingFlow({
   // Listen to custom global events from Sidebar / Navigation
   useEffect(() => {
     const handleOpenOnboarding = () => {
+      setActiveTab('overview');
       setIsOpen(true);
       setCurrentStep(0);
     };
@@ -60,7 +62,22 @@ export default function OnboardingFlow({
       window.removeEventListener('open-onboarding', handleOpenOnboarding);
       window.removeEventListener('open-glossary', handleOpenGlossary);
     };
-  }, []);
+  }, [setActiveTab]);
+
+  // Ensure active tab matches current step
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (currentStep >= 1 && currentStep <= 4) {
+      if (activeTab !== 'overview') {
+        setActiveTab('overview');
+      }
+    } else if (currentStep === 5) {
+      if (activeTab !== 'inspector') {
+        setActiveTab('inspector');
+      }
+    }
+  }, [isOpen, currentStep, activeTab, setActiveTab]);
 
   // Persist dismissal
   const handleDismiss = useCallback(() => {
@@ -71,74 +88,109 @@ export default function OnboardingFlow({
     setTargetRect(null);
   }, []);
 
-  // Locate the DOM target for the current step
-  const updateTargetRect = useCallback(() => {
+  // Helper to find DOM target for a step
+  const findTargetElement = useCallback((step) => {
+    if (step === 1) {
+      // Step 1: Upload CSV button in Header or Sidebar
+      return (
+        document.querySelector('header button.btn-primary') ||
+        Array.from(document.querySelectorAll('button')).find((b) =>
+          b.textContent.includes('Upload CSV')
+        )
+      );
+    }
+    if (step === 2) {
+      // Step 2: Sample Data button in Header
+      return (
+        document.querySelector('header button[title*="sample" i]') ||
+        Array.from(document.querySelectorAll('button')).find((b) =>
+          b.textContent.includes('Sample Data')
+        )
+      );
+    }
+    if (step === 3) {
+      // Step 3: Decision Cards container on Overview
+      return (
+        document.querySelector('.grid.grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-4') ||
+        Array.from(document.querySelectorAll('span'))
+          .find((s) => s.textContent.trim().startsWith('ACCEPT'))
+          ?.closest('.squircle-card')?.parentElement
+      );
+    }
+    if (step === 4) {
+      // Step 4: Within Limits But Unusual card on Overview
+      return Array.from(document.querySelectorAll('h3'))
+        .find((h) => h.textContent.includes('Within Limits, Still Unusual'))
+        ?.closest('.squircle-card');
+    }
+    if (step === 5) {
+      // Step 5: Trajectory & Forecast Card on Inspector
+      return (
+        Array.from(document.querySelectorAll('h3'))
+          .find((h) => h.textContent.includes('Burn-In Trajectory'))
+          ?.closest('.squircle-card') ||
+        document.querySelector('main .squircle-card')
+      );
+    }
+    return null;
+  }, []);
+
+  // Measure target bounding rect without triggering scroll
+  const measureTarget = useCallback(() => {
+    if (!isOpen || currentStep === 0) {
+      setTargetRect(null);
+      return;
+    }
+    const el = findTargetElement(currentStep);
+    if (el) {
+      setTargetRect(el.getBoundingClientRect());
+    } else {
+      setTargetRect(null);
+    }
+  }, [isOpen, currentStep, findTargetElement]);
+
+  // Scroll into view once when step transitions, with retries for mounted components
+  useEffect(() => {
     if (!isOpen || currentStep === 0) {
       setTargetRect(null);
       return;
     }
 
-    let targetEl = null;
+    let attempts = 0;
+    const maxAttempts = 5;
 
-    if (currentStep === 1) {
-      // Step 1: Upload CSV button in Header or Sidebar
-      targetEl =
-        document.querySelector('header button.btn-primary') ||
-        Array.from(document.querySelectorAll('button')).find((b) =>
-          b.textContent.includes('Upload CSV')
-        );
-    } else if (currentStep === 2) {
-      // Step 2: Sample Data button in Header
-      targetEl =
-        document.querySelector('header button[title*="sample" i]') ||
-        Array.from(document.querySelectorAll('button')).find((b) =>
-          b.textContent.includes('Sample Data')
-        );
-    } else if (currentStep === 3) {
-      // Step 3: Decision Cards container on Overview
-      targetEl =
-        document.querySelector('.grid.grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-4') ||
-        Array.from(document.querySelectorAll('span'))
-          .find((s) => s.textContent.includes('ACCEPT (GOOD)'))
-          ?.closest('.squircle-card')?.parentElement;
-    } else if (currentStep === 4) {
-      // Step 4: Within Limits But Unusual card on Overview
-      targetEl = Array.from(document.querySelectorAll('h3'))
-        .find((h) => h.textContent.includes('Within Limits, Still Unusual'))
-        ?.closest('.squircle-card');
-    } else if (currentStep === 5) {
-      // Step 5: Trajectory & Forecast Card on Inspector
-      targetEl =
-        Array.from(document.querySelectorAll('h3'))
-          .find((h) => h.textContent.includes('Burn-In Trajectory'))
-          ?.closest('.squircle-card') ||
-        document.querySelector('main .squircle-card');
-    }
+    const locateAndScroll = () => {
+      const el = findTargetElement(currentStep);
+      if (el) {
+        el.scrollIntoView({
+          behavior: prefersReducedMotion ? 'auto' : 'smooth',
+          block: 'center'
+        });
+        // Measure after scroll animation settles
+        setTimeout(() => {
+          setTargetRect(el.getBoundingClientRect());
+        }, prefersReducedMotion ? 20 : 180);
+      } else if (attempts < maxAttempts) {
+        attempts += 1;
+        setTimeout(locateAndScroll, 80);
+      }
+    };
 
-    if (targetEl) {
-      targetEl.scrollIntoView({
-        behavior: prefersReducedMotion ? 'auto' : 'smooth',
-        block: 'center'
-      });
-      const rect = targetEl.getBoundingClientRect();
-      setTargetRect(rect);
-    } else {
-      setTargetRect(null);
-    }
-  }, [isOpen, currentStep, prefersReducedMotion]);
+    locateAndScroll();
+  }, [isOpen, currentStep, findTargetElement, prefersReducedMotion]);
 
-  // Recalculate target position on step, resize, or tab change
+  // Attach measure listener for user scroll or window resize
   useEffect(() => {
-    const timer = setTimeout(updateTargetRect, 80);
-    window.addEventListener('resize', updateTargetRect);
-    window.addEventListener('scroll', updateTargetRect, true);
+    if (!isOpen || currentStep === 0) return;
+
+    window.addEventListener('resize', measureTarget);
+    window.addEventListener('scroll', measureTarget, true);
 
     return () => {
-      clearTimeout(timer);
-      window.removeEventListener('resize', updateTargetRect);
-      window.removeEventListener('scroll', updateTargetRect, true);
+      window.removeEventListener('resize', measureTarget);
+      window.removeEventListener('scroll', measureTarget, true);
     };
-  }, [updateTargetRect, activeTab]);
+  }, [isOpen, currentStep, measureTarget]);
 
   // Step definitions: strictly ONE heading, AT MOST TWO sentences, ONE action
   const steps = [
@@ -165,7 +217,14 @@ export default function OnboardingFlow({
       actionLabel: 'Run Sample Screening',
       onAction: async () => {
         if (onReloadDemo) {
-          await onReloadDemo();
+          try {
+            setIsLoadingSample(true);
+            await onReloadDemo();
+          } catch (err) {
+            console.warn('Sample reload encounter:', err);
+          } finally {
+            setIsLoadingSample(false);
+          }
         }
         setActiveTab('overview');
         setCurrentStep(3);
@@ -259,6 +318,7 @@ export default function OnboardingFlow({
             onDismiss={handleDismiss}
             onOpenGlossary={() => setIsGlossaryOpen(true)}
             targetRect={targetRect}
+            isLoading={isLoadingSample}
             prefersReducedMotion={prefersReducedMotion}
           />
         </>
