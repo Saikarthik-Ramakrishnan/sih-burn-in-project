@@ -1,0 +1,28 @@
+# Fly.io deployment for Leakage Lens. Builds the repository Dockerfile.
+app = "leakage-lens"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  SIH_MODE = "demo"
+  SIH_CORS_ALLOW_ORIGINS = ""
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "10s"
+    grace_period = "60s"
+    method = "GET"
+    path = "/api/v1/health/ready"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1024mb"

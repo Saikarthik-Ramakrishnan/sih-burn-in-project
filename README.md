@@ -43,6 +43,8 @@ docker compose up --build
 
 One image: a Node stage builds the dashboard, a Python 3.12 stage installs the exact validated library versions, the release bundle and the demo CSVs, and uvicorn serves the API and the dashboard together on http://localhost:8000. The container is healthy only when `/api/v1/health/ready` passes its checksum, version and inference-probe checks.
 
+Public deployment uses the same image on Fly.io (`fly.toml`; steps in [docs/backend/RUNNING.md](docs/backend/RUNNING.md), section 9).
+
 ## Documentation
 
 Start here and work deeper:

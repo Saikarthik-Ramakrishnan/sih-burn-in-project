@@ -166,3 +166,23 @@ polls `/api/v1/health/ready`, so a bundle that fails a checksum or version check
 marks the container unhealthy instead of serving a broken model. CORS is
 disabled in the image because the dashboard is served same-origin; set
 `SIH_CORS_ALLOW_ORIGINS` if a separate frontend origin needs it.
+
+## 9. Public deployment (Fly.io)
+
+`fly.toml` at the repository root deploys the same Dockerfile. One-time setup:
+
+```bash
+brew install flyctl
+fly auth login
+fly launch --copy-config --no-deploy    # creates the app named in fly.toml
+fly deploy
+```
+
+`fly deploy` builds the image remotely, starts one machine in Singapore
+(`sin`) with 1 GB of memory, routes HTTPS to port 8000 and uses
+`/api/v1/health/ready` as the health check, so a bundle that fails its own
+checksum or version checks never receives traffic. The machine stops when idle
+and restarts on the first request (a few seconds, including the model probe).
+The URL is `https://leakage-lens.fly.dev` unless the name is taken, in which
+case `fly launch` asks for another. There is no authentication in front of the
+API; anyone with the URL can upload a CSV.
