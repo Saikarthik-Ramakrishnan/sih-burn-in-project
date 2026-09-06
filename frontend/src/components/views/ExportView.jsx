@@ -80,83 +80,83 @@ export default function ExportView({ dataset }) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {/* Full CSV Report */}
-        <SquircleCard elevated className="p-6 flex flex-col justify-between space-y-4">
+        <SquircleCard elevated className="p-5 flex flex-col justify-between space-y-4">
           <div>
-            <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mb-3">
-              <FileSpreadsheet className="w-5 h-5 text-orange-400" />
+            <div className="w-9 h-9 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mb-3">
+              <FileSpreadsheet className="w-4 h-4 text-orange-400" />
             </div>
-            <h3 className="text-base font-display font-bold text-white mb-1">
+            <h3 className="text-sm font-display font-semibold text-white mb-1">
               Full Screening CSV Report
             </h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
+            <p className="text-[11px] text-slate-400 leading-relaxed">
               Contains all 64 screened components with baseline 0h, cutoff 24h, robust z-scores, 168h forecasts, and recommendations.
             </p>
           </div>
 
           <button
             onClick={handleExportFullCsv}
-            className="btn-primary w-full py-2.5 flex items-center justify-center gap-2 text-xs font-mono tracking-wide"
+            className="btn-primary w-full py-2 flex items-center justify-center gap-2 text-xs font-mono tracking-wide"
           >
-            <Download className="w-4 h-4" />
+            <Download className="w-3.5 h-3.5" />
             <span>Download Full CSV</span>
           </button>
         </SquircleCard>
 
         {/* Flagged Parts Audit Card */}
-        <SquircleCard elevated className="p-6 flex flex-col justify-between space-y-4">
+        <SquircleCard elevated className="p-5 flex flex-col justify-between space-y-4">
           <div>
-            <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mb-3">
-              <FileText className="w-5 h-5 text-orange-400" />
+            <div className="w-9 h-9 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mb-3">
+              <FileText className="w-4 h-4 text-orange-400" />
             </div>
-            <h3 className="text-base font-display font-bold text-white mb-1">
+            <h3 className="text-sm font-display font-semibold text-white mb-1">
               Flagged Items Audit Report
             </h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
+            <p className="text-[11px] text-slate-400 leading-relaxed">
               Filtered extract containing only components requiring MONITOR, RETEST, or ENGINEER REVIEW for QA technician disposition.
             </p>
           </div>
 
           <button
             onClick={handleExportFlaggedOnly}
-            className="btn-secondary w-full py-2.5 flex items-center justify-center gap-2 text-xs font-mono tracking-wide"
+            className="btn-secondary w-full py-2 flex items-center justify-center gap-2 text-xs font-mono tracking-wide"
           >
-            <Download className="w-4 h-4" />
+            <Download className="w-3.5 h-3.5" />
             <span>Download Flagged Only</span>
           </button>
         </SquircleCard>
 
         {/* Raw JSON Envelope */}
-        <SquircleCard elevated className="p-6 flex flex-col justify-between space-y-4">
+        <SquircleCard elevated className="p-5 flex flex-col justify-between space-y-4">
           <div>
-            <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mb-3">
-              <FileCode className="w-5 h-5 text-orange-400" />
+            <div className="w-9 h-9 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mb-3">
+              <FileCode className="w-4 h-4 text-orange-400" />
             </div>
-            <h3 className="text-base font-display font-bold text-white mb-1">
+            <h3 className="text-sm font-display font-semibold text-white mb-1">
               Full API JSON Envelope
             </h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
+            <p className="text-[11px] text-slate-400 leading-relaxed">
               Complete raw JSON matching the backend contract with metadata, TreeSHAP explanation vectors, and model verification details.
             </p>
           </div>
 
           <button
             onClick={handleExportJson}
-            className="btn-secondary w-full py-2.5 flex items-center justify-center gap-2 text-xs font-mono tracking-wide"
+            className="btn-secondary w-full py-2 flex items-center justify-center gap-2 text-xs font-mono tracking-wide"
           >
-            <Download className="w-4 h-4" />
+            <Download className="w-3.5 h-3.5" />
             <span>Download Raw JSON</span>
           </button>
         </SquircleCard>
       </div>
 
       {/* Compliance Note */}
-      <SquircleCard className="p-5 font-mono text-xs text-slate-400 border-white/8 space-y-2">
-        <span className="text-slate-300 font-semibold block uppercase">
+      <SquircleCard className="p-4 font-mono text-xs text-slate-400 space-y-1.5">
+        <span className="text-slate-300 font-semibold block uppercase text-[11px]">
           Standard Traceability Notice:
         </span>
-        <p className="leading-relaxed">
+        <p className="leading-relaxed text-[11px]">
           Exported records adhere to SIH26170 standard field definitions. Every forecast includes its model version identifier (<strong className="text-white">xgboost_v2</strong>) and bundle id (<strong className="text-white">b5553f6f7032092e-s26170</strong>). All reported prediction intervals represent nominal coverage calibrated offline on held-out whole-batch splits.
         </p>
       </SquircleCard>

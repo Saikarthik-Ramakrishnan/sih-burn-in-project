@@ -67,7 +67,7 @@ export default function OverviewView({
   return (
     <div className="space-y-6 pb-12">
       {/* 1. Dataset Telemetry Strip */}
-      <SquircleCard className="p-3.5 bg-[#0e1017]/80 border-white/[0.08]">
+      <SquircleCard className="px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
             <div className="flex items-center gap-1.5 text-slate-400">
@@ -104,17 +104,17 @@ export default function OverviewView({
             <SquircleCard
               key={card.key}
               onClick={() => onFilterByDecision(card.key)}
-              className="p-4 flex flex-col justify-between group cursor-pointer hover:border-orange-500/30 transition-colors"
+              className="p-4 flex flex-col justify-between group cursor-pointer hover:border-orange-500/25 transition-colors"
             >
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400">
-                  {card.title}
-                </span>
-                <Icon className="w-4 h-4 text-slate-500 group-hover:text-orange-400 transition-colors" />
-              </div>
+              <div>
+                <div className="flex items-center justify-between mb-2.5">
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400">
+                    {card.title}
+                  </span>
+                  <Icon className="w-4 h-4 text-slate-500 group-hover:text-orange-400 transition-colors" />
+                </div>
 
-              <div className="my-2">
-                <div className="flex items-baseline gap-2">
+                <div className="flex items-baseline gap-2 mb-2">
                   <span className="text-2xl font-display font-semibold text-white tracking-tight">
                     {card.count}
                   </span>
@@ -122,19 +122,20 @@ export default function OverviewView({
                     ({formatPercent(pct)})
                   </span>
                 </div>
-                <div className="w-full h-1 bg-white/[0.06] rounded-full overflow-hidden mt-2.5">
+
+                <div className="w-full h-1 bg-white/[0.04] rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-orange-500/80 rounded-full transition-all duration-500"
+                    className="h-full bg-orange-500/75 rounded-full transition-all duration-500"
                     style={{ width: `${Math.max(pct * 100, 3)}%` }}
                   />
                 </div>
+
+                <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed mt-2.5">
+                  {card.description}
+                </p>
               </div>
 
-              <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed mt-2">
-                {card.description}
-              </p>
-
-              <div className="mt-3 pt-2.5 border-t border-white/[0.06] flex items-center justify-between text-[10px] font-mono text-slate-500 group-hover:text-orange-400 transition-colors">
+              <div className="mt-3 pt-2.5 border-t border-white/[0.04] flex items-center justify-between text-[10px] font-mono text-slate-500 group-hover:text-orange-400 transition-colors">
                 <span>FILTER COMPONENTS</span>
                 <ArrowRight className="w-3 h-3 transform group-hover:translate-x-1 transition-transform" />
               </div>
@@ -145,10 +146,10 @@ export default function OverviewView({
 
       {/* 3. Core Differentiator: "Within Limits But Unusual" Spotlight */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <SquircleCard elevated className="lg:col-span-2 p-5 border-orange-500/25 bg-[#0e1017]/85">
+        <SquircleCard elevated className="lg:col-span-2 p-5">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-orange-500/15 border border-orange-500/30 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
                 <Sparkles className="w-4 h-4 text-orange-400" />
               </div>
               <div>
@@ -175,7 +176,7 @@ export default function OverviewView({
 
           {/* Quick interactive peek of flagged sample */}
           {sampleUnusual && (
-            <div className="p-3.5 rounded-xl bg-black/30 border border-white/[0.06] space-y-3">
+            <div className="p-3.5 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2 font-mono text-xs">
                   <span className="text-slate-400">Sample Part:</span>
@@ -186,8 +187,8 @@ export default function OverviewView({
                 <DecisionBadge decision={sampleUnusual.recommendation} size="sm" />
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs font-mono">
-                <div className="p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.04]">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
+                <div className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.03]">
                   <span className="text-[10px] text-slate-400 block uppercase">24h Current</span>
                   <span className="text-white font-medium text-sm">
                     {sampleUnusual.latest_value} µA
@@ -196,7 +197,7 @@ export default function OverviewView({
                     Limit: {sampleUnusual.limits.applicable_limit} µA
                   </span>
                 </div>
-                <div className="p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.04]">
+                <div className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.03]">
                   <span className="text-[10px] text-slate-400 block uppercase">Peer Robust Z</span>
                   <span className="text-orange-300 font-medium text-sm">
                     +{sampleUnusual.peers.current_batch_robust_z}σ
@@ -205,7 +206,7 @@ export default function OverviewView({
                     vs {sampleUnusual.peers.sample_size} peers
                   </span>
                 </div>
-                <div className="p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.04]">
+                <div className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.03]">
                   <span className="text-[10px] text-slate-400 block uppercase">168h Forecast</span>
                   <span className="text-orange-400 font-medium text-sm">
                     {sampleUnusual.forecast.predicted_final_value} µA
@@ -214,7 +215,7 @@ export default function OverviewView({
                     [{sampleUnusual.forecast.prediction_lower} - {sampleUnusual.forecast.prediction_upper}]
                   </span>
                 </div>
-                <div className="p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.04] flex flex-col justify-between">
+                <div className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.03] flex flex-col justify-between">
                   <span className="text-[10px] text-slate-400 block uppercase">Action</span>
                   <button
                     onClick={() => onInspectComponent(sampleUnusual.component_id)}
@@ -250,25 +251,25 @@ export default function OverviewView({
           </div>
 
           <div className="space-y-1.5 text-xs font-mono">
-            <div className="flex items-center justify-between p-2 rounded-lg bg-white/[0.03]">
+            <div className="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-white/[0.02]">
               <span className="text-slate-400">Winner:</span>
               <span className="text-white font-medium">xgboost_v2</span>
             </div>
-            <div className="flex items-center justify-between p-2 rounded-lg bg-white/[0.03]">
+            <div className="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-white/[0.02]">
               <span className="text-slate-400">Interval:</span>
               <span className="text-slate-300">Asymmetric Conformal</span>
             </div>
-            <div className="flex items-center justify-between p-2 rounded-lg bg-white/[0.03]">
+            <div className="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-white/[0.02]">
               <span className="text-slate-400">Coverage:</span>
               <span className="text-orange-300">80% pair / 90% upper</span>
             </div>
-            <div className="flex items-center justify-between p-2 rounded-lg bg-white/[0.03]">
+            <div className="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-white/[0.02]">
               <span className="text-slate-400">Explainability:</span>
               <span className="text-slate-300">TreeSHAP Vectors</span>
             </div>
           </div>
 
-          <div className="p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.06] text-[10px] text-slate-400 leading-normal">
+          <div className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] text-[10px] text-slate-400 leading-normal">
             <strong>Rule:</strong> Anomaly score is a batch-relative ranking score, not a physical failure probability.
           </div>
         </SquircleCard>

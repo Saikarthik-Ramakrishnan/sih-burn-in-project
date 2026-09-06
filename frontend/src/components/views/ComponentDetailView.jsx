@@ -125,7 +125,7 @@ export default function ComponentDetailView({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left: Interactive Trajectory Chart (8 cols) */}
         <div className="lg:col-span-8 space-y-4">
-          <SquircleCard elevated className="p-5 border-white/[0.08]">
+          <SquircleCard elevated className="p-5">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
                 <h3 className="text-xs font-mono uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
@@ -156,14 +156,14 @@ export default function ComponentDetailView({
 
             {/* Outcome Verification Banner */}
             {showOutcome && (
-              <div className="mt-4 p-3 rounded-xl bg-orange-500/[0.06] border border-orange-500/20 text-xs font-mono text-slate-300 flex flex-wrap items-center justify-between gap-3">
+              <div className="mt-4 p-3 rounded-lg bg-orange-500/[0.04] border border-orange-500/20 text-xs font-mono text-slate-300 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-orange-400 flex-shrink-0" />
                   <span>
                     Observed 168h leakage: <strong className="text-white">{record.observed_168h} µA</strong> (Forecast: {record.forecast.predicted_final_value} µA, Δ: {Math.abs(record.observed_168h - record.forecast.predicted_final_value).toFixed(4)} µA).
                   </span>
                 </div>
-                <span className="px-2 py-0.5 rounded text-[10px] bg-white/[0.05] border border-white/[0.1] text-slate-300">
+                <span className="px-2 py-0.5 rounded text-[10px] bg-white/[0.04] border border-white/[0.08] text-slate-300">
                   {record.crossed_applicable_limit ? 'CROSSED LIMIT' : 'WITHIN SPEC'}
                 </span>
               </div>
@@ -172,7 +172,7 @@ export default function ComponentDetailView({
 
           {/* Peer Deviation & Baseline Comparison */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <SquircleCard className="p-3.5 text-xs font-mono">
+            <SquircleCard className="p-3 text-xs font-mono">
               <span className="text-[10px] text-slate-400 uppercase block mb-1">Peer Robust Z</span>
               <span className="text-lg font-medium text-orange-400">
                 {formatZ(record.peers.current_batch_robust_z)}
@@ -182,7 +182,7 @@ export default function ComponentDetailView({
               </span>
             </SquircleCard>
 
-            <SquircleCard className="p-3.5 text-xs font-mono">
+            <SquircleCard className="p-3 text-xs font-mono">
               <span className="text-[10px] text-slate-400 uppercase block mb-1">Drift Rate</span>
               <span className="text-lg font-medium text-white">
                 +{record.slope_per_hour} µA/h
@@ -192,7 +192,7 @@ export default function ComponentDetailView({
               </span>
             </SquircleCard>
 
-            <SquircleCard className="p-3.5 text-xs font-mono">
+            <SquircleCard className="p-3 text-xs font-mono">
               <span className="text-[10px] text-slate-400 uppercase block mb-1">Headroom to Spec</span>
               <span className="text-lg font-medium text-white">
                 {record.limits.headroom} µA
@@ -207,14 +207,14 @@ export default function ComponentDetailView({
         {/* Right: Technical Evidence & SHAP Explanation (4 cols) */}
         <div className="lg:col-span-4 space-y-3.5">
           {/* Recommendation Reasons Card */}
-          <SquircleCard className="p-4 space-y-2.5">
+          <SquircleCard className="p-4 space-y-2">
             <h4 className="text-xs font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
               <Info className="w-3.5 h-3.5 text-orange-400" />
               Recommendation Rationale
             </h4>
             <div className="space-y-1.5 text-xs">
               {record.recommendation_reasons.map((reason, idx) => (
-                <div key={idx} className="p-2 rounded bg-white/[0.03] border border-white/[0.04] text-slate-300 flex items-start gap-2">
+                <div key={idx} className="p-2 rounded bg-white/[0.02] border border-white/[0.03] text-slate-300 flex items-start gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-orange-400 mt-1.5 flex-shrink-0" />
                   <span>{reason}</span>
                 </div>
@@ -223,7 +223,7 @@ export default function ComponentDetailView({
           </SquircleCard>
 
           {/* TreeSHAP Feature Attribution */}
-          <SquircleCard className="p-4 space-y-2.5">
+          <SquircleCard className="p-4 space-y-2">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-orange-400" />
@@ -240,7 +240,7 @@ export default function ComponentDetailView({
 
             <div className="space-y-1.5 font-mono text-xs">
               {contributions.map((c, i) => (
-                <div key={i} className="p-2 rounded bg-black/30 border border-white/[0.04] space-y-0.5">
+                <div key={i} className="p-2 rounded bg-white/[0.02] border border-white/[0.03] space-y-0.5">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-300 text-[11px]">{c.feature}</span>
                     <span className="text-xs font-medium text-orange-400">
@@ -256,26 +256,26 @@ export default function ComponentDetailView({
           </SquircleCard>
 
           {/* Test Context & Hardware Location */}
-          <SquircleCard className="p-4 space-y-2.5 font-mono text-xs">
+          <SquircleCard className="p-4 space-y-2 font-mono text-xs">
             <h4 className="text-xs uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
               <Cpu className="w-3.5 h-3.5 text-orange-400" />
               Hardware Context
             </h4>
 
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
-              <div className="p-2 rounded bg-white/[0.03]">
+            <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+              <div className="p-2 rounded bg-white/[0.02]">
                 <span className="text-slate-500 block text-[9px]">SOCKET</span>
                 <span className="text-white font-medium">#{record.context?.board_position}</span>
               </div>
-              <div className="p-2 rounded bg-white/[0.03]">
+              <div className="p-2 rounded bg-white/[0.02]">
                 <span className="text-slate-500 block text-[9px]">CHANNEL</span>
                 <span className="text-white font-medium">CH-{record.context?.tester_channel}</span>
               </div>
-              <div className="p-2 rounded bg-white/[0.03]">
+              <div className="p-2 rounded bg-white/[0.02]">
                 <span className="text-slate-500 block text-[9px]">TEMP</span>
                 <span className="text-white font-medium">{record.context?.temperature_c}°C</span>
               </div>
-              <div className="p-2 rounded bg-white/[0.03]">
+              <div className="p-2 rounded bg-white/[0.02]">
                 <span className="text-slate-500 block text-[9px]">VOLTAGE</span>
                 <span className="text-white font-medium">{record.context?.applied_voltage_v} V</span>
               </div>

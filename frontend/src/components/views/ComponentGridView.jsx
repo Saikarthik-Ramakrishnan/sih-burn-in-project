@@ -97,16 +97,16 @@ export default function ComponentGridView({
   return (
     <div className="space-y-6 pb-12">
       {/* Search & Quick Filter Pills */}
-      <SquircleCard className="p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+      <SquircleCard className="p-3.5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         {/* Search Bar */}
         <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search Component ID (e.g. MLCC_C000062), Batch, Profile..."
-            className="w-full pl-10 pr-4 py-2 rounded-xl bg-[#0b0c14]/80 border border-white/12 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-orange-500/80 focus:ring-2 focus:ring-orange-500/20 transition-all font-mono"
+            className="w-full pl-9 pr-3.5 py-1.5 rounded-lg bg-black/20 border border-white/[0.08] text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-orange-500/60 transition-all font-mono"
           />
         </div>
 
@@ -322,11 +322,11 @@ export default function ComponentGridView({
 
         {/* Right Column: Spatial Fixture Map (5 cols) */}
         <div className="xl:col-span-5 space-y-4">
-          <SquircleCard elevated className="p-4 border-white/[0.08] flex flex-col justify-between">
+          <SquircleCard elevated className="p-4 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-orange-400" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-orange-400" />
                   <h3 className="text-xs font-mono uppercase tracking-wider text-slate-300">
                     Spatial Burn-In Matrix
                   </h3>
@@ -340,7 +340,7 @@ export default function ComponentGridView({
               </p>
 
               {/* 8x8 Tactile Squircle Matrix */}
-              <div className="p-3 rounded-xl bg-[#08090e] border border-white/[0.06]">
+              <div className="p-2.5 rounded-lg bg-white/[0.015] border border-white/[0.04]">
                 {/* Column Headers */}
                 <div className="grid grid-cols-8 gap-1 mb-1 text-center text-[9px] font-mono text-slate-500">
                   {['01', '02', '03', '04', '05', '06', '07', '08'].map(c => (
@@ -363,7 +363,7 @@ export default function ComponentGridView({
                         className={`
                           relative aspect-square rounded-lg flex flex-col items-center justify-center p-0.5 cursor-pointer transition-all duration-100
                           ${style.bg}
-                          ${isSelected ? 'ring-2 ring-orange-400 scale-105 z-10' : 'hover:scale-105'}
+                          ${isSelected ? 'ring-1.5 ring-orange-400 scale-105 z-10' : 'hover:scale-105'}
                           border ${isSelected ? 'border-orange-400' : style.border}
                         `}
                       >
@@ -377,13 +377,13 @@ export default function ComponentGridView({
                 </div>
 
                 {/* Thermal Scale Legend */}
-                <div className="mt-3 pt-2.5 border-t border-white/[0.06] flex flex-wrap items-center justify-between text-[9px] font-mono text-slate-400 gap-1.5">
+                <div className="mt-3 pt-2 border-t border-white/[0.04] flex flex-wrap items-center justify-between text-[9px] font-mono text-slate-400 gap-1.5">
                   <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded bg-[#0b0d14] border border-white/[0.08]" />
+                    <span className="w-2 h-2 rounded bg-white/[0.03] border border-white/[0.06]" />
                     <span>&lt;0.05 µA</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded bg-[#121522] border border-white/[0.12]" />
+                    <span className="w-2 h-2 rounded bg-white/[0.06] border border-white/[0.08]" />
                     <span>0.10 µA</span>
                   </div>
                   <div className="flex items-center gap-1">
@@ -404,7 +404,7 @@ export default function ComponentGridView({
 
             {/* Selected Socket Telemetry Card */}
             {selectedRecord && (
-              <div className="mt-3 p-3 rounded-xl bg-black/30 border border-white/[0.06] space-y-2.5">
+              <div className="mt-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 font-mono text-xs">
                     <span className="text-slate-500">LOCKED:</span>
@@ -415,19 +415,19 @@ export default function ComponentGridView({
                 </div>
 
                 <div className="grid grid-cols-2 gap-1.5 text-xs font-mono">
-                  <div className="p-2 rounded bg-white/[0.03]">
+                  <div className="p-2 rounded bg-white/[0.02]">
                     <span className="text-[10px] text-slate-400 block">24h Current</span>
                     <span className="text-white font-medium">{selectedRecord.latest_value} µA</span>
                   </div>
-                  <div className="p-2 rounded bg-white/[0.03]">
+                  <div className="p-2 rounded bg-white/[0.02]">
                     <span className="text-[10px] text-slate-400 block">168h Forecast</span>
                     <span className="text-orange-400 font-medium">{selectedRecord.forecast.predicted_final_value} µA</span>
                   </div>
-                  <div className="p-2 rounded bg-white/[0.03]">
+                  <div className="p-2 rounded bg-white/[0.02]">
                     <span className="text-[10px] text-slate-400 block">Robust Z</span>
                     <span className="text-slate-300 font-medium">+{selectedRecord.peers.current_batch_robust_z}σ</span>
                   </div>
-                  <div className="p-2 rounded bg-white/[0.03]">
+                  <div className="p-2 rounded bg-white/[0.02]">
                     <span className="text-[10px] text-slate-400 block">Channel</span>
                     <span className="text-slate-300 font-medium">CH-{selectedRecord.context?.tester_channel}</span>
                   </div>

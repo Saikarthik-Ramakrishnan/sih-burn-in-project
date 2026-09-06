@@ -64,11 +64,11 @@ export default function ChamberView({ dataset }) {
   return (
     <div className="space-y-6 pb-12">
       {/* 1. Chamber Top Banner */}
-      <SquircleCard elevated className="p-5 border-white/[0.08] bg-[#0e1017]/85">
+      <SquircleCard elevated className="p-5">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="w-2 h-2 rounded-full bg-orange-400" />
+              <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
               <span className="text-[10px] font-mono font-medium text-orange-400 uppercase tracking-wider">
                 CHAMBER ZONE 01 // HTOL TEST RACK
               </span>
@@ -82,11 +82,11 @@ export default function ChamberView({ dataset }) {
           </div>
 
           <div className="flex items-center gap-2.5">
-            <div className="px-3.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.08] text-right font-mono">
+            <div className="px-3 py-1.5 rounded-lg bg-white/[0.02] border border-white/[0.04] text-right font-mono">
               <span className="text-[9px] text-slate-500 uppercase block">THERMAL STRESS</span>
               <span className="text-sm font-medium text-white">125.0 °C</span>
             </div>
-            <div className="px-3.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.08] text-right font-mono">
+            <div className="px-3 py-1.5 rounded-lg bg-white/[0.02] border border-white/[0.04] text-right font-mono">
               <span className="text-[9px] text-slate-500 uppercase block">VOLTAGE STRESS</span>
               <span className="text-sm font-medium text-orange-400">45.7 V</span>
             </div>

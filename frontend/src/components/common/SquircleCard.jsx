@@ -12,13 +12,13 @@ export default function SquircleCard({
     <div
       onClick={onClick}
       className={`
-        relative rounded-2xl transition-all duration-200 backdrop-blur-xl
+        relative rounded-xl transition-all duration-150 backdrop-blur-md
         ${
           elevated
-            ? 'bg-[#121420]/85 border border-white/[0.12] shadow-[0_10px_30px_rgba(0,0,0,0.5)]'
-            : 'bg-[#0d0f18]/75 border border-white/[0.08] shadow-[0_4px_20px_rgba(0,0,0,0.4)]'
+            ? 'bg-[#0d0f18]/65 border border-white/[0.08]'
+            : 'bg-[#090b12]/55 border border-white/[0.05]'
         }
-        ${highlight ? 'border-orange-500/35 bg-[#141724]/90 shadow-[0_0_20px_rgba(249,115,22,0.1)]' : 'hover:border-white/[0.16]'}
+        ${highlight ? 'border-orange-500/30 bg-[#0e101b]/70' : 'hover:border-white/[0.12]'}
         ${onClick ? 'cursor-pointer active:scale-[0.995]' : ''}
         ${className}
       `}
